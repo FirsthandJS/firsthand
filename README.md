@@ -248,6 +248,13 @@ Measured, not asserted. Everything below comes from
 `npm run bench`, which verifies that both implementations render byte-identical
 DOM before it times anything.
 
+React 19 is the comparison because it is the model most readers know and the
+one with a mature, idiomatic implementation to measure against — not because a
+benchmark settles which design is better. Both implementations are written the
+way their own documentation recommends, every scenario is published including
+the ones React wins, and the raw data is in the repository so you can disagree
+with the conclusions using the same numbers.
+
 <!-- benchmark:start -->
 <!-- prettier-ignore-start -->
 

@@ -4,10 +4,17 @@ Status: accepted (Phase 1)
 
 ## Problem
 
-The framework must update the DOM in response to state changes without the
-React model of re-invoking the component function, producing a new UI tree and
-diffing it. It must also avoid the secondary effects of that model: hook call
-order, dependency arrays, render snapshots and stale closures.
+The framework must update the DOM in response to a state change by touching
+only what read that state — without re-invoking the component function,
+producing a new UI tree and diffing it.
+
+Re-running and diffing is the other well-established answer, and a good one:
+a component stays a pure function of its props, and there is exactly one way
+anything updates. It is not the answer here, and the requirement is to be
+honest about what follows from choosing differently. The bookkeeping that model
+needs — hook call order, dependency arrays, render snapshots, values captured
+per render — does not arise here; in exchange, a component body is setup code
+that runs once, which is its own thing to learn.
 
 ## Constraints
 

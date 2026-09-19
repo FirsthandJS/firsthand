@@ -1,4 +1,4 @@
-# ADR-0016: Web components first, a React bridge as the escape hatch
+# ADR-0016: Web components first, and a React bridge for the rest
 
 Status: **accepted** (2026-09-19)
 
@@ -45,10 +45,11 @@ Firsthand an element inside the React tree and fills it through the ordinary
 not one), and events call back out.
 
 It works — `integrations/interop` drives MUI's Button, Chip and Slider in
-Chromium. It also costs about 45 kB gzip of React, eight times this framework's
-runtime, and everything below the bridge re-renders the way React always does.
-The README says so in those words, and the table there recommends against it
-for anything a web component or twenty lines of CSS would cover.
+Chromium. It also brings React itself, about 45 kB gzip against this
+framework's 5.89 kB, and everything below the bridge updates the React way.
+Both facts are in the docs rather than buried, and the table there suggests an
+element or a web component where one would do, because the bridge is worth its
+size for a date picker and not for a button.
 
 ### Styling: its own package
 
@@ -83,7 +84,7 @@ rendering.
 
 - **A React compatibility layer** — implementing `useState`, `useEffect` and a
   reconciler so React components run unmodified. That is a second framework,
-  and a worse one than React at being React.
+  and nobody needs a second, less complete React.
 - **Wrapping MUI components as web components** to avoid the bridge. It still
   needs React underneath, and adds a custom element to every one.
 - **Saying "use web components" and stopping there.** True, unhelpful, and

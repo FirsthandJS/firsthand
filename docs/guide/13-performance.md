@@ -83,8 +83,10 @@ per row. See [Styling](07-styling.md).
 
 ### The React bridge
 
-Everything below a bridged component is React, with React's costs, and React
-itself is about 45 kB gzip. See [React interop](11-react-interop.md).
+Below a bridged component the React model applies, with React's own performance
+characteristics, and React itself is about 45 kB gzip. That is the price of
+running a React component, and it is the same price a React application pays.
+See [React interop](11-react-interop.md).
 
 ## Measuring
 

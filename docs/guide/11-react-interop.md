@@ -5,8 +5,8 @@ Next: [Testing](12-testing.md)
 
 ---
 
-Some component libraries exist only as React components. MUI, Radix, Ant,
-react-select: none of them can run without React's reconciler, so
+Some component libraries are written for React and nothing else. MUI, Radix,
+Ant, react-select: they need React's reconciler to run, so
 `@firsthandjs/react` mounts one.
 
 ```bash
@@ -78,20 +78,24 @@ client, an i18n provider, a router of React's own. They belong in the wrapper.
 
 ## What it costs
 
-React and react-dom are **about 45 kB gzip**, eight times this framework's
-runtime. Everything below a bridge is React's: its reconciler, its re-renders,
-its synthetic events. The bridge is fine-grained on the Firsthand side only — one
-effect re-renders the React root when a prop it reads changes.
+A bridge brings React and react-dom with it — **about 45 kB gzip**, against
+5.89 kB for this runtime — and below the bridge the React model applies: its
+reconciler, its re-renders, its synthetic events. That is not a flaw; it is
+what you are asking for when you use a React component, and it works exactly as
+it does in a React application. The bridge is fine-grained on the Firsthand side
+only: one effect re-renders the React root when a prop it reads changes.
 
-So the size of what you are reaching for should decide:
+Worth it for a component you would not want to write again; less obviously
+worth it for something small:
 
-| You want                                                                  | Use                                                               |
-| ------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| A button, a card, a layout                                                | Elements, or [`@firsthandjs/styled`](07-styling.md)               |
-| A design system                                                           | A [web-component one](10-web-components.md) — no bridge, no React |
-| A date picker, a data grid, a rich text editor that only exists for React | This package                                                      |
+| You want                                                                  | A reasonable choice                                         |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| A button, a card, a layout                                                | Elements, or [`@firsthandjs/styled`](07-styling.md)         |
+| A whole design system                                                     | A [web-component one](10-web-components.md) needs no bridge |
+| A date picker, a data grid, a rich text editor that exists only for React | This package                                                |
 
-The middle row is the one people miss.
+If React is already in your bundle for other reasons, the first row matters
+much less — the 45 kB is paid either way.
 
 ## How it behaves
 
@@ -167,10 +171,12 @@ An installed package has one copy and needs none of this.
 
 ## What this is not
 
-It is not a React compatibility layer. Firsthand does not implement `useState`,
-does not run React components without React, and will not: that would be a
-second framework, and a worse one than React at being React. The reasoning is
-in [ADR-0016](../adr/0016-interop-with-component-libraries.md).
+It is not a React compatibility layer. Firsthand does not implement `useState`
+and does not run React components without React — it runs them _with_ React,
+which is the only way to get React's semantics exactly right. Reimplementing
+them would mean maintaining a second, less complete React, and your components
+deserve the real one. The reasoning is in
+[ADR-0016](../adr/0016-interop-with-component-libraries.md).
 
 ---
 
