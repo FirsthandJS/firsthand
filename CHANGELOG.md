@@ -4,6 +4,38 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-09-19
+
+### Changed
+
+- The documentation describes the re-render model without arguing with it.
+  Several passages used React as a foil — "solves a problem created by
+  re-rendering", "a worse one than React at being React", an ADR titled
+  "escape hatch" — where the subject is really two designs making different
+  trades. Rewritten across ADR-0001, ADR-0006, ADR-0016, the interop guide, the
+  performance guide, the README and the package READMEs: what each model buys,
+  what it costs, and why this project chose as it did. The measurements are
+  unchanged, losses included, and the README now says why React 19 is the
+  comparison at all.
+- The README opens with the question every framework answers rather than with
+  somebody else's answer to it.
+
+### Added
+
+- Re-creating a component on purpose is documented and tested: a changing `key`,
+  or a version signal read in the child position, replaces the instance —
+  cleanups run, state starts fresh — while a prop change still updates in place.
+- The documentation is published as a GitHub wiki, generated from `docs/` by
+  `scripts/build-wiki.mjs` and republished by a workflow on every change, with a
+  sidebar carrying the reading order.
+
+### Fixed
+
+- CodeQL could not run: Dependabot bumps one action path per pull request, so
+  `codeql-action/analyze` reached 4.38.0 while `codeql-action/init` stayed on
+  4.30.8. Every pinned action moves together now, and `dependabot.yml` groups
+  them into one pull request so they cannot drift again.
+
 ## [0.1.0] - 2026-09-19
 
 ### Added
@@ -213,4 +245,5 @@ All notable changes to this project are documented here. The format follows
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.1.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.1.1
 [0.1.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.1.0

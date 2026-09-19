@@ -126,6 +126,12 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # The browser suite serves pages built by the compiler's own dist, so the
+      # packages have to exist before Playwright starts its web server. Locally
+      # they are there from the last build; on a clean runner they are not.
+      - run: npm run build
+
       - run: npx playwright install --with-deps ${{ matrix.browser }}
       - run: npm run test:browser -- --project=${{ matrix.browser }}
 
