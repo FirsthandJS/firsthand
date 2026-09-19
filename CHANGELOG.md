@@ -31,6 +31,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- A signal rendered without reading it — `<p>{count}</p>` — compiled and showed
+  `[object Object]`. JSX children were typed `unknown` while attributes already
+  rejected it; children are typed now, and development warns when any object
+  reaches the branch that stringifies it, naming the fix when it looks like a
+  cell. Production is unchanged in size and behaviour.
 - CodeQL could not run: Dependabot bumps one action path per pull request, so
   `codeql-action/analyze` reached 4.38.0 while `codeql-action/init` stayed on
   4.30.8. Every pinned action moves together now, and `dependabot.yml` groups
