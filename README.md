@@ -25,10 +25,11 @@ handler is created once and always reads the current value.
 
 <!-- headline:start -->
 <!-- prettier-ignore-start -->
-Measured against React 19.2.0 in the same browser session, with byte-identical DOM
-verified before any timing: Firsthand is **1.56× faster** on the render/update set
-(geometric mean of 27 scenarios, 95 % CI 1.25–2.10), and the full runtime is
-**5.89 kB gzip**.
+The whole runtime is **5.89 kB gzip** with no production dependencies. On the
+render/update set it is **1.56× faster** than React 19.2.0 (geometric mean of 27
+scenarios, 95 % CI 1.25–2.10) — measured in the same browser session with
+byte-identical DOM verified before any timing, and with every scenario published,
+including the 2 React wins.
 <!-- prettier-ignore-end -->
 <!-- headline:end -->
 
@@ -59,13 +60,11 @@ verified before any timing: Firsthand is **1.56× faster** on the render/update 
 
 ## Motivation
 
-The React model answers "what changed?" by re-running component functions,
-building a new tree and comparing it to the old one. Everything else follows
-from that: hook call order, dependency arrays, `useMemo`, `useCallback`,
-`memo()`, and stale closures over values captured during a render.
+Every UI framework has to answer one question: when a piece of state changes,
+what has to happen to the screen?
 
-Firsthand answers the same question by knowing, at the time of the write, which DOM
-parts read that piece of state:
+Firsthand answers it by remembering, at the moment the value is read, which DOM
+parts read it. A write then goes straight to those parts:
 
 ```
 state / context / prop
@@ -75,14 +74,23 @@ dependency graph
 only the DOM nodes that actually read it
 ```
 
-rather than:
+A component function is therefore setup code, not render code: it runs once per
+instance, wires its reads to the nodes they produce, and is finished. From that
+one decision the rest follows — there is no virtual DOM, no render snapshot, no
+hook slot table, no dependency array, and no closure holding a value from an
+earlier render.
 
-```
-state change → re-run Component() → build a new tree → diff it against the old one
-```
+Another well-travelled answer is to re-run the component and compare the result
+with the previous one, which is what React does. It buys things this model does
+not have: a component is a pure function of its props, time-slicing and
+concurrent rendering become possible, and the mental model is uniform — there is
+exactly one way anything updates. The costs are the bookkeeping that makes it
+work: hook order, dependency arrays, memoisation, and values captured per
+render.
 
-There is no virtual DOM, no render snapshot, no hook slot table and no
-dependency array. This is not a smaller React; it is a different answer.
+Neither answer is the correct one. They are different trades, and this project
+is a thorough version of the second trade — with the measurements published in
+full so you can see what it costs and what it buys.
 
 ## Design goals
 
@@ -109,10 +117,13 @@ dependency array. This is not a smaller React; it is a different answer.
 - Anything optional inside the core runtime. Routing lives in
   `@firsthandjs/router`, which an application that does not route never downloads;
   the numbers below are the runtime alone.
-- Concurrent rendering and time slicing. They solve a problem created by
-  re-rendering whole trees; the unit of work here is one DOM part
+- Concurrent rendering and time slicing. They exist to keep a long render from
+  blocking the main thread; here the unit of work is a single DOM part, so
+  there is no long render to interrupt — and no way to interrupt one either
   ([ADR-0006](docs/adr/0006-synchronous-scheduling.md)).
-- Being API-compatible with React, or porting its idioms.
+- API compatibility with React, or porting its idioms. Where you need React
+  components themselves, [`@firsthandjs/react`](docs/reference/react.md) runs
+  them as they are.
 
 ## Installation
 
