@@ -167,7 +167,7 @@ interface FirsthandAttributes<E extends Element> {
   hidden?: Attribute<boolean>;
   /** Receives the element once it exists. */
   ref?: ((element: E) => void) | undefined;
-  children?: unknown;
+  children?: JsxChildren;
   onClick?: EventHandler<E, MouseEvent> | undefined;
   onDblClick?: EventHandler<E, MouseEvent> | undefined;
   onInput?: EventHandler<E, InputEvent> | undefined;
@@ -187,6 +187,18 @@ interface FirsthandAttributes<E extends Element> {
 type DomAttributes<E extends Element> = OptionalAttributes<
   Omit<E, keyof FirsthandAttributes<E> | 'style' | 'children' | keyof Node | keyof Element>
 >;
+
+/**
+ * What may appear between an element's tags.
+ *
+ * Deliberately not `unknown`: a signal is an object, and `<p>{count}</p>` would
+ * otherwise compile and render `[object Object]`. The runtime accepts a thunk
+ * too, because that is what the compiler emits for a dynamic child.
+ */
+type JsxChildren =
+  | import('@firsthandjs/dom').View
+  | (() => import('@firsthandjs/dom').View)
+  | readonly JsxChildren[];
 
 type Escapes = {
   [key: `prop:${string}`]: unknown;

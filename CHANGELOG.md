@@ -118,7 +118,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Measured
 
-- Bundle size: full runtime 5.89 kB gzip (5.29 kB brotli), within the 6 kB
+- Bundle size: full runtime 5.88 kB gzip (5.29 kB brotli), within the 6 kB
   budget, enforced by `npm run build`. Routing adds 3.36 kB gzip, the query
   cache 3.23 kB (2.14 kB on the `.gql` loader path) and styling 1.97 kB, each
   only if imported.

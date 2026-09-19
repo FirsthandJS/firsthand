@@ -25,7 +25,7 @@ handler is created once and always reads the current value.
 
 <!-- headline:start -->
 <!-- prettier-ignore-start -->
-The whole runtime is **5.89 kB gzip** with no production dependencies. On the
+The whole runtime is **5.88 kB gzip** with no production dependencies. On the
 render/update set it is **1.56× faster** than React 19.2.0 (geometric mean of 27
 scenarios, 95 % CI 1.25–2.10) — measured in the same browser session with
 byte-identical DOM verified before any timing, and with every scenario published,
@@ -343,7 +343,7 @@ different sample sizes would quietly weaken the confidence interval.
 | `@firsthandjs/dom` | 10.36 kB | **4.15 kB** | 3.70 kB |
 | `@firsthandjs/dom/internal` | 9.79 kB | **4.07 kB** | 3.62 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
-| full runtime (core + dom, everything imported) | 15.92 kB | **5.89 kB** | 5.30 kB |
+| full runtime (core + dom, everything imported) | 15.92 kB | **5.88 kB** | 5.30 kB |
 
 
 Optional packages, downloaded only by an application that imports them:
