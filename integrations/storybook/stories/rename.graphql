@@ -1,0 +1,6 @@
+mutation RenameUser($id: ID!, $name: String!) @invalidates(name: "user", id: $id) {
+  renameUser(id: $id, name: $name) {
+    id
+    name
+  }
+}

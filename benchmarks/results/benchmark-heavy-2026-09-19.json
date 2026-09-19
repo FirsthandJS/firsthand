@@ -1,0 +1,105 @@
+{
+  "metadata": {
+    "timestamp": "2026-09-19T16:59:23.484Z",
+    "os": "win32 10.0.19045",
+    "cpu": "Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz",
+    "cores": 12,
+    "ramBytes": 68575928320,
+    "browser": "chromium",
+    "browserVersion": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+    "nodeVersion": "v24.19.0",
+    "playwrightVersion": "1.63.0",
+    "reactVersion": "19.2.0",
+    "reactDomVersion": "19.2.0",
+    "firsthandVersion": "0.1.0",
+    "gitCommit": "113006341667941d588d1ead510ee2d7a2040922",
+    "buildMode": "production",
+    "scale": "heavy (100 000 rows)",
+    "warmupRepetitions": 1,
+    "measuredRepetitions": 7,
+    "domEqualityVerified": true
+  },
+  "scenarios": [
+    {
+      "id": "mount-100k",
+      "firsthand": {
+        "samples": 7,
+        "median": 3995.1999999999534,
+        "p95": 4891.40000000014,
+        "mean": 4157.242857142859,
+        "stddev": 369.9681646536566,
+        "mad": 136.30000000004657,
+        "min": 3858.899999999907,
+        "max": 4891.40000000014
+      },
+      "react": {
+        "samples": 7,
+        "median": 32645.099999999977,
+        "p95": 60210.09999999998,
+        "mean": 39067.24285714288,
+        "stddev": 12364.764017003754,
+        "mad": 4867.099999999977,
+        "min": 27778,
+        "max": 60210.09999999998
+      },
+      "ratio": 8.171080296355717
+    },
+    {
+      "id": "clear-100k",
+      "firsthand": {
+        "samples": 7,
+        "median": 592.8999999999069,
+        "p95": 1010.2000000000698,
+        "mean": 659.6142857142507,
+        "stddev": 158.07989993012959,
+        "mad": 23.999999999941792,
+        "min": 568.8999999999651,
+        "max": 1010.2000000000698
+      },
+      "react": {
+        "samples": 7,
+        "median": 1841,
+        "p95": 2716.5999999998603,
+        "mean": 1790.5857142856778,
+        "stddev": 787.0093337620133,
+        "mad": 733.1999999999534,
+        "min": 734.8999999999069,
+        "max": 2716.5999999998603
+      },
+      "ratio": 3.1050767414408655
+    },
+    {
+      "id": "update-every-10th-100k",
+      "firsthand": {
+        "samples": 7,
+        "median": 929,
+        "p95": 1081.1999999999534,
+        "mean": 947.3142857142874,
+        "stddev": 77.90035148765489,
+        "mad": 47,
+        "min": 854.6000000000931,
+        "max": 1081.1999999999534
+      },
+      "react": {
+        "samples": 7,
+        "median": 1020.8999999999069,
+        "p95": 1977.5999999998603,
+        "mean": 1176.342857142819,
+        "stddev": 357.65642664962513,
+        "mad": 42.0999999998603,
+        "min": 978.8000000000466,
+        "max": 1977.5999999998603
+      },
+      "ratio": 1.0989235737350989
+    }
+  ],
+  "aggregate": {
+    "geometricMeanRatio": 3.0323065364312627,
+    "ci95": [
+      1.0989235737350989,
+      8.171080296355717
+    ]
+  },
+  "memory": null,
+  "startup": null
+}

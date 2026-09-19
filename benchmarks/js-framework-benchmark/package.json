@@ -1,0 +1,23 @@
+{
+  "name": "js-framework-benchmark-firsthand",
+  "version": "1.0.0",
+  "description": "Firsthand keyed implementation for js-framework-benchmark",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build-prod": "vite build"
+  },
+  "js-framework-benchmark": {
+    "frameworkVersion": "0.0.0",
+    "frameworkHomeURL": "https://github.com/firsthandjs/firsthand",
+    "issues": [],
+    "customURL": null
+  },
+  "dependencies": {
+    "@firsthandjs/dom": "0.0.0"
+  },
+  "devDependencies": {
+    "@firsthandjs/compiler": "0.0.0",
+    "vite": "^7.1.9"
+  }
+}

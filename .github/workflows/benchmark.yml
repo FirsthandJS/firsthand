@@ -1,0 +1,65 @@
+name: Benchmark
+
+# Benchmarks live in their own workflow: shared CI hardware is noisy, so these
+# numbers are for spotting regressions, not for publishing absolute figures.
+# Published results are produced on a known machine and committed (see
+# PERFORMANCE_PLAN.md).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 1'
+  pull_request:
+    paths:
+      - 'packages/**'
+      - 'benchmarks/**'
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    name: Firsthand vs React, same run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v5.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Run the benchmark suite
+        run: npm run bench
+
+      - name: Summarise
+        run: node benchmarks/report.mjs --markdown >> "$GITHUB_STEP_SUMMARY"
+
+      # Shared CI hardware is too noisy to fail a build on, so a regression is
+      # made visible rather than fatal: the summary shows every scenario whose
+      # ratio against React moved, and marks the ones whose samples were too
+      # widely spread for the movement to mean anything.
+      - name: Compare against the committed baseline
+        run: |
+          git show HEAD:benchmarks/results/latest.json > /tmp/baseline.json 2>/dev/null || true
+          if [ -s /tmp/baseline.json ]; then
+            node benchmarks/compare.mjs benchmarks/results/latest.json               --baseline /tmp/baseline.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # The README's tables are generated from the result file, never written by
+      # hand. This shows the diff a maintainer would commit after a real run.
+      - name: Show the README diff these results would produce
+        run: |
+          node scripts/update-readme-benchmarks.mjs
+          git --no-pager diff -- README.md || true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: benchmark-results
+          path: benchmarks/results/
+          retention-days: 90

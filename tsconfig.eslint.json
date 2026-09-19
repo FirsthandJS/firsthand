@@ -1,0 +1,44 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "types": ["node"],
+    "jsx": "preserve",
+    "allowJs": true,
+    "checkJs": false,
+    "jsxImportSource": "@firsthandjs/jsx-runtime",
+    "paths": {
+      "@firsthandjs/core": ["./packages/core/src/index.ts"],
+      "@firsthandjs/dom": ["./packages/dom/src/index.ts"],
+      "@firsthandjs/dom/internal": ["./packages/dom/src/internal.ts"],
+      "@firsthandjs/jsx-runtime": ["./packages/jsx-runtime/src/index.ts"],
+      "@firsthandjs/jsx-runtime/jsx-runtime": ["./packages/jsx-runtime/src/index.ts"],
+      "@firsthandjs/jsx-runtime/jsx-dev-runtime": ["./packages/jsx-runtime/src/index.ts"],
+      "@firsthandjs/query": ["./packages/query/src/index.ts"],
+      "@firsthandjs/query/vite": ["./packages/query/src/vite.ts"],
+      "@firsthandjs/query/codegen": ["./packages/query/src/codegen.ts"],
+      "@firsthandjs/react/auto": ["./packages/react/src/auto.ts"],
+      "@firsthandjs/react": ["./packages/react/src/index.ts"],
+      "@firsthandjs/router": ["./packages/router/src/index.ts"],
+      "@firsthandjs/styled": ["./packages/styled/src/index.ts"],
+      "@firsthandjs/testing": ["./packages/testing/src/index.ts"],
+      "@firsthandjs/compiler": ["./packages/compiler/src/index.ts"],
+      "@firsthandjs/compiler/vite": ["./packages/compiler/src/vite.ts"]
+    },
+    "baseUrl": "."
+  },
+  "include": [
+    "packages/*/src/**/*",
+    "packages/*/test/**/*",
+    "tests/**/*",
+    "scripts/**/*",
+    "benchmarks/**/*",
+    "examples/**/*",
+    "*.config.ts",
+    "*.config.js",
+    "*.mjs"
+  ]
+}

@@ -1,0 +1,9 @@
+# The tags live here, next to the query they describe. They are directives, so
+# every tool in the chain reads them as syntax — and they are stripped from the
+# document before it is sent, because they are instructions to the cache.
+query User($id: ID!) @tag(name: "user", id: $id) {
+  user(id: $id) {
+    id
+    name
+  }
+}

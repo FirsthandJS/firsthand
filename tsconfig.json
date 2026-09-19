@@ -1,0 +1,32 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./packages/dom"
+    },
+    {
+      "path": "./packages/jsx-runtime"
+    },
+    {
+      "path": "./packages/router"
+    },
+    {
+      "path": "./packages/query"
+    },
+    {
+      "path": "./packages/testing"
+    },
+    {
+      "path": "./packages/compiler"
+    },
+    {
+      "path": "./packages/styled"
+    },
+    {
+      "path": "./packages/react"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+test-results/
+playwright-report/
+benchmarks/app/dist/
+tests/browser/fixture/dist/
+examples/dist/
+.vite/
+
+# Agent tooling that is not part of the framework
+.agents/
+skills-lock.json
+benchmarks/reconcilers/dist/
+.stryker-tmp/
+reports/
+benchmarks/micro/dist/
+integrations/storybook/storybook-static/
+release/
+
+# Maintainer-only: the release procedure and the tooling that runs it. These
+# are about publishing this repository, not about using or building the
+# framework, so they live outside the public tree. `scripts/` holds only what
+# the build and the CI gate need, and all of that is tracked.
+internal/

@@ -1,0 +1,33 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation testing for the critical core logic. 100% coverage says every line ran; this says the tests would have noticed if a line were wrong. Scoped to the reactive graph, the owner tree and context, because that is where a silent defect is most expensive and hardest to see in a review. The break threshold has headroom: a mutant that times out counts as killed, and how many time out depends on how busy the machine is, so the score moves by about a point between runs on the same code.",
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "reporters": ["html", "json", "clear-text", "progress"],
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  },
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "mutate": [
+    "packages/core/src/core.ts",
+    "packages/core/src/context.ts",
+    "packages/core/src/computed.ts",
+    "packages/core/src/effect.ts",
+    "packages/core/src/signal.ts",
+    "packages/core/src/lifecycle.ts"
+  ],
+  "coverageAnalysis": "perTest",
+  "timeoutMS": 20000,
+  "thresholds": {
+    "high": 95,
+    "low": 88,
+    "break": 88
+  },
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": true
+}

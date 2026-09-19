@@ -1,0 +1,29 @@
+{
+  "name": "firsthand-interop-integration",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MUI, Shoelace and styled components running in Firsthand, in a real browser.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "tsc --noEmit && node verify.mjs"
+  },
+  "dependencies": {
+    "@firsthandjs/dom": "file:../../packages/dom",
+    "@firsthandjs/jsx-runtime": "file:../../packages/jsx-runtime",
+    "@firsthandjs/react": "file:../../packages/react",
+    "@firsthandjs/styled": "file:../../packages/styled",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/material": "^9.4.0",
+    "@shoelace-style/shoelace": "^2.20.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@firsthandjs/compiler": "file:../../packages/compiler",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6"
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "name": "firsthand-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Firsthand â€” a fine-grained reactive framework for the web platform",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "build": "node scripts/build.mjs",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "test:exports": "node scripts/check-exports.mjs",
+    "check:versions": "node scripts/check-versions.mjs",
+    "test:browser": "playwright test",
+    "bench": "node benchmarks/run.mjs",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run coverage && npm run test:types && npm run build && npm run test:exports && npm run check:versions && npm run check:readme && npm run check:benchmark-shared && npm run check:no-deps && npm run check:workflows",
+    "test:memory": "node --expose-gc ./node_modules/vitest/vitest.mjs run --project dom packages/dom/test/memory.test.ts",
+    "bench:readme": "node scripts/update-readme-benchmarks.mjs",
+    "check:readme": "node scripts/update-readme-benchmarks.mjs --check",
+    "bench:reconcilers": "node benchmarks/reconcilers/run.mjs",
+    "test:mutation": "stryker run",
+    "bench:profile": "node benchmarks/profile.mjs",
+    "check:benchmark-shared": "node scripts/check-benchmark-shared.mjs",
+    "bench:micro": "node benchmarks/micro/run.mjs",
+    "test:types": "vitest run --project types",
+    "check:workflows": "node scripts/check-workflows.mjs",
+    "bench:compare": "node benchmarks/compare.mjs",
+    "check:no-deps": "node scripts/check-no-deps.mjs",
+    "bench:ic": "node benchmarks/ic.mjs"
+  },
+  "devDependencies": {
+    "@babel/core": "^8.0.6",
+    "@babel/generator": "^8.0.6",
+    "@babel/parser": "^7.29.9",
+    "@babel/plugin-syntax-jsx": "^8.0.1",
+    "@babel/plugin-syntax-typescript": "^8.0.3",
+    "@babel/types": "^8.0.6",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/vitest-runner": "^10.0.0",
+    "@types/babel__core": "^7.20.5",
+    "@types/babel__generator": "^7.27.0",
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
+    "happy-dom": "^20.14.5",
+    "playwright": "^1.63.0",
+    "prettier": "^3.9.8",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.70.0",
+    "vite": "^7.3.6",
+    "vitest": "^3.2.4",
+    "yaml": "^2.9.1"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firsthandjs/firsthand.git"
+  },
+  "bugs": {
+    "url": "https://github.com/firsthandjs/firsthand/issues"
+  },
+  "homepage": "https://github.com/firsthandjs/firsthand#readme"
+}

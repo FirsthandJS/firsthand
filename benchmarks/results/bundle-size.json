@@ -1,0 +1,73 @@
+{
+  "measuredAt": "2026-09-19T20:02:50.011Z",
+  "sizes": [
+    {
+      "module": "@firsthandjs/core",
+      "minified": 6508,
+      "gzip": 2363,
+      "brotli": 2136
+    },
+    {
+      "module": "@firsthandjs/dom",
+      "minified": 10606,
+      "gzip": 4246,
+      "brotli": 3789
+    },
+    {
+      "module": "@firsthandjs/dom/internal",
+      "minified": 10027,
+      "gzip": 4167,
+      "brotli": 3705
+    },
+    {
+      "module": "@firsthandjs/jsx-runtime",
+      "minified": 1173,
+      "gzip": 601,
+      "brotli": 512
+    },
+    {
+      "module": "full runtime (core + dom, everything imported)",
+      "minified": 16306,
+      "gzip": 6027,
+      "brotli": 5429
+    }
+  ],
+  "optional": [
+    {
+      "module": "@firsthandjs/router",
+      "minified": 8565,
+      "gzip": 3442,
+      "brotli": 3135
+    },
+    {
+      "module": "@firsthandjs/query",
+      "minified": 7928,
+      "gzip": 3305,
+      "brotli": 3022
+    },
+    {
+      "module": "@firsthandjs/query (.gql loader path, parser tree-shaken)",
+      "minified": 5243,
+      "gzip": 2196,
+      "brotli": 2024
+    },
+    {
+      "module": "@firsthandjs/styled",
+      "minified": 4251,
+      "gzip": 2016,
+      "brotli": 1816
+    },
+    {
+      "module": "@firsthandjs/react",
+      "minified": 1220,
+      "gzip": 677,
+      "brotli": 597
+    },
+    {
+      "module": "@firsthandjs/react/auto",
+      "minified": 1228,
+      "gzip": 672,
+      "brotli": 596
+    }
+  ]
+}

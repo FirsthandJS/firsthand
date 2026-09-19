@@ -1,0 +1,39 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+body {
+  margin: 0;
+  padding: 2rem;
+  max-width: 60rem;
+}
+button {
+  font: inherit;
+  padding: 0.35rem 0.8rem;
+  border-radius: 0.375rem;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+input[type='text'] {
+  font: inherit;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid;
+}
+.done {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+td,
+th {
+  border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+}

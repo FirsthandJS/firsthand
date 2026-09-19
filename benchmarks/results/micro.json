@@ -1,0 +1,72 @@
+{
+  "metadata": {
+    "timestamp": "2026-09-19T16:18:41.739Z",
+    "os": "win32 10.0.19045",
+    "cpu": "Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz",
+    "cores": 12,
+    "browser": "chromium",
+    "nodeVersion": "v24.19.0",
+    "gitCommit": "1908ce50198de6e12081e04721a0a1ff34ef2faa",
+    "components": 2000,
+    "warmupRepetitions": 3,
+    "measuredRepetitions": 12
+  },
+  "elementHost": [
+    {
+      "variant": "hostless",
+      "mountMedian": 13.950000002980232,
+      "updateMedian": 8.450000002980232,
+      "domNodes": 2000
+    },
+    {
+      "variant": "hosted",
+      "mountMedian": 23.149999991059303,
+      "updateMedian": 9.249999985098839,
+      "domNodes": 4000
+    },
+    {
+      "variant": "shadowed",
+      "mountMedian": 23.900000005960464,
+      "updateMedian": 9.749999985098839,
+      "domNodes": 2000
+    }
+  ],
+  "events": [
+    {
+      "depth": 1,
+      "rows": 2000,
+      "setup": {
+        "delegated": 0.09999999403953552,
+        "direct": 0.30000001192092896
+      },
+      "dispatch": {
+        "delegated": 7.25,
+        "direct": 8.549999997019768
+      }
+    },
+    {
+      "depth": 5,
+      "rows": 2000,
+      "setup": {
+        "delegated": 0.09999999403953552,
+        "direct": 0.3999999910593033
+      },
+      "dispatch": {
+        "delegated": 8.600000008940697,
+        "direct": 10.150000005960464
+      }
+    },
+    {
+      "depth": 20,
+      "rows": 2000,
+      "setup": {
+        "delegated": 0.09999999403953552,
+        "direct": 0.6000000238418579
+      },
+      "dispatch": {
+        "delegated": 20.349999994039536,
+        "direct": 21.950000002980232
+      }
+    }
+  ]
+}

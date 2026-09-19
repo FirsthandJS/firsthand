@@ -1,0 +1,510 @@
+{
+  "metadata": {
+    "timestamp": "2026-09-19T16:21:08.729Z",
+    "os": "win32 10.0.19045",
+    "cpu": "Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz",
+    "cores": 12,
+    "browser": "chromium",
+    "nodeVersion": "v24.19.0",
+    "gitCommit": "1908ce50198de6e12081e04721a0a1ff34ef2faa",
+    "warmupRepetitions": 3,
+    "measuredRepetitions": 15,
+    "correctnessVerified": true
+  },
+  "rows": [
+    {
+      "operation": "append",
+      "size": 1000,
+      "candidates": {
+        "shipped": {
+          "median": 2,
+          "samples": 15,
+          "inserts": 100,
+          "removals": 0
+        },
+        "prefixSuffix": {
+          "median": 2,
+          "samples": 15,
+          "inserts": 100,
+          "removals": 0
+        },
+        "naive": {
+          "median": 4.199999988079071,
+          "samples": 15,
+          "inserts": 1100,
+          "removals": 0
+        }
+      }
+    },
+    {
+      "operation": "prepend",
+      "size": 1000,
+      "candidates": {
+        "shipped": {
+          "median": 2.0999999940395355,
+          "samples": 15,
+          "inserts": 100,
+          "removals": 0
+        },
+        "prefixSuffix": {
+          "median": 2.0999999940395355,
+          "samples": 15,
+          "inserts": 100,
+          "removals": 0
+        },
+        "naive": {
+          "median": 4.199999988079071,
+          "samples": 15,
+          "inserts": 1100,
+          "removals": 0
+        }
+      }
+    },
+    {
+      "operation": "insertMiddle",
+      "size": 1000,
+      "candidates": {
+        "shipped": {
+          "median": 2.199999988079071,
+          "samples": 15,
+          "inserts": 100,
+          "removals": 0
+        },
+        "prefixSuffix": {
+          "median": 2.199999988079071,
+          "samples": 15,
+          "inserts": 100,
+          "removals": 0
+        },
+        "naive": {
+          "median": 4.199999988079071,
+          "samples": 15,
+          "inserts": 1100,
+          "removals": 0
+        }
+      }
+    },
+    {
+      "operation": "removeMiddle",
+      "size": 1000,
+      "candidates": {
+        "shipped": {
+          "median": 1.800000011920929,
+          "samples": 15,
+          "inserts": 0,
+          "removals": 100
+        },
+        "prefixSuffix": {
+          "median": 1.800000011920929,
+          "samples": 15,
+          "inserts": 0,
+          "removals": 100
+        },
+        "naive": {
+          "median": 3.5,
+          "samples": 15,
+          "inserts": 900,
+          "removals": 100
+        }
+      }
+    },
+    {
+      "operation": "swapEnds",
+      "size": 1000,
+      "candidates": {
+        "shipped": {
+          "median": 1.800000011920929,
+          "samples": 15,
+          "inserts": 2,
+          "removals": 0
+        },
+        "prefixSuffix": {
+          "median": 3.7999999821186066,
+          "samples": 15,
+          "inserts": 997,
+          "removals": 0
+        },
+        "naive": {
+          "median": 3.699999988079071,
+          "samples": 15,
+          "inserts": 1000,
+          "removals": 0
+        }
+      }
+    },
+    {
+      "operation": "reverse",
+      "size": 1000,
+      "candidates": {
+        "shipped": {
+          "median": 3.800000011920929,
+          "samples": 15,
+          "inserts": 999,
+          "removals": 0
+        },
+        "prefixSuffix": {
+          "median": 3.800000011920929,
+          "samples": 15,
+          "inserts": 999,
+          "removals": 0
+        },
+        "naive": {
+          "median": 3.699999988079071,
+          "samples": 15,
+          "inserts": 1000,
+          "removals": 0
+        }
+      }
+    },
+    {
+      "operation": "shuffle10",
+      "size": 1000,
+      "candidates": {
+        "shipped": {
+          "median": 2.2999999821186066,
+          "samples": 15,
+          "inserts": 182,
+          "removals": 0
+        },
+        "prefixSuffix": {
+          "median": 3.7000000178813934,
+          "samples": 15,
+          "inserts": 988,
+          "removals": 0
+        },
+        "naive": {
+          "median": 3.800000011920929,
+          "samples": 15,
+          "inserts": 1000,
+          "removals": 0
+        }
+      }
+    },
+    {
+      "operation": "shuffleAll",
+      "size": 1000,
+      "candidates": {
+        "shipped": {
+          "median": 3.7000000178813934,
+          "samples": 15,
+          "inserts": 850,
+          "removals": 0
+        },
+        "prefixSuffix": {
+          "median": 3.9000000059604645,
+          "samples": 15,
+          "inserts": 990,
+          "removals": 0
+        },
+        "naive": {
+          "median": 3.699999988079071,
+          "samples": 15,
+          "inserts": 1000,
+          "removals": 0
+        }
+      }
+    },
+    {
+      "operation": "replaceAll",
+      "size": 1000,
+      "candidates": {
+        "shipped": {
+          "median": 3.7999999821186066,
+          "samples": 15,
+          "inserts": 1000,
+          "removals": 1000
+        },
+        "prefixSuffix": {
+          "median": 3.699999988079071,
+          "samples": 15,
+          "inserts": 1000,
+          "removals": 1000
+        },
+        "naive": {
+          "median": 3.7000000178813934,
+          "samples": 15,
+          "inserts": 1000,
+          "removals": 1000
+        }
+      }
+    },
+    {
+      "operation": "clear",
+      "size": 1000,
+      "candidates": {
+        "shipped": {
+          "median": 0.5999999940395355,
+          "samples": 15,
+          "inserts": 0,
+          "removals": 1000
+        },
+        "prefixSuffix": {
+          "median": 0.699999988079071,
+          "samples": 15,
+          "inserts": 0,
+          "removals": 1000
+        },
+        "naive": {
+          "median": 0.699999988079071,
+          "samples": 15,
+          "inserts": 0,
+          "removals": 1000
+        }
+      }
+    },
+    {
+      "operation": "append",
+      "size": 10000,
+      "candidates": {
+        "shipped": {
+          "median": 28,
+          "samples": 15,
+          "inserts": 1000,
+          "removals": 0
+        },
+        "prefixSuffix": {
+          "median": 28.599999994039536,
+          "samples": 15,
+          "inserts": 1000,
+          "removals": 0
+        },
+        "naive": {
+          "median": 51.099999994039536,
+          "samples": 15,
+          "inserts": 11000,
+          "removals": 0
+        }
+      }
+    },
+    {
+      "operation": "prepend",
+      "size": 10000,
+      "candidates": {
+        "shipped": {
+          "median": 26.30000001192093,
+          "samples": 15,
+          "inserts": 1000,
+          "removals": 0
+        },
+        "prefixSuffix": {
+          "median": 29.5,
+          "samples": 15,
+          "inserts": 1000,
+          "removals": 0
+        },
+        "naive": {
+          "median": 55.29999998211861,
+          "samples": 15,
+          "inserts": 11000,
+          "removals": 0
+        }
+      }
+    },
+    {
+      "operation": "insertMiddle",
+      "size": 10000,
+      "candidates": {
+        "shipped": {
+          "median": 20.5,
+          "samples": 15,
+          "inserts": 100,
+          "removals": 0
+        },
+        "prefixSuffix": {
+          "median": 21.19999998807907,
+          "samples": 15,
+          "inserts": 100,
+          "removals": 0
+        },
+        "naive": {
+          "median": 43.30000001192093,
+          "samples": 15,
+          "inserts": 10100,
+          "removals": 0
+        }
+      }
+    },
+    {
+      "operation": "removeMiddle",
+      "size": 10000,
+      "candidates": {
+        "shipped": {
+          "median": 22,
+          "samples": 15,
+          "inserts": 0,
+          "removals": 1000
+        },
+        "prefixSuffix": {
+          "median": 21.900000005960464,
+          "samples": 15,
+          "inserts": 0,
+          "removals": 1000
+        },
+        "naive": {
+          "median": 39.5,
+          "samples": 15,
+          "inserts": 9000,
+          "removals": 1000
+        }
+      }
+    },
+    {
+      "operation": "swapEnds",
+      "size": 10000,
+      "candidates": {
+        "shipped": {
+          "median": 21.900000005960464,
+          "samples": 15,
+          "inserts": 2,
+          "removals": 0
+        },
+        "prefixSuffix": {
+          "median": 42.599999994039536,
+          "samples": 15,
+          "inserts": 9997,
+          "removals": 0
+        },
+        "naive": {
+          "median": 42.80000001192093,
+          "samples": 15,
+          "inserts": 10000,
+          "removals": 0
+        }
+      }
+    },
+    {
+      "operation": "reverse",
+      "size": 10000,
+      "candidates": {
+        "shipped": {
+          "median": 41,
+          "samples": 15,
+          "inserts": 9999,
+          "removals": 0
+        },
+        "prefixSuffix": {
+          "median": 44.19999998807907,
+          "samples": 15,
+          "inserts": 9999,
+          "removals": 0
+        },
+        "naive": {
+          "median": 41.80000001192093,
+          "samples": 15,
+          "inserts": 10000,
+          "removals": 0
+        }
+      }
+    },
+    {
+      "operation": "shuffle10",
+      "size": 10000,
+      "candidates": {
+        "shipped": {
+          "median": 27.900000005960464,
+          "samples": 15,
+          "inserts": 1811,
+          "removals": 0
+        },
+        "prefixSuffix": {
+          "median": 46,
+          "samples": 15,
+          "inserts": 9980,
+          "removals": 0
+        },
+        "naive": {
+          "median": 43.099999994039536,
+          "samples": 15,
+          "inserts": 10000,
+          "removals": 0
+        }
+      }
+    },
+    {
+      "operation": "shuffleAll",
+      "size": 10000,
+      "candidates": {
+        "shipped": {
+          "median": 45.29999998211861,
+          "samples": 15,
+          "inserts": 8625,
+          "removals": 0
+        },
+        "prefixSuffix": {
+          "median": 47.20000001788139,
+          "samples": 15,
+          "inserts": 9990,
+          "removals": 0
+        },
+        "naive": {
+          "median": 45.80000001192093,
+          "samples": 15,
+          "inserts": 10000,
+          "removals": 0
+        }
+      }
+    },
+    {
+      "operation": "replaceAll",
+      "size": 10000,
+      "candidates": {
+        "shipped": {
+          "median": 43.39999997615814,
+          "samples": 15,
+          "inserts": 10000,
+          "removals": 10000
+        },
+        "prefixSuffix": {
+          "median": 53.099999994039536,
+          "samples": 15,
+          "inserts": 10000,
+          "removals": 10000
+        },
+        "naive": {
+          "median": 41.80000001192093,
+          "samples": 15,
+          "inserts": 10000,
+          "removals": 10000
+        }
+      }
+    },
+    {
+      "operation": "clear",
+      "size": 10000,
+      "candidates": {
+        "shipped": {
+          "median": 6.5999999940395355,
+          "samples": 15,
+          "inserts": 0,
+          "removals": 10000
+        },
+        "prefixSuffix": {
+          "median": 6.5,
+          "samples": 15,
+          "inserts": 0,
+          "removals": 10000
+        },
+        "naive": {
+          "median": 6.5999999940395355,
+          "samples": 15,
+          "inserts": 0,
+          "removals": 10000
+        }
+      }
+    }
+  ],
+  "totals": {
+    "shipped": {
+      "relative": 1.0055514975344118,
+      "mutations": 58970
+    },
+    "prefixSuffix": {
+      "relative": 1.1703819567069011,
+      "mutations": 80440
+    },
+    "naive": {
+      "relative": 1.488570039637604,
+      "mutations": 123400
+    }
+  }
+}

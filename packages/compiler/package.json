@@ -1,0 +1,57 @@
+{
+  "name": "@firsthandjs/compiler",
+  "version": "0.1.0",
+  "description": "Build-time TSX transform for Firsthand: static markup into templates, dynamic expressions into DOM parts.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "default": "./dist/vite.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@babel/core": "^8.0.6",
+    "@babel/plugin-syntax-jsx": "^8.0.0",
+    "@babel/types": "^8.0.6",
+    "@babel/plugin-syntax-typescript": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firsthandjs/firsthand.git",
+    "directory": "packages/compiler"
+  },
+  "bugs": {
+    "url": "https://github.com/firsthandjs/firsthand/issues"
+  },
+  "homepage": "https://github.com/firsthandjs/firsthand#readme",
+  "keywords": [
+    "reactive",
+    "signals",
+    "fine-grained",
+    "web-components",
+    "ui",
+    "framework",
+    "jsx",
+    "no-virtual-dom"
+  ]
+}

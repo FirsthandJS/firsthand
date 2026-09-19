@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "jsx": "preserve",
+    "jsxImportSource": "@firsthandjs/jsx-runtime",
+    "types": ["vite/client"]
+  },
+  "include": ["stories", ".storybook", "firsthand.ts", "graphql.d.ts", "verify.mjs"]
+}

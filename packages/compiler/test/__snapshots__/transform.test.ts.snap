@@ -1,0 +1,38 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`compiler smoke > compiles a counter 1`] = `
+"import { bind as _$bind, applyProp as _$applyProp, on as _$on, setBoolean as _$setBoolean, insert as _$insert, template as _$template } from "@firsthandjs/dom/internal";
+const _tmpl$1 = /*#__PURE__*/_$template("<button>Count: <!> <b>static</b></button>");
+import { component, signal } from '@firsthandjs/core';
+export const Counter = component(props => {
+  const count = signal(props.initial);
+  return (() => {
+    const _el$ = _tmpl$1();
+    _$bind(() => _$applyProp(_el$, "class", count.value > 10 ? 'high' : 'normal'));
+    _$on(_el$, "click", () => count.value++);
+    _$bind(() => _$setBoolean(_el$, "disabled", count.value >= 100));
+    const _el$1 = _el$.firstChild.nextSibling;
+    _$insert(_el$, () => count.value, _el$1);
+    return _el$;
+  })();
+}, undefined, "875f86b1/Counter", "Counter");"
+`;
+
+exports[`keyed lists > compiles a keyed map into a list part with live item reads 1`] = `
+"import { list as _$list, insert as _$insert, template as _$template } from "@firsthandjs/dom/internal";
+const _tmpl$1 = /*#__PURE__*/_$template("<tbody></tbody>"),
+  _tmpl$2 = /*#__PURE__*/_$template("<tr><td></td><td></td></tr>");
+import { component } from '@firsthandjs/core';
+export const Table = component(props => (() => {
+  const _el$ = _tmpl$1();
+  _$insert(_el$, _$list(() => props.rows, (row, i) => row.id, (_item, _index) => (() => {
+    const _el$ = _tmpl$2();
+    const _el$1 = _el$.firstChild;
+    _$insert(_el$1, () => _index.value);
+    const _el$2 = _el$1.nextSibling;
+    _$insert(_el$2, () => _item.value.label);
+    return _el$;
+  })()));
+  return _el$;
+})(), undefined, "875f86b1/Table", "Table");"
+`;

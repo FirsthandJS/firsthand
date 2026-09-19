@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'npm dist-tag'
+        required: false
+        default: 'latest'
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish to npm with provenance
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      # Required for npm Trusted Publishing over OIDC and for attestations.
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+          # The whole history, so the anonymity check can look at all of it.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v5.0.0
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run coverage
+      - run: npm run build
+      - run: npm run test:exports
+      - run: npm run check:versions
+
+      - name: Attest build artifacts
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
+        with:
+          subject-path: 'packages/*/dist/**'
+
+      # No NODE_AUTH_TOKEN: publishing uses npm Trusted Publishing over OIDC,
+      # so there is no long-lived token to leak or rotate. Provenance is
+      # attached automatically for OIDC publishes.
+      - name: Publish packages
+        run: npm publish --workspaces --provenance --tag "${{ inputs.tag || 'latest' }}"

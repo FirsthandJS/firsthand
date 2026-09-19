@@ -1,0 +1,47 @@
+{
+  "name": "@firsthandjs/core",
+  "version": "0.1.0",
+  "description": "Fine-grained reactive core: signals, computeds, effects, owners and context. No DOM.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firsthandjs/firsthand.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/firsthandjs/firsthand/issues"
+  },
+  "homepage": "https://github.com/firsthandjs/firsthand#readme",
+  "keywords": [
+    "reactive",
+    "signals",
+    "fine-grained",
+    "web-components",
+    "ui",
+    "framework",
+    "jsx",
+    "no-virtual-dom"
+  ]
+}

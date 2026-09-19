@@ -1,0 +1,191 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: format, lint, types, tests, coverage, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v5.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and compiler tests with 100% coverage gate
+        run: npm run coverage
+
+      # Assertions the runtime cannot make: that a computed has no setter, that
+      # context tokens are not interchangeable, that props are readonly all the
+      # way down.
+      - name: Type-level tests
+        run: npm run test:types
+
+      - name: Build and bundle size budget
+        run: npm run build
+
+      - name: Package export tests
+        run: npm run test:exports
+
+      # No third-party production dependencies, and React imported by the
+      # bridge and by nothing else — "usable without React" is a claim about
+      # every other package.
+      - name: No production dependencies, and React stays in its package
+        run: npm run check:no-deps
+
+      # Nine packages published together: a version bump that updates eight
+      # of them is a broken release, not a smaller one.
+      - name: Versions agree across the workspace
+        run: npm run check:versions
+
+      - name: README performance tables match the committed results
+        run: npm run check:readme
+
+      - name: Both benchmarks measure the same implementation
+        run: npm run check:benchmark-shared
+
+      # Every action pinned to a SHA, every `npm run` step naming a script that
+      # exists. CI cannot check itself, so this does what can be checked.
+      - name: Workflows are valid and pinned
+        run: npm run check:workflows
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+
+  mutation:
+    name: mutation testing (reactive core)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v5.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # 100% line coverage says every line ran. This says a test would have
+      # noticed if the line were wrong. Fails below 88%, which has headroom:
+      # timeout classification moves the score about a point between runs.
+      - run: npm run test:mutation
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          retention-days: 7
+
+  browsers:
+    name: browser tests (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v5.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: npm run test:browser -- --project=${{ matrix.browser }}
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: playwright-report/
+          retention-days: 7
+
+  interop:
+    name: interop integration (MUI, Shoelace, styled)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v5.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+
+      # Outside the workspace: nobody should install MUI to work on the
+      # framework.
+      - run: npm install --no-audit --no-fund
+        working-directory: integrations/interop
+
+      # Builds the page and drives all three interop paths in a real browser.
+      - run: npm test
+        working-directory: integrations/interop
+
+  storybook:
+    name: storybook integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v5.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      # The framework itself, first: the integration installs the packages
+      # from disk and runs against what this commit actually builds.
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+
+      # Deliberately outside the workspace, so that working on the framework
+      # never means installing Storybook.
+      - run: npm install --no-audit --no-fund
+        working-directory: integrations/storybook
+
+      # Builds the static Storybook and drives four stories in a real browser.
+      - run: npm test
+        working-directory: integrations/storybook
