@@ -1,0 +1,56 @@
+name: Wiki
+
+# The wiki is generated, never edited by hand: `docs/` is the source, and this
+# publishes it. An edit made in the wiki UI would be overwritten by the next
+# run, which is why every page carries a footer saying so.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'scripts/build-wiki.mjs'
+      - '.github/workflows/wiki.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wiki
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: publish docs/ to the wiki
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v5.0.0
+        with:
+          node-version: 22
+
+      - name: Render docs/ into wiki pages
+        run: node scripts/build-wiki.mjs "$RUNNER_TEMP/wiki-pages"
+
+      - name: Push the pages to the wiki repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone --depth 1 \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
+          # Deletions matter: a page removed from docs/ must leave the wiki.
+          find wiki -maxdepth 1 -name '*.md' -delete
+          cp "$RUNNER_TEMP/wiki-pages"/*.md wiki/
+          cd wiki
+          git config user.name "firsthand-bot"
+          git config user.email "firsthand@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "wiki already matches docs/"
+            exit 0
+          fi
+          git commit -m "docs: sync from ${GITHUB_SHA}"
+          git push
