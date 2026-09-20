@@ -35,6 +35,7 @@ export default defineConfig({
         new URL('./packages/dom/src/internal.ts', import.meta.url),
       ),
       '@firsthandjs/core': source('core'),
+      '@firsthandjs/deep': source('deep'),
       '@firsthandjs/dom': source('dom'),
       '@firsthandjs/jsx-runtime/jsx-dev-runtime': source('jsx-runtime'),
       '@firsthandjs/jsx-runtime/jsx-runtime': source('jsx-runtime'),
@@ -74,7 +75,9 @@ export default defineConfig({
         test: {
           name: 'core',
           environment: 'node',
-          include: ['packages/core/test/**/*.test.ts'],
+          // `deep` joins the core project rather than the DOM one: it is
+          // reactivity, and it needs no document to be tested.
+          include: ['packages/{core,deep}/test/**/*.test.ts'],
         },
       },
       {

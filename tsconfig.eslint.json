@@ -12,6 +12,7 @@
     "jsxImportSource": "@firsthandjs/jsx-runtime",
     "paths": {
       "@firsthandjs/core": ["./packages/core/src/index.ts"],
+      "@firsthandjs/deep": ["./packages/deep/src/index.ts"],
       "@firsthandjs/dom": ["./packages/dom/src/index.ts"],
       "@firsthandjs/dom/internal": ["./packages/dom/src/internal.ts"],
       "@firsthandjs/jsx-runtime": ["./packages/jsx-runtime/src/index.ts"],

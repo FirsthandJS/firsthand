@@ -35,6 +35,7 @@ One page per package, listing every export with its signature.
 | [`@firsthandjs/dom`](reference/dom.md)                 | 4.15 kB     | Components, rendering, elements, lists, portals    |
 | [`@firsthandjs/jsx-runtime`](reference/jsx-runtime.md) | 0.59 kB     | JSX types, and the runtime fallback                |
 | [`@firsthandjs/compiler`](reference/compiler.md)       | build only  | The TSX transform and the bundler plugin           |
+| [`@firsthandjs/deep`](reference/deep.md)               | 0.72 kB     | Deep reactivity: every property is a signal        |
 | [`@firsthandjs/router`](reference/router.md)           | 3.36 kB     | Typed routes, links, history, lazy routes          |
 | [`@firsthandjs/query`](reference/query.md)             | 3.23 kB     | The cache, tags, REST, GraphQL, codegen            |
 | [`@firsthandjs/styled`](reference/styled.md)           | 1.97 kB     | CSS-in-JS with custom properties                   |
