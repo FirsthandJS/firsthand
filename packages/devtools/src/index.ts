@@ -148,6 +148,30 @@ const FRAMEWORK =
   /@firsthandjs|[\\/]node_modules[\\/]|[\\/]packages[\\/](core|dom|deep|devtools|jsx-runtime|query|router|styled|testing)[\\/]src[\\/]/;
 
 /**
+ * A frame as a person reads it: `handleSave (order.ts:31:7)`.
+ *
+ * A development server serves modules by URL, so an untouched frame is most of
+ * a line of `http://localhost:5173/src/…` before it says anything useful.
+ */
+function shorten(frame: string): string {
+  const parts = /^(.*?)\(?([^()\s]+):(\d+):(\d+)\)?$/.exec(frame);
+  if (parts === null) {
+    // Something without a position — `<anonymous>`, or a frame shape this
+    // engine spells differently. Left as it came.
+    return frame;
+  }
+  const [, name, path, line, column] = parts as unknown as [string, string, string, string, string];
+  const cut = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+  const tail = path.slice(cut + 1);
+  // A development server appends `?v=…` to the URL it serves, which is noise
+  // in a stack and different on every restart.
+  const query = tail.indexOf('?');
+  const file = (query === -1 ? tail : tail.slice(0, query)).trim();
+  const where = `${file}:${line}:${column}`;
+  return name.trim() === '' ? where : `${name.trim()} (${where})`;
+}
+
+/**
  * The application frames of the current call, nearest first.
  *
  * Captured per write rather than per read: a write is a deliberate act and
@@ -163,7 +187,7 @@ function callers(): string[] {
     }
     const trimmed = frame.trim().replace(/^at\s+/, '');
     if (trimmed !== '') {
-      own.push(trimmed);
+      own.push(shorten(trimmed));
     }
     if (own.length === 6) {
       break;

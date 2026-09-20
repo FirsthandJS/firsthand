@@ -754,3 +754,70 @@ describe('where a debugger can stop', () => {
     expect(code).toContain('_$insert(_el$, () => props.label)');
   });
 });
+
+describe('one breakpoint per expression', () => {
+  it('gives the thunk a point rather than a range', () => {
+    // A destructured prop, alone on its line: the case that produced two.
+    const source = `${IMPORTS}const A = component(({ label }) => (
+  <p>
+    {label}
+  </p>
+));`;
+    const { map } = compileModule(source, {
+      filename: 'src/demo.tsx',
+      packageName: 'demo',
+      sourceMaps: true,
+    });
+
+    // A debugger draws one marker per distinct original column on a line. The
+    // generator maps both ends of a node, so a thunk spanning the expression
+    // produced two — one where it begins and one where it ends — that looked
+    // identical and did the same thing. An expression the author wrote still
+    // maps its own parts, which is useful; this is about the wrapper.
+    const expressionLine =
+      source.split(String.fromCharCode(10)).findIndex((line) => line.includes('{label}')) + 1;
+    expect(originalColumns(map as { mappings: string }, expressionLine)).toHaveLength(1);
+  });
+});
+
+/** The original columns any mapping lands on, for one original line. */
+function originalColumns(map: { mappings: string }, line: number): number[] {
+  const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const decode = (group: string): number[] => {
+    const out: number[] = [];
+    let shift = 0;
+    let value = 0;
+    for (const character of group) {
+      const digit = CHARS.indexOf(character);
+      const more = digit & 32;
+      value += (digit & 31) << shift;
+      if (more === 0) {
+        const negative = value & 1;
+        value >>= 1;
+        out.push(negative === 1 ? -value : value);
+        shift = 0;
+        value = 0;
+      } else {
+        shift += 5;
+      }
+    }
+    return out;
+  };
+  let originalLine = 0;
+  let originalColumn = 0;
+  const found = new Set<number>();
+  for (const group of map.mappings.split(';')) {
+    for (const segment of group.split(',').filter(Boolean)) {
+      const fields = decode(segment);
+      if (fields.length >= 4) {
+        originalLine += fields[2] as number;
+        originalColumn += fields[3] as number;
+        // Mappings count lines from zero; the caller counts from one.
+        if (originalLine + 1 === line) {
+          found.add(originalColumn);
+        }
+      }
+    }
+  }
+  return [...found];
+}

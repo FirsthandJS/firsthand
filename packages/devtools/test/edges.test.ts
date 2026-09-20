@@ -261,6 +261,30 @@ describe('frames that say nothing', () => {
       count.value = 2;
     });
 
-    expect(timeline()[0]?.stack).toEqual(['handleClick (/app/order.ts:12:9)']);
+    expect(timeline()[0]?.stack).toEqual(['handleClick (order.ts:12:9)']);
+  });
+});
+
+describe('reading a stack frame', () => {
+  it('keeps the name and the position, and drops the server URL', () => {
+    attach();
+    const count = signal(1);
+    withStack(
+      [
+        'Error',
+        '    at handleSave (http://localhost:5173/src/order.ts?v=abc:31:7)',
+        '    at http://localhost:5173/src/main.tsx:11:10',
+        '    at <anonymous>',
+      ].join('\n'),
+      () => {
+        count.value = 2;
+      },
+    );
+
+    expect(timeline()[0]?.stack).toEqual([
+      'handleSave (order.ts:31:7)',
+      'main.tsx:11:10',
+      '<anonymous>',
+    ]);
   });
 });

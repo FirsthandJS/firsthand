@@ -532,3 +532,59 @@ describe('where the detail sits', () => {
     expect(one('.scroll .tick')).not.toBeNull();
   });
 });
+
+describe('holding still while something is open', () => {
+  it('closes the detail from its own button', () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+    count.value = 2;
+
+    open();
+    press('[data-tab="timeline"]');
+    (one('.tick') as HTMLElement).click();
+    expect(one('.detail')).not.toBeNull();
+
+    press('[aria-label="Close detail"]');
+    expect(one('.detail')).toBeNull();
+  });
+
+  it('does not redraw underneath an open entry', async () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+    count.value = 2;
+
+    open();
+    press('[data-tab="timeline"]');
+    (one('.tick') as HTMLElement).click();
+    const before = all('.tick .when').length;
+
+    // More updates arrive; the list stays as it was, so the row under the
+    // pointer does not move away from it.
+    count.value = 3;
+    count.value = 4;
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+
+    expect(all('.tick .when')).toHaveLength(before);
+
+    // Closing it lets the list catch up again.
+    press('[aria-label="Close detail"]');
+    expect(all('.tick .when').length).toBeGreaterThan(before);
+  });
+
+  it('keeps the scroll position across a redraw', () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+    for (let i = 0; i < 40; i++) {
+      count.value = i;
+    }
+
+    open();
+    press('[data-tab="timeline"]');
+    const list = one('.scroll') as HTMLElement;
+    list.scrollTop = 120;
+    refresh();
+
+    expect((one('.scroll') as HTMLElement).scrollTop).toBe(120);
+  });
+});

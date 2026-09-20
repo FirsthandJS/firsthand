@@ -41,9 +41,16 @@ button[aria-pressed='true'] { background: #3d5afe; border-color: #3d5afe; color:
 /* The list scrolls; the detail stays where it can be read. Without this the
    call stack sits below everything and is only reachable by scrolling past
    the whole log — which is exactly when you least want to. */
-.scroll { overflow: auto; flex: 1 1 auto; min-height: 0; }
-.pinned { flex: 0 0 auto; max-height: 45%; overflow: auto; margin-top: 8px;
-  padding-top: 8px; border-top: 1px solid #3a3a40; }
+/* Two independent scroll areas: the list above, the detail below. Each gets
+   its own, because a call stack that can only be reached by scrolling past
+   forty rows of log is out of reach exactly when it is wanted. */
+.scroll { overflow-y: auto; overflow-x: hidden; flex: 1 1 auto; min-height: 60px; }
+.pinned { flex: 0 1 auto; min-height: 140px; max-height: 65%; overflow-y: auto;
+  overflow-x: hidden; margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid #3a3a40; }
+.detail-head { display: flex; align-items: center; gap: 8px; }
+.detail-head .hint { margin: 0; flex: 1; }
+.detail-head button { padding: 0 6px; line-height: 1.4; }
 .empty { color: #8a8a94; }
 .hint { color: #7c7c88; margin: 14px 0 6px; font-size: 10px; text-transform: uppercase;
   letter-spacing: 0.1em; }
@@ -260,7 +267,16 @@ function pin(detail: HTMLElement): HTMLElement {
 function detailsOf(update: Update): HTMLElement {
   const detail = document.createElement('div');
   detail.className = 'detail';
-  detail.append(text('p', 'hint', `${update.source} woke ${String(update.ran.length)}`));
+  const head = document.createElement('div');
+  head.className = 'detail-head';
+  head.append(text('p', 'hint', `${update.source} woke ${String(update.ran.length)}`));
+  const closer = button('×', () => {
+    chosen = null;
+    render();
+  });
+  closer.setAttribute('aria-label', 'Close detail');
+  head.append(closer);
+  detail.append(head);
   for (const name of update.ran) {
     detail.append(text('div', 'ran', name));
   }
@@ -340,6 +356,8 @@ function render(): void {
     return;
   }
   const { body, pick, graphTab, queryTab, timelineTab } = parts;
+  // Where the list was, so a redraw does not throw the reader back to the top.
+  const offset = body.querySelector('.scroll')?.scrollTop ?? 0;
   graphTab.setAttribute('aria-pressed', String(tab === 'graph'));
   queryTab.setAttribute('aria-pressed', String(tab === 'queries'));
   timelineTab.setAttribute('aria-pressed', String(tab === 'timeline'));
@@ -351,6 +369,10 @@ function render(): void {
     renderQueries(body);
   } else {
     renderTimeline(body);
+  }
+  const list = body.querySelector('.scroll');
+  if (list !== null) {
+    list.scrollTop = offset;
   }
 }
 
@@ -447,12 +469,16 @@ export function open(): void {
   // Redrawn when the graph settles, not on a timer: a panel showing a value
   // the page has already moved past is worse than one that is plainly idle.
   watch(() => {
-    if (frame === null) {
-      frame = requestAnimationFrame(() => {
-        frame = null;
-        render();
-      });
+    // Nothing moves while an entry is open. A list that re-sorts under the
+    // pointer twice a second is unusable precisely when something has been
+    // found worth looking at.
+    if (chosen !== null || frame !== null) {
+      return;
     }
+    frame = requestAnimationFrame(() => {
+      frame = null;
+      render();
+    });
   });
   render();
 }

@@ -1041,10 +1041,7 @@ function emitChildren(
       // rebuild the whole list on every evaluation.
       entry.kind === 'list'
         ? (entry.expression as t.Expression)
-        : located(
-            t.arrowFunctionExpression([], entry.expression as t.Expression),
-            entry.expression as t.Expression,
-          ),
+        : thunk(entry.expression as t.Expression),
     ];
     if (!isLast) {
       build.html.push('<!>');
@@ -1201,6 +1198,33 @@ function compileChildren(children: t.JSXElement['children'], state: State): t.Ex
     }
   }
   return result;
+}
+
+/**
+ * Wraps an expression so a part can re-read it, and gives the wrapper its
+ * position.
+ *
+ * The position moves from the expression to the thunk rather than being copied
+ * to both. A debugger draws one marker per distinct original column on a line,
+ * and an expression that kept its own position produced two — one where it
+ * begins and one where it ends — which look identical and do the same thing.
+ * With the wrapper owning the position, every breakable place inside it
+ * reports the same column: one marker, on the expression, hit on the first
+ * evaluation and on every later one.
+ */
+function thunk(expression: t.Expression): t.ArrowFunctionExpression {
+  const arrow = t.arrowFunctionExpression([], expression);
+  const loc = expression.loc;
+  if (loc !== null && loc !== undefined) {
+    // A point rather than a range. The generator maps both ends of a node, and
+    // an end one column along is a second marker that looks identical to the
+    // first and does the same thing. A wrapper the compiler invented does not
+    // span anything in the source anyway — it belongs at the place the
+    // expression begins.
+    arrow.loc = { ...loc, end: loc.start };
+    expression.loc = null;
+  }
+  return arrow;
 }
 
 function expressionStatement(expression: t.Expression): t.Statement {
