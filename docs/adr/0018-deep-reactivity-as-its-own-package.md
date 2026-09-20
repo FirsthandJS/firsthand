@@ -79,8 +79,8 @@ at compile time.
 
 ## Performance implications
 
-- **`@firsthandjs/core` is untouched**: 2.31 kB gzip, the same file, the same
-  benchmark numbers. The runtime budget claim (5.88 kB for core plus dom) is
+- **`@firsthandjs/core` is untouched**: 2.29 kB gzip, the same file, the same
+  benchmark numbers. The runtime budget claim (5.86 kB for core plus dom) is
   unaffected because nothing was added to either.
 - `@firsthandjs/deep` is **0.72 kB gzip**, downloaded only if imported.
 - A deep read is a proxy trap plus a cell read; a signal read is a property

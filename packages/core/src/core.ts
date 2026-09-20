@@ -17,7 +17,7 @@
  * case allocates nothing.
  */
 
-import { DIRTY, DISPOSED, HAS_VALUE, MUTABLE, PENDING, QUEUED, STALE, WATCHING } from './flags.js';
+import { DIRTY, DISPOSED, HAS_VALUE, MUTABLE, PENDING, STALE, WATCHING } from './flags.js';
 import { FirsthandCycleError, FirsthandReadonlyError } from './errors.js';
 import { reportUncaught } from './dev.js';
 
@@ -415,11 +415,18 @@ function evaluate(cell: Cell): boolean {
 // Scheduling (ADR-0006)
 // ---------------------------------------------------------------------------
 
+/**
+ * Schedules an effect.
+ *
+ * There is no "already queued?" guard, because both callers have just
+ * established that the node was not stale, and an effect is queued only while
+ * it is stale: `flush` clears the queue entry and the staleness together. A
+ * duplicate entry would in any case be harmless — the second visit finds the
+ * node clean and only drops its `PENDING` mark — so the check would cost a
+ * branch in the write path to prevent something that cannot happen.
+ */
 function enqueue(cell: Cell): void {
-  if ((cell.flags & QUEUED) === 0) {
-    cell.flags |= QUEUED;
-    queue.push(cell);
-  }
+  queue.push(cell);
 }
 
 function flush(): void {
@@ -433,7 +440,6 @@ function flush(): void {
     while (queueIndex < queue.length) {
       const cell = queue[queueIndex] as Cell;
       queue[queueIndex++] = undefined;
-      cell.flags &= ~QUEUED;
       if ((cell.flags & DISPOSED) !== 0) {
         continue;
       }

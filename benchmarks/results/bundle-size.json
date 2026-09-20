@@ -1,23 +1,23 @@
 {
-  "measuredAt": "2026-09-20T05:42:06.215Z",
+  "measuredAt": "2026-09-20T06:39:55.696Z",
   "sizes": [
     {
       "module": "@firsthandjs/core",
-      "minified": 6508,
-      "gzip": 2363,
-      "brotli": 2136
+      "minified": 6461,
+      "gzip": 2347,
+      "brotli": 2122
     },
     {
       "module": "@firsthandjs/dom",
-      "minified": 10606,
-      "gzip": 4247,
-      "brotli": 3792
+      "minified": 10567,
+      "gzip": 4239,
+      "brotli": 3777
     },
     {
       "module": "@firsthandjs/dom/internal",
-      "minified": 10027,
-      "gzip": 4165,
-      "brotli": 3703
+      "minified": 9988,
+      "gzip": 4155,
+      "brotli": 3696
     },
     {
       "module": "@firsthandjs/jsx-runtime",
@@ -27,9 +27,9 @@
     },
     {
       "module": "full runtime (core + dom, everything imported)",
-      "minified": 16306,
-      "gzip": 6025,
-      "brotli": 5431
+      "minified": 16222,
+      "gzip": 6001,
+      "brotli": 5406
     }
   ],
   "optional": [
@@ -59,9 +59,9 @@
     },
     {
       "module": "@firsthandjs/styled",
-      "minified": 4251,
-      "gzip": 2016,
-      "brotli": 1816
+      "minified": 4278,
+      "gzip": 2024,
+      "brotli": 1829
     },
     {
       "module": "@firsthandjs/react",

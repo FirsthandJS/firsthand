@@ -28,6 +28,13 @@ describe('runtime jsx', () => {
     expect(node.className).toBe('off');
   });
 
+  it('creates a childless element without reaching for children', () => {
+    const node = jsx('input', { type: 'text', value: 'typed' }) as HTMLInputElement;
+    expect(node.tagName).toBe('INPUT');
+    expect(node.value).toBe('typed');
+    expect(node.childNodes.length).toBe(0);
+  });
+
   it('renders a fragment as an array of children', () => {
     const children = jsx(Fragment, { children: ['a', 'b'] }) as unknown[];
     expect(children).toEqual(['a', 'b']);

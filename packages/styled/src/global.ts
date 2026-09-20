@@ -6,7 +6,7 @@
  */
 import { bind, onCleanup, useContext } from '@firsthandjs/core';
 import { component, type Component, type View } from '@firsthandjs/dom';
-import { blockText, compile, css, join, type CssFragment } from './css.js';
+import { blockText, compile, css, join, joinStatic, type CssFragment } from './css.js';
 import type { Interpolation } from './styled.js';
 import { hash, insert, remove } from './sheet.js';
 import { ThemeContext, type Theme } from './theme.js';
@@ -22,7 +22,7 @@ export function keyframes(strings: TemplateStringsArray, ...values: unknown[]): 
   if (!compiled.static) {
     throw new Error('keyframes`` cannot interpolate functions: an animation has no props.');
   }
-  const text = join(compiled, () => '');
+  const text = joinStatic(compiled);
   const name = `k${hash(text)}`;
   insert(name, `@keyframes ${name}{${text}}`);
   return name;

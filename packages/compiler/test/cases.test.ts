@@ -263,6 +263,15 @@ describe('keyed maps', () => {
     expect(out).toContain('_index.value');
   });
 
+  it('leaves a block body whose last statement is not returned JSX alone', () => {
+    // No root element to hang a key on, so there is nothing to key by and the
+    // map stays an ordinary array child.
+    const out = compile(
+      rowSource('{props.rows.map((row) => { const label = row.label; return label; })}'),
+    );
+    expect(out).not.toContain('_$list(');
+  });
+
   it('leaves an unkeyed map as an ordinary array child', () => {
     const out = compile(rowSource('{props.rows.map((row) => <li>{row.label}</li>)}'));
     expect(out).not.toContain('_$list(');
@@ -369,6 +378,16 @@ describe('component declarations', () => {
     const out = compile(`${IMPORTS}const A = component(({ ...rest }) => <p {...rest} />);`);
     expect(out).toContain('return');
     expect(out).toContain('_$rest(_props, [])');
+  });
+
+  it('reuses a block body a rest element already has', () => {
+    const out = compile(
+      `${IMPORTS}const A = component(({ a, ...rest }) => { const b = a; return <p {...rest}>{b}</p>; });`,
+    );
+    expect(out).toContain('_$rest(_props, ["a"])');
+    // The block the author wrote is reused: `rest` is prepended to it, and the
+    // statements that were already there keep their order.
+    expect(out.indexOf('const rest =')).toBeLessThan(out.indexOf('const b = _props.a'));
   });
 
   it('leaves a plain identifier parameter alone', () => {

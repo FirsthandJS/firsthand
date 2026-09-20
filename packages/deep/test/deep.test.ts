@@ -192,6 +192,27 @@ describe('keys coming and going', () => {
     expect(seen).toEqual([false, true, false]);
   });
 
+  it('answers a symbol `in` without tracking it', () => {
+    const marker = Symbol('marker');
+    const state = deepSignal<Record<PropertyKey, number>>({ [marker]: 1 });
+    const runs = vi.fn();
+
+    inRoot(() => {
+      effect(() => {
+        marker in state;
+        runs();
+      });
+    });
+    expect(runs).toHaveBeenCalledTimes(1);
+    expect(marker in state).toBe(true);
+
+    // A symbol key is not state a template can read, and tracking it would
+    // mean allocating a cell for every internal symbol a library probes for.
+    Reflect.deleteProperty(state, marker);
+    expect(runs).toHaveBeenCalledTimes(1);
+    expect(marker in state).toBe(false);
+  });
+
   it('leaves a delete of something that was never there alone', () => {
     const state = deepSignal<Record<string, number>>({ a: 1 });
     const runs = vi.fn();

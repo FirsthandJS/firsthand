@@ -25,6 +25,17 @@ describe('child slot edges', () => {
     expect(host.firstChild).toBe(second);
   });
 
+  it('clears a node that something else already took out of the document', () => {
+    const node = document.createElement('i');
+    const slot = applyChild(host, null, null, node);
+    // A host element relocated by a third party, or a portal that moved its
+    // content: disposal still has to finish rather than throw.
+    node.remove();
+
+    expect(applyChild(host, null, slot, null)).toBeNull();
+    expect(host.childNodes).toHaveLength(0);
+  });
+
   it('removes nodes that did not survive a reconcile', () => {
     const nodes = Array.from({ length: 4 }, () => document.createElement('i'));
     reconcile(host, null, [], nodes);
