@@ -187,12 +187,15 @@ keyed lists and no element hosts links less than that.
 ${END}`;
 
 /** The one-line summary at the top, so no number is ever typed twice. */
+// The framework's own numbers come first, and the comparison is stated as a
+// measurement rather than as a verdict on anyone else's design.
 const headline = `${HEAD_START}
 <!-- prettier-ignore-start -->
-Measured against React ${meta.reactVersion} in the same browser session, with byte-identical DOM
-verified before any timing: Firsthand is **${aggregate.geometricMeanRatio.toFixed(2)}× faster** on the render/update set
-(geometric mean of ${bench.scenarios.length} scenarios, 95 % CI ${aggregate.ci95[0].toFixed(2)}–${aggregate.ci95[1].toFixed(2)}), and the full runtime is
-**${kb(full.gzip)} gzip**.
+The whole runtime is **${kb(full.gzip)} gzip** with no production dependencies. On the
+render/update set it is **${aggregate.geometricMeanRatio.toFixed(2)}× faster** than React ${meta.reactVersion} (geometric mean of ${bench.scenarios.length}
+scenarios, 95 % CI ${aggregate.ci95[0].toFixed(2)}–${aggregate.ci95[1].toFixed(2)}) — measured in the same browser session with
+byte-identical DOM verified before any timing, and with every scenario published,
+including the ${bench.scenarios.length - wins} React wins.
 <!-- prettier-ignore-end -->
 ${HEAD_END}`;
 

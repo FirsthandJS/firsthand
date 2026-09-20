@@ -1,7 +1,7 @@
 # @firsthandjs/react
 
-React components inside Firsthand — for MUI, and for every other library that
-exists only as React components.
+React components inside Firsthand — for MUI, and for every other library
+written for React.
 
 **Documentation:** [guide](https://github.com/firsthandjs/firsthand/blob/main/docs/guide/11-react-interop.md) · [API reference](https://github.com/firsthandjs/firsthand/blob/main/docs/reference/react.md) · [all docs](https://github.com/firsthandjs/firsthand/blob/main/docs/README.md)
 

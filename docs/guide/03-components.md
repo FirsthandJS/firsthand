@@ -136,6 +136,43 @@ node count, which is why it is opt-in
 ([ADR-0003](../adr/0003-hostless-components-with-optional-custom-element.md)).
 More in [Web components](10-web-components.md).
 
+## Starting an instance over
+
+A component body runs once, which leaves one honest question: what if you want
+it to run again — to throw away everything it set up and start clean, the way a
+changing `key` resets a component in a re-rendering framework?
+
+You replace the instance rather than re-render it, and the spelling is the one
+you already know:
+
+```tsx
+// A key that changes: new key, new instance.
+{
+  [draftId.value].map((id) => <Editor key={id} draft={id} />);
+}
+```
+
+Or, for a single component, read a version signal in the child position that
+holds it:
+
+```tsx
+const version = signal(0);
+
+<div>{(version.value, (<Editor initial="hello" />))}</div>;
+
+// Anywhere: a fresh Editor, with its own state.
+version.value++;
+```
+
+Both do the same thing: the part re-evaluates, the old instance is **disposed**
+— its cleanups run, its effects unsubscribe, its DOM is removed — and a new one
+is created in its place. Nothing is diffed and nothing is reused.
+
+What does _not_ do this is a prop change. `<Label text={text.value} />` keeps
+one instance and one element for the life of the parent, and only rewrites the
+text node; that is the ordinary path, and re-creation is a decision you make
+explicitly.
+
 ## What replaces the things you are used to
 
 | In a re-rendering framework        | Here                                                 |
@@ -147,7 +184,7 @@ More in [Web components](10-web-components.md).
 | `useEffect(fn, deps)`              | `effect(fn)` — dependencies are observed             |
 | `useRef` for a mutable box         | A plain `let`, or a `signal` if the view reads it    |
 | `useRef` for an element            | `ref={(element) => …}`                               |
-| Key-based remounting               | `key` on a list row; or render a different component |
+| Key-based remounting               | `key` on a list row, or a version signal — see above |
 
 ## A worked example
 

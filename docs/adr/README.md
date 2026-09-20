@@ -23,5 +23,5 @@ performance or semantics are affected.
 | [0013](0013-routes-as-data-and-on-demand-chunks.md)              | Routes as data, and route code loaded on demand            | accepted                          |
 | [0014](0014-tag-based-cache-invalidation.md)                     | Invalidation by tags, not by cache keys                    | accepted                          |
 | [0015](0015-styling-with-custom-properties.md)                   | A prop change is a custom property, not a new class        | accepted                          |
-| [0016](0016-interop-with-component-libraries.md)                 | Web components first, a React bridge as the escape hatch   | accepted                          |
+| [0016](0016-interop-with-component-libraries.md)                 | Web components first, and a React bridge for the rest      | accepted                          |
 | [0017](0017-foreign-element-types.md)                            | Element types this framework does not own                  | accepted                          |

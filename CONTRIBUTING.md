@@ -90,19 +90,58 @@ that size. If a problem
 can be solved with ordinary JavaScript and DOM, it does not need an API. A
 proposal that adds one should explain what cannot be expressed today.
 
+## Branches
+
+`main` is protected by a repository ruleset, not by convention. Nobody pushes to
+it — not a maintainer, not an administrator, not a bot. What the ruleset
+enforces:
+
+| Rule                     | Effect                                                               |
+| ------------------------ | -------------------------------------------------------------------- |
+| Pull request required    | No direct pushes to `main`, no exceptions and no bypass list         |
+| Status checks required   | The gate, mutation testing, three browsers, both integrations, green |
+| Up to date with `main`   | A branch must be rebased on current `main` before it can merge       |
+| Threads resolved         | Every review comment answered before merge                           |
+| Linear history           | Squash or rebase; no merge commits                                   |
+| No force push, no delete | `main` cannot be rewritten or removed                                |
+
+Branch names are enforced too — `type/short-description`, lower case, where the
+type is one of:
+
+```
+feat/     a capability that did not exist
+fix/      a defect, with the test that would have caught it
+perf/     a measured improvement, with before and after
+refactor/ same behaviour, better shape
+test/     tests only
+docs/     documentation only
+ci/       workflows, gates, tooling
+deps/     dependency updates
+chore/    everything else
+release/  a version bump
+```
+
+A branch with any other name is rejected at push time, and `dependabot/*` is the
+only exception, because Dependabot picks its own.
+
 ## Making a change
 
 1. Open an issue first for anything beyond a bug fix, so nobody writes a week of
    work that the design cannot absorb.
-2. Branch, commit in logical steps, and write commit messages that say why.
-3. Run the full gate locally:
+2. Branch from `main` with a name from the list above, and commit in logical
+   steps with messages that say why.
+3. Run the full gate locally, because CI runs exactly the same thing and finding
+   out here is faster:
 
    ```bash
-   npm run format:check && npm run lint && npm run typecheck && npm run coverage && npm run build
+   npm run check
    ```
 
-4. Open the pull request. CI runs the same gate plus browser tests on Chromium,
-   Firefox and WebKit, package export tests and a bundle size check.
+4. Open the pull request. CI runs the gate plus mutation testing, browser tests
+   on Chromium, Firefox and WebKit, and both integrations. All of them have to
+   pass before the merge button does anything.
+5. Squash or rebase when merging. The history on `main` is linear on purpose:
+   one commit per change, and `git log --oneline` reads as a changelog.
 
 ## Code style
 

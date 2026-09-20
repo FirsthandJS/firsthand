@@ -30,7 +30,14 @@ function Label(props: { readonly text: string }): ReactNode {
  * flakier the more instances a test mounts.
  */
 async function settled(read: () => number, count: number): Promise<void> {
-  for (let attempt = 0; attempt < 50 && read() < count; attempt++) {
+  for (let attempt = 0; attempt < 60 && read() < count; attempt++) {
+    await tick();
+  }
+}
+
+/** The same wait, for a condition rather than a count. */
+async function until(ready: () => boolean, turns = 60): Promise<void> {
+  for (let turn = 0; turn < turns && !ready(); turn++) {
     await tick();
   }
 }
@@ -70,12 +77,11 @@ describe('direct React elements', () => {
   it('are removed with the branch that held them', async () => {
     const shown = signal(true);
     const view = mount(() => <div>{shown.value ? <Label text="here" /> : null}</div>);
-    await tick();
+    await settled(() => view.all('[data-testid="label"]').length, 1);
     expect(view.get('[data-testid="label"]').textContent).toBe('here');
 
     shown.value = false;
-    await tick();
-    await tick();
+    await until(() => view.container.querySelector('[data-testid="label"]') === null);
     expect(view.container.querySelector('[data-testid="label"]')).toBeNull();
   });
 

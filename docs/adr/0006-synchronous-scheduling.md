@@ -28,8 +28,8 @@ their tests.
 3. **`requestAnimationFrame` batching.** Aligns with paint and coalesces
    aggressively, but adds up to a full frame of latency to every interaction and
    makes synchronous reads of laid-out geometry impossible after a write.
-4. **Priority scheduler with time slicing.** Solves a problem created by
-   re-rendering whole component trees. With fine-grained updates the unit of
+4. **Priority scheduler with time slicing.** Its purpose is to keep a long
+   render from blocking the main thread. With fine-grained updates the unit of
    work is a single DOM part, so there is nothing meaningful to slice; it adds
    size, complexity and unpredictability.
 

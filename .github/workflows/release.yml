@@ -24,7 +24,7 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           # The whole history, so the anonymity check can look at all of it.
@@ -45,7 +45,7 @@ jobs:
       - run: npm run check:versions
 
       - name: Attest build artifacts
-        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: 'packages/*/dist/**'
 

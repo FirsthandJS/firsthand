@@ -1,4 +1,5 @@
 import { bind, getOwner, onCleanup, runWithOwner, type Owner } from '@firsthandjs/core';
+import { devWarnRenderedObject } from './dev.js';
 
 /** What a child part currently owns in the DOM. */
 export type ChildSlot = Node | Node[] | null;
@@ -136,6 +137,10 @@ export function applyChild(
   if (isNode(value)) {
     return single(parent, marker, current, value);
   }
+  // Everything else is stringified, which is the platform's own behaviour —
+  // but an object here is almost always a mistake, most often a signal read
+  // without `.value`, so development says so.
+  devWarnRenderedObject(value);
   return applyChild(parent, marker, current, String(value));
 }
 

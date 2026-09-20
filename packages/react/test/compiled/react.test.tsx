@@ -45,10 +45,28 @@ function Card({ title, tone = 'plain', onPing, children }: CardProps): ReactNode
 
 const BridgedCard = fromReact(Card);
 
+/**
+ * Waits until React has produced what the assertion needs.
+ *
+ * React schedules its own work, so "how many microtasks until it is done"
+ * depends on the machine: a fixed `await tick()` passes locally and fails on a
+ * slower CI runner, which is exactly what happened. Waiting for the condition
+ * instead makes the test say what it is waiting for.
+ */
+async function until(ready: () => boolean, turns = 60): Promise<void> {
+  for (let turn = 0; turn < turns && !ready(); turn++) {
+    await tick();
+  }
+}
+
+/** The common case: a selector that React has to render first. */
+const shows = (view: { container: HTMLElement }, selector: string) =>
+  until(() => view.container.querySelector(selector) !== null);
+
 describe('fromReact', () => {
   it('renders a React component into the Firsthand tree', async () => {
     const view = mount(() => <BridgedCard title="Hello" />);
-    await tick();
+    await shows(view, '[data-testid="card"] h3');
 
     expect(view.get('[data-testid="card"] h3').textContent).toBe('Hello');
     expect(view.get('[data-testid="card"]').className).toBe('card plain');
@@ -57,10 +75,10 @@ describe('fromReact', () => {
   it('passes props, and re-renders React when one changes', async () => {
     const tone = signal<'plain' | 'loud'>('plain');
     const view = mount(() => <BridgedCard title="Hello" tone={tone.value} />);
-    await tick();
+    await shows(view, '[data-testid="card"]');
 
     tone.value = 'loud';
-    await tick();
+    await until(() => view.get('[data-testid="card"]').className === 'card loud');
 
     expect(view.get('[data-testid="card"]').className).toBe('card loud');
   });
@@ -68,14 +86,14 @@ describe('fromReact', () => {
   it('keeps React state across a prop change', async () => {
     const title = signal('First');
     const view = mount(() => <BridgedCard title={title.value} />);
-    await tick();
+    await shows(view, '[data-testid="react-button"]');
 
     view.get<HTMLButtonElement>('[data-testid="react-button"]').click();
-    await tick();
+    await until(() => view.get('[data-testid="react-button"]').textContent === 'clicked 1');
     expect(view.get('[data-testid="react-button"]').textContent).toBe('clicked 1');
 
     title.value = 'Second';
-    await tick();
+    await until(() => view.get('h3').textContent === 'Second');
 
     // The React root was updated, not replaced: its useState survived.
     expect(view.get('h3').textContent).toBe('Second');
@@ -85,10 +103,10 @@ describe('fromReact', () => {
   it('calls back into Firsthand from a React event', async () => {
     const pings = vi.fn();
     const view = mount(() => <BridgedCard title="Hello" onPing={pings} />);
-    await tick();
+    await shows(view, '[data-testid="react-button"]');
 
     view.get<HTMLButtonElement>('[data-testid="react-button"]').click();
-    await tick();
+    await until(() => pings.mock.calls.length > 0);
 
     expect(pings).toHaveBeenCalledTimes(1);
   });
@@ -100,7 +118,7 @@ describe('fromReact', () => {
         <em data-testid="own">{label.value}</em>
       </BridgedCard>
     ));
-    await tick();
+    await shows(view, '[data-testid="own"]');
 
     const own = view.get('[data-testid="own"]');
     expect(own.textContent).toBe('inside');
@@ -122,7 +140,7 @@ describe('fromReact', () => {
         {false}
       </BridgedCard>
     ));
-    await tick();
+    await shows(view, '[data-testid="card"] i');
 
     expect(view.get('[data-testid="card"]').textContent).toContain('plain text');
     expect(view.all('[data-testid="card"] i')).toHaveLength(2);
@@ -130,7 +148,7 @@ describe('fromReact', () => {
 
   it('takes a host element and a class', async () => {
     const view = mount(() => <BridgedCard title="Hello" host="div" class="wrapper" />);
-    await tick();
+    await shows(view, '[data-testid="card"]');
 
     const host = view.get('div.wrapper');
     expect(host.tagName).toBe('DIV');
@@ -140,17 +158,18 @@ describe('fromReact', () => {
 
   it('defaults to a span, so inline layout survives', async () => {
     const view = mount(() => <BridgedCard title="Hello" />);
-    await tick();
+    await shows(view, '[data-testid="card"]');
     expect(view.container.firstElementChild?.tagName).toBe('SPAN');
   });
 
   it('unmounts the React root when the Firsthand component goes away', async () => {
     const view = mount(() => <BridgedCard title="Hello" />);
-    await tick();
+    await shows(view, '[data-testid="card"]');
     expect(view.container.querySelector('[data-testid="card"]')).not.toBeNull();
 
     view.unmount();
-    await tick();
+    // Unmounting is deferred to a microtask, so this waits for the absence.
+    await until(() => document.querySelector('[data-testid="card"]') === null);
 
     expect(document.querySelector('[data-testid="card"]')).toBeNull();
   });
@@ -161,7 +180,7 @@ describe('ReactHost', () => {
     const view = mount(() => (
       <ReactHost component={Card as never} props={{ title: 'Dynamic' }} host="div" />
     ));
-    await tick();
+    await shows(view, 'h3');
 
     expect(view.get('h3').textContent).toBe('Dynamic');
     expect(view.get('div').tagName).toBe('DIV');
@@ -170,7 +189,7 @@ describe('ReactHost', () => {
   it('works with no props at all', async () => {
     const Bare = (): ReactNode => createElement('b', { 'data-testid': 'bare' }, 'bare');
     const view = mount(() => <ReactHost component={Bare as never} />);
-    await tick();
+    await shows(view, '[data-testid="bare"]');
 
     expect(view.get('[data-testid="bare"]').textContent).toBe('bare');
   });
@@ -202,11 +221,11 @@ describe('@firsthandjs/react/auto', () => {
         inside
       </Card>
     ));
-    await tick();
+    await shows(view, 'h3');
 
     expect(view.get('h3').textContent).toBe('Direct');
     view.get<HTMLButtonElement>('[data-testid="react-button"]').click();
-    await tick();
+    await until(() => pings.value === 1);
     expect(pings.value).toBe(1);
   });
 
@@ -220,8 +239,7 @@ describe('@firsthandjs/react/auto', () => {
       </>
     ));
     // Two roots, each scheduling its own first render.
-    await tick();
-    await tick();
+    await until(() => view.all('h3').length === 2);
 
     // Two instances, two React roots — but one bridge: an adapter called twice
     // for the same component would be two component *types*, and a keyed list
@@ -252,8 +270,7 @@ describe('setReactWrapper', () => {
         <Toned />
       </>
     ));
-    await tick();
-    await tick();
+    await until(() => view.all('[data-testid="tone"]').length === 2);
 
     expect(view.all('[data-testid="tone"]').map((node) => node.textContent)).toEqual([
       'loud',
@@ -263,8 +280,9 @@ describe('setReactWrapper', () => {
     // Reading a signal in the wrapper is an ordinary reactive read: changing
     // it re-renders every bridged root.
     tone.value = 'soft';
-    await tick();
-    await tick();
+    await until(() =>
+      view.all('[data-testid="tone"]').every((node) => node.textContent === 'soft'),
+    );
 
     expect(view.all('[data-testid="tone"]').map((node) => node.textContent)).toEqual([
       'soft',
@@ -279,11 +297,11 @@ describe('setReactWrapper', () => {
     setReactWrapper((node) => createElement('div', { 'data-testid': 'wrapper' }, node));
 
     const view = mount(() => <Bare />);
-    await tick();
+    await shows(view, '[data-testid="wrapper"]');
     expect(view.get('[data-testid="wrapper"]')).not.toBeNull();
 
     setReactWrapper(null);
-    await tick();
+    await until(() => view.container.querySelector('[data-testid="wrapper"]') === null);
     expect(view.container.querySelector('[data-testid="wrapper"]')).toBeNull();
     expect(view.get('[data-testid="bare"]').textContent).toBe('bare');
   });
