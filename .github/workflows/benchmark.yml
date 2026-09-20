@@ -5,14 +5,16 @@ name: Benchmark
 # Published results are produced on a known machine and committed (see
 # PERFORMANCE_PLAN.md).
 
+# It does not run on every pull request: the numbers from a shared runner are
+# too noisy to gate on, and the job is slow enough that it delays the checks
+# that *do* gate. Weekly, on demand, and on a label when a change is expected
+# to move performance.
 on:
   workflow_dispatch:
   schedule:
     - cron: '0 3 * * 1'
   pull_request:
-    paths:
-      - 'packages/**'
-      - 'benchmarks/**'
+    types: [labeled]
 
 permissions:
   contents: read
@@ -20,6 +22,10 @@ permissions:
 jobs:
   bench:
     name: Firsthand vs React, same run
+    # Only for the label, so an unrelated label does not start a benchmark.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.label.name == 'benchmark'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
