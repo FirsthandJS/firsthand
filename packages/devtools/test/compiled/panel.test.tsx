@@ -567,8 +567,13 @@ describe('holding still while something is open', () => {
 
     expect(all('.tick .when')).toHaveLength(before);
 
-    // Closing it lets the list catch up again.
+    // Closing it lets the list catch up on the next update — closing itself
+    // does not rebuild it either, for the same reason opening does not.
     press('[aria-label="Close detail"]');
+    count.value = 5;
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+
     expect(all('.tick .when').length).toBeGreaterThan(before);
   });
 
@@ -586,5 +591,70 @@ describe('holding still while something is open', () => {
     refresh();
 
     expect((one('.scroll') as HTMLElement).scrollTop).toBe(120);
+  });
+});
+
+describe('selecting does not move the list', () => {
+  it('leaves the row where it was, however many updates arrived', () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+    for (let i = 0; i < 5; i++) {
+      count.value = i;
+    }
+
+    open();
+    press('[data-tab="timeline"]');
+    const rows = [...root().querySelectorAll('.tick')] as HTMLElement[];
+    const third = rows[2] as HTMLElement;
+    const labelBefore = third.textContent;
+
+    // More arrive between drawing the list and clicking a row — which is the
+    // ordinary case at two updates a second.
+    count.value = 99;
+    count.value = 100;
+    third.click();
+
+    const after = [...root().querySelectorAll('.tick')] as HTMLElement[];
+    expect(after[2]?.textContent).toBe(labelBefore);
+    expect(after[2]?.getAttribute('aria-selected')).toBe('true');
+    expect(one('.detail')).not.toBeNull();
+  });
+});
+
+describe('an open entry across the panel', () => {
+  it('stays open when the tab changes, on both tabs', () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+    count.value = 2;
+
+    open();
+    press('[data-tab="timeline"]');
+    (one('.tick') as HTMLElement).click();
+    expect(one('.pinned')).not.toBeNull();
+
+    // The graph tab shows the same detail, beside its own list.
+    press('[data-tab="graph"]');
+    show(host.querySelector('p') as Node);
+    expect(one('.pinned')).not.toBeNull();
+    expect((one('.pinned') as HTMLElement).closest('.scroll')).toBeNull();
+
+    // And back again.
+    press('[data-tab="timeline"]');
+    expect(one('.pinned')).not.toBeNull();
+  });
+
+  it('ignores a click on a row that outlived the panel', () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+    count.value = 2;
+
+    open();
+    press('[data-tab="timeline"]');
+    const row = one('.tick') as HTMLElement;
+    close();
+
+    expect(() => {
+      row.click();
+    }).not.toThrow();
   });
 });

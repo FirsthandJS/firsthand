@@ -126,6 +126,8 @@ let tab: 'graph' | 'queries' | 'timeline' = 'graph';
 let frame: number | null = null;
 /** The update the timeline is showing in detail. */
 let chosen: Update | null = null;
+/** The drawn rows, so selecting one can mark it without rebuilding the list. */
+const rows = new Map<HTMLElement, Update>();
 /** A source to narrow the timeline to, or `null` for all of them. */
 let only: string | null = null;
 
@@ -228,12 +230,15 @@ function renderGraph(host: HTMLElement): void {
     body.append(track(recent));
   }
   if (chosen !== null) {
-    body.append(detailsOf(chosen));
+    // Beside the scrolling list, not inside it — the same place the timeline
+    // puts it, and for the same reason.
+    host.append(pin(detailsOf(chosen)));
   }
 }
 
 /** The updates as rows: when, what was written, and how much it woke. */
 function track(updates: Update[]): HTMLElement {
+  rows.clear();
   const most = Math.max(1, ...updates.map((update) => update.ran.length));
   const list = document.createElement('div');
   list.className = 'track';
@@ -241,6 +246,7 @@ function track(updates: Update[]): HTMLElement {
     const row = document.createElement('div');
     row.className = 'tick';
     row.setAttribute('aria-selected', String(update === chosen));
+    rows.set(row, update);
     row.append(text('span', 'when', `${String(update.at)}ms`));
     row.append(text('span', 'who', update.source));
     const bar = document.createElement('span');
@@ -270,9 +276,10 @@ function detailsOf(update: Update): HTMLElement {
   const head = document.createElement('div');
   head.className = 'detail-head';
   head.append(text('p', 'hint', `${update.source} woke ${String(update.ran.length)}`));
+  // The update this detail was built for, so closing is the same toggle the
+  // row performs — and needs no check for what is open.
   const closer = button('×', () => {
-    chosen = null;
-    render();
+    select(update);
   });
   closer.setAttribute('aria-label', 'Close detail');
   head.append(closer);
@@ -292,9 +299,27 @@ function detailsOf(update: Update): HTMLElement {
   return detail;
 }
 
+/**
+ * Opens or closes an entry, without touching the list.
+ *
+ * Re-rendering here would rebuild the list from everything that has arrived
+ * since it was drawn — and with the newest first, that pushes the row being
+ * clicked down and out from under the pointer. Which is exactly what freezing
+ * the redraw was meant to prevent, undone by the click that starts it.
+ */
 function select(update: Update): void {
   chosen = chosen === update ? null : update;
-  render();
+  for (const [row, entry] of rows) {
+    row.setAttribute('aria-selected', String(entry === chosen));
+  }
+  const container = parts?.body;
+  if (container === undefined) {
+    return;
+  }
+  container.querySelector('.pinned')?.remove();
+  if (chosen !== null) {
+    container.append(pin(detailsOf(chosen)));
+  }
 }
 
 function renderTimeline(host: HTMLElement): void {
