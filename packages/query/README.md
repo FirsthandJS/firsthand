@@ -123,6 +123,10 @@ produce an unhandled rejection.
 
 ## GraphQL, with the tags in the document
 
+Setting it up is one plugin and one config file; the guide walks the path in
+order, from `npm install` to the first typed query:
+[Setting up GraphQL](https://github.com/firsthandjs/firsthand/blob/main/docs/guide/09-data.md#setting-up-graphql).
+
 A `.graphql` file already says what it reads. Repeating that in TypeScript is
 how a cache drifts out of step with its queries, so the tag assignment lives in
 the document:

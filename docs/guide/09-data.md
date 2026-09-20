@@ -138,6 +138,56 @@ function reading from IndexedDB.
 
 ## GraphQL
 
+### Setting up GraphQL
+
+One plugin, one config file, and a directory of operations. In order:
+
+```bash
+npm install @firsthandjs/query graphql
+npm install --save-dev @graphql-codegen/cli @graphql-codegen/typescript-operations
+```
+
+```ts
+// vite.config.ts — the loader turns .gql files into parsed documents
+import { graphql } from '@firsthandjs/query/vite';
+
+plugins: [firsthand({ packageName: 'app' }), graphql()];
+```
+
+```
+src/
+  gql/
+    boards.gql          one operation per file, cache tags as directives
+    board-fields.gql    a fragment, inlined by #import
+  graphql-types.ts      generated: result and variable types
+  graphql-modules.d.ts  generated: which .gql file has which of them
+codegen.ts              points at the schema and at src/gql
+server/schema.graphql   or wherever your schema comes from
+```
+
+```tsx
+// once, where the application starts
+provide(QueryClientContext, createQueryClient({ staleTime: 30_000 }));
+provide(GraphQLContext, createGraphQLTransport({ url: '/graphql' }));
+```
+
+```tsx
+// and then, anywhere
+import BoardsDocument from '../gql/boards.gql';
+
+const boards = useGraphQL(BoardsDocument);
+```
+
+That is the whole path. The rest of this section is what each step is for:
+[the document](#the-document) and its directives, [types](#loading-and-types),
+[the transport](#the-transport), [authentication](#authentication), and
+[more than one API](#more-than-one-api).
+
+Nothing here is required. Without the loader, `parseGraphQL(source)` does the
+same at runtime; without codegen, the types are the ones you write. The
+loader and codegen are what make a call site carry no type argument and no
+drift.
+
 ### The document
 
 Put each operation in a `.gql` file, with its cache tags as **directives**:
