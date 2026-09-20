@@ -37,6 +37,7 @@ export default defineConfig({
       '@firsthandjs/core': source('core'),
       '@firsthandjs/deep': source('deep'),
       '@firsthandjs/devtools': source('devtools'),
+      '@firsthandjs/i18n': source('i18n'),
       '@firsthandjs/dom': source('dom'),
       '@firsthandjs/jsx-runtime/jsx-dev-runtime': source('jsx-runtime'),
       '@firsthandjs/jsx-runtime/jsx-runtime': source('jsx-runtime'),
@@ -88,7 +89,7 @@ export default defineConfig({
           name: 'dom',
           environment: 'happy-dom',
           include: [
-            'packages/{dom,jsx-runtime,testing,router,query,styled,react,devtools}/test/**/*.test.{ts,tsx}',
+            'packages/{dom,jsx-runtime,testing,router,query,styled,react,devtools,i18n}/test/**/*.test.{ts,tsx}',
             'packages/*/test/compiled/**/*.test.tsx',
           ],
         },

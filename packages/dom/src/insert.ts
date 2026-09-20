@@ -88,6 +88,11 @@ export function applyChild(
 ): ChildSlot {
   const type = typeof value;
   if (value == null || type === 'boolean') {
+    // Reported here too, not only when there is text: a part that currently
+    // renders nothing still writes this node, and devtools that only knew
+    // about it once it had a value would go quiet exactly when someone is
+    // asking why the node is empty.
+    devPart(parent, 'text');
     return clear(current);
   }
   if (type === 'string' || type === 'number') {

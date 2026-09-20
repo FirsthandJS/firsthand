@@ -176,6 +176,43 @@ export function attach(): void {
   };
   globalThis.__FIRSTHAND_DEVTOOLS__ = hook;
   installed = hook;
+  // The console cannot import. A bare specifier has no resolver there, and in
+  // a bundled application the module is inside the bundle — so the API is put
+  // where the console can reach it, spelled to pair with the element the
+  // Elements panel has selected:
+  //
+  //   __FIRSTHAND__.chain($0)
+  (globalThis as { __FIRSTHAND__?: Console }).__FIRSTHAND__ = {
+    chain,
+    inspect,
+    causeOf,
+    cells,
+    queries,
+    detach,
+    // Loaded when it is opened, not before: the panel is the larger half of
+    // this package and most sessions never open it.
+    panel: (node?: Node) => {
+      void import('./panel.js').then((module) => {
+        if (node === undefined) {
+          module.open();
+        } else {
+          module.show(node);
+        }
+      });
+    },
+  };
+}
+
+/** What `attach()` puts on `globalThis` for the browser console to use. */
+export interface Console {
+  chain: typeof chain;
+  inspect: typeof inspect;
+  causeOf: typeof causeOf;
+  cells: typeof cells;
+  queries: typeof queries;
+  detach: typeof detach;
+  /** Opens the panel, or shows it for a node you already have. */
+  panel: (node?: Node) => void;
 }
 
 /** Stops recording and forgets everything. Mostly for tests. */
@@ -184,6 +221,7 @@ export function detach(): void {
     installed.attached = false;
   }
   globalThis.__FIRSTHAND_DEVTOOLS__ = undefined;
+  delete (globalThis as { __FIRSTHAND__?: Console }).__FIRSTHAND__;
   installed = null;
   running = null;
   lastCause = null;

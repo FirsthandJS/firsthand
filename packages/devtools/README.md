@@ -16,7 +16,22 @@ if (import.meta.env.DEV) {
 }
 ```
 
-Then, from the console or a test:
+Then, in the browser:
+
+```js
+__FIRSTHAND__.panel(); // a panel: pick an element, see what writes it and why
+```
+
+Or from the console, on whatever the Elements panel has selected — no import,
+because a console cannot resolve a bare specifier:
+
+```js
+__FIRSTHAND__.chain($0);
+__FIRSTHAND__.causeOf($0);
+__FIRSTHAND__.queries();
+```
+
+And from a test or a module, where the types apply:
 
 ```ts
 import { chain, inspect, causeOf } from '@firsthandjs/devtools';

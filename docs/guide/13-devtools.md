@@ -22,15 +22,53 @@ if (import.meta.env.DEV) {
 }
 ```
 
-That is the whole setup. Everything below works from the browser console, or
-from a test.
+That is the whole setup.
+
+## Point at it
+
+```ts
+__FIRSTHAND__.panel();
+```
+
+A panel opens in the corner of the page. Press **Pick**, click the element that
+is wrong, and the answer is on the screen: what writes it, what that reads, why
+it last ran, and the values along the way. A second tab shows what the query
+cache has been doing.
+
+It draws itself in a shadow root with `all: initial`, so the page's stylesheet
+cannot reach it and its own cannot reach the page — an inspector that changes
+what it is inspecting is worse than none. The panel's code is behind a dynamic
+import, so a session that never opens it never downloads it.
+
+### From the console, without an import
+
+You cannot write `import { chain } from '@firsthandjs/devtools'` in a browser
+console: a bare specifier has no resolver there, and in a bundled application
+the module is inside the bundle. So `attach()` puts the whole API on
+`globalThis` instead, spelled to pair with `$0` — the element the Elements
+panel has selected:
+
+```js
+__FIRSTHAND__.chain($0); // the chain for whatever you clicked in Elements
+__FIRSTHAND__.panel($0); // or open the panel on it
+__FIRSTHAND__.queries(); // what the cache did
+```
+
+This is plain JavaScript in the console: no types, no autocompletion for the
+arguments. The panel is the better tool for looking around; the console is the
+better one when you know exactly what you want, or want to `filter` the result.
+
+The same functions are importable in a test or a module, where the types do
+apply:
+
+```ts
+import { chain } from '@firsthandjs/devtools';
+```
 
 ## Why is this node like that?
 
 ```ts
-import { chain } from '@firsthandjs/devtools';
-
-chain(document.querySelector('button'));
+__FIRSTHAND__.chain($0);
 ```
 
 ```
@@ -51,9 +89,7 @@ reads several sources, [`inspect`](#the-same-answer-as-data) has the rest.
 ## Why did that just run?
 
 ```ts
-import { causeOf } from '@firsthandjs/devtools';
-
-causeOf(document.querySelector('button')); // 'order.ts:12:19'
+__FIRSTHAND__.causeOf($0); // 'order.ts:12:19'
 ```
 
 What changed to make the part run. `null` means it has not run since anything
@@ -65,9 +101,7 @@ history, because nothing needs it once the update is over.
 ## The same answer as data
 
 ```ts
-import { inspect } from '@firsthandjs/devtools';
-
-inspect(node);
+__FIRSTHAND__.inspect($0);
 // [{ kind: 'part', name: 'button.disabled', value: true,
 //    dependencies: [{ kind: 'computed', name: 'isEditable', … }],
 //    dependents: [] }]
@@ -113,9 +147,7 @@ reactive graph. A tag match is a decision, not an edge — so an invalidation
 that matched nothing looks exactly like one that was never sent.
 
 ```ts
-import { queries } from '@firsthandjs/devtools';
-
-queries().filter((e) => e.event === 'invalidated');
+__FIRSTHAND__.queries().filter((e) => e.event === 'invalidated');
 // [{ event: 'invalidated', key: 'order|…', tags: ['order(id: 7)'] }]
 ```
 
@@ -170,6 +202,9 @@ is a performance bug that is otherwise invisible until the profile is taken.
 replaces with empty functions, so a shipped bundle contains neither the code
 nor the message strings, and the package itself is only downloaded by an
 application that imports it.
+
+Of the package, an application that imports it downloads 1.40 kB gzip; the
+panel is another 1.95 kB, and only if it is opened.
 
 The measured exception, because this documentation does not round numbers away:
 the _calls_ to those empty functions cost 14 bytes minified and 5 gzip across

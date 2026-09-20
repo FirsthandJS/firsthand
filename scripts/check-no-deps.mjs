@@ -18,6 +18,7 @@ const runtimePackages = [
   'jsx-runtime',
   'deep',
   'devtools',
+  'i18n',
   'router',
   'query',
   'styled',

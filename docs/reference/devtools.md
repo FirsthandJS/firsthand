@@ -18,6 +18,23 @@ if (import.meta.env.DEV) {
 
 ---
 
+## The console, and the panel
+
+`attach()` also puts the API on `globalThis.__FIRSTHAND__`, because a browser
+console cannot import: a bare specifier has no resolver there, and in a bundled
+application the module is inside the bundle. It is spelled to pair with `$0`,
+the element the Elements panel has selected.
+
+```js
+__FIRSTHAND__.panel($0); // open the panel on it
+__FIRSTHAND__.chain($0); // or just the chain, as text
+```
+
+`__FIRSTHAND__.panel()` opens a panel in the page: pick an element, see what
+writes it and why. It lives in a shadow root with `all: initial`, so neither
+stylesheet reaches the other, and its code is behind a dynamic import — a
+session that never opens it never downloads it.
+
 ## attach / detach
 
 ```ts
@@ -165,7 +182,8 @@ by where it was written, which is a link your editor can follow.
 **Nothing ships.** The hooks this reads live in modules the production build
 replaces with empty functions, so a shipped bundle contains neither the code
 nor its strings, and this package is downloaded only by an application that
-imports it.
+imports it. Of the package itself, 1.40 kB gzip is the part an import pulls in;
+the panel is a further 1.95 kB, loaded when it is opened.
 
 The one honest exception, measured rather than rounded away: the _calls_ to
 those empty functions cost **14 bytes minified, 5 gzip** across the whole

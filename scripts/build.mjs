@@ -79,6 +79,17 @@ const targets = [
     platform: 'browser',
     runtime: false,
     optional: true,
+    // The panel is reached through a dynamic import so that a session which
+    // never opens it never downloads it. That only holds if the bundler is
+    // allowed to split, which it does not do for a single entry by default.
+    split: true,
+  },
+  {
+    pkg: 'i18n',
+    entries: { index: 'src/index.ts' },
+    platform: 'browser',
+    runtime: false,
+    optional: true,
   },
   {
     pkg: 'router',
@@ -188,7 +199,7 @@ for (const target of targets) {
     // and `@firsthandjs/dom/internal` share module state — the delegated-listener
     // registry, the configured element prefix — and building them as two
     // independent bundles would give an application two copies of it.
-    splitting: entries.length > 1,
+    splitting: entries.length > 1 || target.split === true,
     chunkNames: 'chunk-[hash]',
     platform: target.platform,
     target: target.platform === 'node' ? 'node20' : 'es2022',

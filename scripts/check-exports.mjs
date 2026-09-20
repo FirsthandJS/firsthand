@@ -59,6 +59,7 @@ const expectations = [
     entry: '.',
     names: ['attach', 'detach', 'cells', 'inspect', 'chain', 'causeOf', 'queries'],
   },
+  { pkg: 'i18n', entry: '.', names: ['translator', 'fromI18next'] },
   {
     pkg: 'query',
     entry: '.',
