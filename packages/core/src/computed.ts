@@ -1,6 +1,7 @@
 import { Cell, defaultEquals, own } from './core.js';
 import { DIRTY, MUTABLE } from './flags.js';
 import type { CellOptions, ReadonlyCell } from './types.js';
+import { devLabel } from './dev.js';
 
 /**
  * Creates a lazy, memoised derived value.
@@ -15,5 +16,6 @@ import type { CellOptions, ReadonlyCell } from './types.js';
 export function computed<T>(fn: () => T, options?: CellOptions<T>): ReadonlyCell<T> {
   const cell = new Cell(MUTABLE | DIRTY, undefined, fn, defaultEquals(options?.equals));
   own(cell);
+  devLabel(cell, 'computed', fn.name);
   return cell as unknown as ReadonlyCell<T>;
 }

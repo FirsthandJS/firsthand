@@ -19,7 +19,14 @@
 
 import { DIRTY, DISPOSED, HAS_VALUE, MUTABLE, PENDING, STALE, WATCHING } from './flags.js';
 import { FirsthandCycleError, FirsthandReadonlyError } from './errors.js';
-import { devCheckSetupRead, devEnterSnapshot, devExitSnapshot, reportUncaught } from './dev.js';
+import {
+  devCause,
+  devCheckSetupRead,
+  devEnterSnapshot,
+  devExitSnapshot,
+  devRunning,
+  reportUncaught,
+} from './dev.js';
 
 // ---------------------------------------------------------------------------
 // Structures
@@ -347,6 +354,11 @@ function write(cell: Cell, next: unknown): void {
   if (cell.equals(cell.v, next)) {
     return;
   }
+  // The one fact the graph does not keep: what changed. Devtools pair it with
+  // the effects that run before the next write, which is what turns "this
+  // effect ran" into "this effect ran because `order.status` changed". Placed
+  // here rather than in the propagation loops, which are the hot path.
+  devCause(cell);
   cell.v = next;
   const subs = cell.subs;
   if (subs !== undefined) {
@@ -473,6 +485,10 @@ function runEffect(cell: Cell): void {
   activeSub = cell;
   currentOwner = scope;
   startTracking(cell);
+  // Devtools attribute every DOM write made below to this effect, which is how
+  // a part learns that it is `Button.disabled` without the DOM layer and the
+  // core knowing anything about each other.
+  devRunning(cell);
   try {
     const cleanup = (cell.fn as () => unknown)();
     if (typeof cleanup === 'function') {
@@ -481,6 +497,7 @@ function runEffect(cell: Cell): void {
   } catch (error) {
     handleError(error, scope);
   } finally {
+    devRunning(null);
     endTracking(cell);
     activeSub = prevSub;
     currentOwner = prevOwner;

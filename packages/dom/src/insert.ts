@@ -1,5 +1,5 @@
 import { bind, getOwner, onCleanup, runWithOwner, type Owner } from '@firsthandjs/core';
-import { devWarnRenderedObject } from './dev.js';
+import { devPart, devWarnRenderedObject } from './dev.js';
 
 /** What a child part currently owns in the DOM. */
 export type ChildSlot = Node | Node[] | null;
@@ -91,6 +91,9 @@ export function applyChild(
     return clear(current);
   }
   if (type === 'string' || type === 'number') {
+    // Devtools attribute this write to the effect that is running, which is how
+    // `{count.value}` becomes `p.text` rather than an anonymous effect.
+    devPart(parent, 'text');
     const text = String(value);
     if (current !== null && !Array.isArray(current) && current.nodeType === TEXT_NODE) {
       // The fast path that matters: one property write, no allocation.

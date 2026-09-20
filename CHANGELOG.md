@@ -4,6 +4,36 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `@firsthandjs/devtools` — see which signal updates which DOM node, what
+  depends on what, and why an effect ran.
+
+  ```
+  order.ts:12:19
+     ↓
+  computed(isEditable)
+     ↓
+  button.disabled
+  ```
+
+  It instruments nothing. The reactive graph is already there, because
+  propagation and disposal need it — every cell carries its dependencies and
+  its subscribers, every owner its children — so the package attaches names to
+  those nodes and reads the structure when asked. `chain(node)` draws the path,
+  `inspect(node)` returns it as data, `cells()` lists what is alive, and
+  `causeOf(node)` names what changed.
+
+  Off until `attach()` is called, and **nothing ships**: the hooks live in the
+  modules the production build replaces with empty functions, so a shipped
+  bundle contains neither the code nor its strings. Measured rather than
+  assumed: `bench:ic` still reports 1.01x for mixed cell shapes, and the calls
+  to those empty functions cost 14 bytes minified and 5 gzip across the whole
+  runtime — reported rather than rounded away
+  ([ADR-0020](docs/adr/0020-devtools-without-a-runtime-cost.md)).
+
 ## [0.3.0] - 2026-09-20
 
 ### Added

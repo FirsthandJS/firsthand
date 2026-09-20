@@ -33,3 +33,19 @@ export function devExitSnapshot(): void {
 export function devCheckSetupRead(): void {
   /* stripped in production */
 }
+
+export function devLabel(_target: object, _kind: string, _name: string): void {
+  /* stripped in production */
+}
+
+export function devCause(_dep: object): void {
+  /* stripped in production */
+}
+
+export function devRoot(_owner: object): void {
+  /* stripped in production */
+}
+
+export function devRunning(_effect: object | null): void {
+  /* stripped in production */
+}

@@ -1,5 +1,5 @@
 import { createOwner, disposeOwner, getOwner, handleError, setOwner } from './core.js';
-import { devWarn } from './dev.js';
+import { devRoot, devWarn } from './dev.js';
 import type { Dispose } from './types.js';
 
 /**
@@ -24,6 +24,9 @@ export function onCleanup(fn: () => void): void {
  */
 export function createRoot<T>(fn: (dispose: Dispose) => T): T {
   const owner = createOwner(getOwner());
+  // A root is where devtools start walking: everything the graph holds hangs
+  // off one of these, through owners that disposal already keeps linked.
+  devRoot(owner);
   const previous = setOwner(owner);
   try {
     return fn(() => {

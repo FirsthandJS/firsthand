@@ -8,6 +8,8 @@
  * ARCHITECTURE section 8, item 6.
  */
 
+import type { DevtoolsHook } from './types.js';
+
 export function devWarn(message: string): void {
   console.warn(`[firsthand] ${message}`);
 }
@@ -88,4 +90,47 @@ export function devCheckSetupRead(): void {
       'handler, effect or computed that should re-read it — or wrap it in ' +
       'snapshot() if reading once is what you meant.',
   );
+}
+
+// ---------------------------------------------------------------------------
+// Devtools (ADR-0020)
+// ---------------------------------------------------------------------------
+
+/**
+ * The hook, or `undefined` while nothing is listening.
+ *
+ * Read through a function rather than captured once, because the frontend may
+ * attach after the module is evaluated — an application that imports devtools
+ * lazily, or a test that attaches per case.
+ */
+function hook(): DevtoolsHook | undefined {
+  const installed = globalThis.__FIRSTHAND_DEVTOOLS__;
+  return installed !== undefined && installed.attached ? installed : undefined;
+}
+
+/**
+ * Names a cell, if anyone is listening.
+ *
+ * Nothing is recorded until a frontend attaches: naming every cell costs a
+ * `WeakMap` write, and a hundred thousand rows would feel that even in
+ * development — which is precisely the size at which devtools matter, so the
+ * cost has to be opt-in rather than merely small.
+ */
+export function devLabel(target: object, kind: string, name: string): void {
+  hook()?.label(target, kind, name);
+}
+
+/** Reports the source that just changed, so a run can be explained by it. */
+export function devCause(dep: object): void {
+  hook()?.cause(dep);
+}
+
+/** Registers a scope the frontend can enumerate the graph from. */
+export function devRoot(owner: object): void {
+  hook()?.root(owner);
+}
+
+/** Reports the effect that is running, so a write can be attributed to it. */
+export function devRunning(effect: object | null): void {
+  hook()?.running(effect);
 }

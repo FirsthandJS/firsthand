@@ -28,6 +28,33 @@ const productionDev = {
   },
 };
 
+/**
+ * The development-only hooks, which production replaces with empty functions.
+ *
+ * Replacing them is not quite enough: esbuild keeps a call to an empty
+ * function, because it cannot know the function is free of side effects. This
+ * list says that it is, so the calls are removed rather than merely emptied —
+ * which is the difference between "the diagnostics are disabled" and "the
+ * diagnostics are not in the file" (ADR-0019, ADR-0020).
+ *
+ * `reportUncaught` is deliberately absent: it does real work in production.
+ */
+const pureDevHooks = [
+  'devWarn',
+  'devWarnOnce',
+  'devWarnRenderedObject',
+  'devCheckSetupRead',
+  'devEnterSetup',
+  'devExitSetup',
+  'devEnterSnapshot',
+  'devExitSnapshot',
+  'devLabel',
+  'devCause',
+  'devRoot',
+  'devRunning',
+  'devPart',
+];
+
 const targets = [
   { pkg: 'core', entries: { index: 'src/index.ts' }, platform: 'browser', runtime: true },
   {
@@ -41,6 +68,13 @@ const targets = [
   // them, so they are measured separately from the core runtime budget.
   {
     pkg: 'deep',
+    entries: { index: 'src/index.ts' },
+    platform: 'browser',
+    runtime: false,
+    optional: true,
+  },
+  {
+    pkg: 'devtools',
     entries: { index: 'src/index.ts' },
     platform: 'browser',
     runtime: false,
@@ -160,6 +194,7 @@ for (const target of targets) {
     target: target.platform === 'node' ? 'node20' : 'es2022',
     minify: target.runtime || target.optional === true,
     legalComments: 'none',
+    pure: target.runtime || target.optional === true ? pureDevHooks : [],
     external: ['@firsthandjs/*', '@babel/*', 'node:*', ...(target.external ?? [])],
     plugins: target.runtime || target.optional === true ? [productionDev] : [],
   });
@@ -210,6 +245,7 @@ const loaderBuild = await esbuild.build({
   target: 'es2022',
   minify: true,
   legalComments: 'none',
+  pure: pureDevHooks,
   external: ['@firsthandjs/*'],
   plugins: [productionDev],
 });
@@ -242,6 +278,7 @@ const whole = await esbuild.build({
   target: 'es2022',
   minify: true,
   legalComments: 'none',
+  pure: pureDevHooks,
   plugins: [productionDev],
 });
 rmSync(appEntry, { force: true });

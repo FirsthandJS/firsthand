@@ -17,6 +17,7 @@ export { FirsthandCycleError, FirsthandContextError, FirsthandReadonlyError } fr
 export type {
   CellOptions,
   DeepReadonly,
+  DevtoolsHook,
   Dispose,
   ReadonlyCell,
   ReadonlyProps,

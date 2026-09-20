@@ -9,7 +9,7 @@ import {
 } from './core.js';
 import { WATCHING } from './flags.js';
 import { releaseEffect } from './core.js';
-import { devWarn } from './dev.js';
+import { devLabel, devWarn } from './dev.js';
 import type { Dispose } from './types.js';
 
 /**
@@ -28,6 +28,7 @@ type EffectBody = () => void | (() => void);
  */
 export function createEffect(fn: EffectBody): Cell {
   const cell = new Cell(WATCHING, undefined, fn, defaultEquals(undefined));
+  devLabel(cell, 'effect', fn.name);
   own(cell);
   createEffectScope(cell);
   runEffectNow(cell);

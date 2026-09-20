@@ -1,23 +1,23 @@
 {
-  "measuredAt": "2026-09-20T08:00:18.387Z",
+  "measuredAt": "2026-09-20T10:03:42.257Z",
   "sizes": [
     {
       "module": "@firsthandjs/core",
-      "minified": 6633,
-      "gzip": 2412,
-      "brotli": 2189
+      "minified": 6661,
+      "gzip": 2420,
+      "brotli": 2195
     },
     {
       "module": "@firsthandjs/dom",
       "minified": 10642,
-      "gzip": 4269,
-      "brotli": 3817
+      "gzip": 4280,
+      "brotli": 3819
     },
     {
       "module": "@firsthandjs/dom/internal",
       "minified": 10063,
-      "gzip": 4191,
-      "brotli": 3731
+      "gzip": 4182,
+      "brotli": 3724
     },
     {
       "module": "@firsthandjs/jsx-runtime",
@@ -27,9 +27,9 @@
     },
     {
       "module": "full runtime (core + dom, everything imported)",
-      "minified": 16232,
-      "gzip": 6009,
-      "brotli": 5413
+      "minified": 16246,
+      "gzip": 6014,
+      "brotli": 5422
     }
   ],
   "optional": [
@@ -38,6 +38,12 @@
       "minified": 1623,
       "gzip": 740,
       "brotli": 675
+    },
+    {
+      "module": "@firsthandjs/devtools",
+      "minified": 2328,
+      "gzip": 1147,
+      "brotli": 1037
     },
     {
       "module": "@firsthandjs/router",

@@ -232,6 +232,7 @@ Shoelace and styled components on one page) and
 | `@firsthandjs/dom`         | 4.15 kB     | Components, rendering, elements, lists, portals |
 | `@firsthandjs/jsx-runtime` | 0.59 kB     | JSX types, and the runtime fallback             |
 | `@firsthandjs/deep`        | 0.72 kB     | Deep reactivity: every property is a signal     |
+| `@firsthandjs/devtools`    | 1.12 kB     | Read the graph: what updates what, and why      |
 | `@firsthandjs/compiler`    | build only  | The TSX transform and the bundler plugin        |
 | `@firsthandjs/router`      | 3.36 kB     | Routes, links, history, lazy routes             |
 | `@firsthandjs/query`       | 3.23 kB     | The cache, tags, REST, GraphQL, codegen         |
@@ -340,11 +341,11 @@ different sample sizes would quietly weaken the confidence interval.
 
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
-| `@firsthandjs/core` | 6.48 kB | **2.36 kB** | 2.14 kB |
-| `@firsthandjs/dom` | 10.39 kB | **4.17 kB** | 3.73 kB |
-| `@firsthandjs/dom/internal` | 9.83 kB | **4.09 kB** | 3.64 kB |
+| `@firsthandjs/core` | 6.50 kB | **2.36 kB** | 2.14 kB |
+| `@firsthandjs/dom` | 10.39 kB | **4.18 kB** | 3.73 kB |
+| `@firsthandjs/dom/internal` | 9.83 kB | **4.08 kB** | 3.64 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
-| full runtime (core + dom, everything imported) | 15.85 kB | **5.87 kB** | 5.29 kB |
+| full runtime (core + dom, everything imported) | 15.87 kB | **5.87 kB** | 5.29 kB |
 
 
 Optional packages, downloaded only by an application that imports them:
@@ -352,6 +353,7 @@ Optional packages, downloaded only by an application that imports them:
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
 | `@firsthandjs/deep` | 1.58 kB | **0.72 kB** | 0.66 kB |
+| `@firsthandjs/devtools` | 2.27 kB | **1.12 kB** | 1.01 kB |
 | `@firsthandjs/router` | 8.36 kB | **3.36 kB** | 3.06 kB |
 | `@firsthandjs/query` | 7.74 kB | **3.23 kB** | 2.95 kB |
 | `@firsthandjs/query (.gql loader path, parser tree-shaken)` | 5.12 kB | **2.14 kB** | 1.98 kB |
@@ -451,7 +453,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 635 tests under Vitest and 87
+This repository is the demonstration: 655 tests under Vitest and 87
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all seven examples.
 <!-- prettier-ignore-end -->

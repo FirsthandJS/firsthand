@@ -55,6 +55,11 @@ const expectations = [
   { pkg: 'jsx-runtime', entry: '.', names: ['jsx', 'jsxs', 'Fragment'] },
   { pkg: 'deep', entry: '.', names: ['deepSignal', 'raw', 'isDeep'] },
   {
+    pkg: 'devtools',
+    entry: '.',
+    names: ['attach', 'detach', 'cells', 'inspect', 'chain', 'causeOf'],
+  },
+  {
     pkg: 'query',
     entry: '.',
     names: [

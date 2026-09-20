@@ -8,6 +8,8 @@
  * and `style`).
  */
 
+import { devPart } from './dev.js';
+
 /** Attributes whose canonical form is a DOM property with a different name. */
 const PROPERTY_ALIASES: Record<string, string> = {
   class: 'className',
@@ -15,6 +17,7 @@ const PROPERTY_ALIASES: Record<string, string> = {
 };
 
 export function setAttribute(node: Element, name: string, value: unknown): void {
+  devPart(node, name);
   if (value == null || value === false) {
     node.removeAttribute(name);
   } else {
@@ -23,6 +26,7 @@ export function setAttribute(node: Element, name: string, value: unknown): void 
 }
 
 export function setAttributeNS(node: Element, ns: string, name: string, value: unknown): void {
+  devPart(node, name);
   if (value == null || value === false) {
     node.removeAttributeNS(ns, name);
   } else {
@@ -32,16 +36,19 @@ export function setAttributeNS(node: Element, ns: string, name: string, value: u
 
 /** Writes a DOM property, which is what keeps object props out of strings. */
 export function setProperty(node: Element, name: string, value: unknown): void {
+  devPart(node, name);
   (node as unknown as Record<string, unknown>)[PROPERTY_ALIASES[name] ?? name] = value;
 }
 
 /** A boolean DOM property such as `disabled` or `checked`. */
 export function setBoolean(node: Element, name: string, value: unknown): void {
+  devPart(node, name);
   (node as unknown as Record<string, boolean>)[name] = !!value;
 }
 
 /** `class` as a string, replacing whatever was there. */
 export function setClass(node: Element, value: unknown): void {
+  devPart(node, 'class');
   if (value == null) {
     node.removeAttribute('class');
   } else {

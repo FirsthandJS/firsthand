@@ -15,6 +15,7 @@ const packages = [
   'dom',
   'jsx-runtime',
   'deep',
+  'devtools',
   'router',
   'query',
   'styled',

@@ -1,0 +1,162 @@
+/**
+ * Devtools read the graph the framework already keeps.
+ *
+ * The test that matters is the last one: the chain a person asks for when a
+ * button is disabled and nobody knows why.
+ */
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { computed, effect, signal } from '@firsthandjs/core';
+import { component } from '@firsthandjs/dom';
+import { render } from '@firsthandjs/dom';
+import { attach, causeOf, cells, chain, detach, inspect } from '@firsthandjs/devtools';
+
+let host: HTMLElement;
+
+beforeEach(() => {
+  document.body.innerHTML = '';
+  host = document.createElement('div');
+  document.body.appendChild(host);
+  attach();
+});
+
+afterEach(() => {
+  detach();
+});
+
+describe('attaching', () => {
+  it('installs the hook once, and removes it again', () => {
+    expect(globalThis.__FIRSTHAND_DEVTOOLS__?.attached).toBe(true);
+    attach(); // a second call is a no-op rather than a second hook
+    expect(globalThis.__FIRSTHAND_DEVTOOLS__?.attached).toBe(true);
+
+    detach();
+    expect(globalThis.__FIRSTHAND_DEVTOOLS__).toBeUndefined();
+  });
+
+  it('records nothing once detached', () => {
+    detach();
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+
+    expect(cells()).toEqual([]);
+  });
+});
+
+describe('what it can see', () => {
+  it('lists the computeds and effects that are alive', () => {
+    const count = signal(1);
+    render(() => {
+      const doubled = computed(() => count.value * 2);
+      effect(() => void doubled.value);
+      return <p>{doubled.value}</p>;
+    }, host);
+
+    const found = cells();
+    expect(found.some((node) => node.kind === 'computed')).toBe(true);
+    expect(found.some((node) => node.kind === 'effect' || node.kind === 'part')).toBe(true);
+  });
+
+  it('names a signal by where it was created when nothing else named it', () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+
+    const [part] = inspect(host.querySelector('p') as Node);
+    const source = part?.dependencies[0];
+    expect(source?.kind).toBe('signal');
+    expect(source?.name).toMatch(/devtools\.test\.tsx:\d+:\d+/);
+  });
+
+  it('names a part by the node and property it writes', () => {
+    const disabled = signal(true);
+    render(() => <button disabled={disabled.value}>Save</button>, host);
+
+    const [part] = inspect(host.querySelector('button') as Node);
+    expect(part?.name).toBe('button.disabled');
+    expect(part?.kind).toBe('part');
+  });
+
+  it('carries the current value of a signal', () => {
+    const count = signal(41);
+    render(() => <p>{count.value}</p>, host);
+
+    const [part] = inspect(host.querySelector('p') as Node);
+    expect(part?.dependencies[0]?.value).toBe(41);
+  });
+
+  it('says so plainly when nothing reactive writes a node', () => {
+    render(() => <p>static</p>, host);
+    expect(chain(host.querySelector('p') as Node)).toBe('Nothing reactive writes this node.');
+    expect(inspect(host.querySelector('p') as Node)).toEqual([]);
+  });
+});
+
+describe('why an effect ran', () => {
+  it('names the dependency that scheduled it', () => {
+    const status = signal('draft');
+    render(() => <button disabled={status.value === 'sent'}>Save</button>, host);
+    const button = host.querySelector('button') as Node;
+
+    expect(causeOf(button)).toBeNull(); // nothing has changed yet
+
+    status.value = 'sent';
+
+    expect(causeOf(button)).toMatch(/devtools\.test\.tsx:\d+:\d+/);
+  });
+
+  it('has nothing to say about a node it does not write', () => {
+    render(() => <p>static</p>, host);
+    expect(causeOf(host.querySelector('p') as Node)).toBeNull();
+  });
+});
+
+describe('the chain', () => {
+  it('draws the path from the sources down to the DOM node', () => {
+    const order = { status: signal('draft') };
+    // Named by its function rather than by its variable, because that is what
+    // a runtime can see; the compiler option that reads the variable name is
+    // the next step.
+    const editable = computed(function isEditable() {
+      return order.status.value === 'draft';
+    });
+
+    const Button = component(() => <button disabled={!editable.value}>Save</button>);
+    render(() => <Button />, host);
+
+    const drawn = chain(host.querySelector('button') as Node);
+
+    // The shape of the answer, which is the whole point of the package:
+    //   <source>
+    //      ↓
+    //   computed(isEditable)
+    //      ↓
+    //   button.disabled
+    expect(drawn).toContain('computed(isEditable)');
+    expect(drawn).toContain('button.disabled');
+    expect(drawn.indexOf('computed(isEditable)')).toBeLessThan(drawn.indexOf('button.disabled'));
+    expect(drawn.split('\n   ↓\n')).toHaveLength(3);
+  });
+
+  it('draws one path when a part reads several sources', () => {
+    const first = signal('a');
+    const second = signal('b');
+    render(() => <p>{first.value + second.value}</p>, host);
+
+    const drawn = chain(host.querySelector('p') as Node);
+
+    // A chain is a story, so it tells one. `inspect` still returns both
+    // dependencies for anything that wants the whole shape.
+    expect(drawn.split('\n   ↓\n')).toHaveLength(2);
+    expect(inspect(host.querySelector('p') as Node)[0]?.dependencies).toHaveLength(2);
+  });
+
+  it('follows both directions of the graph', () => {
+    const status = signal('draft');
+    const isEditable = computed(() => status.value === 'draft');
+    render(() => <button disabled={!isEditable.value}>Save</button>, host);
+
+    const [part] = inspect(host.querySelector('button') as Node);
+    const middle = part?.dependencies[0];
+    expect(middle?.kind).toBe('computed');
+    expect(middle?.dependencies[0]?.kind).toBe('signal');
+  });
+});
