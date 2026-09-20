@@ -4,7 +4,7 @@
 browser
 
 Compiles TSX into template clones and DOM parts. Guide:
-[Building and deploying](../guide/14-building.md); design:
+[Building and deploying](../guide/16-building.md); design:
 [ADR-0009](../adr/0009-compiler-templates-and-thunks.md).
 
 ---
@@ -25,7 +25,7 @@ function firsthand(options?: FirsthandPluginOptions): VitePluginLike;
 interface FirsthandPluginOptions {
   /** Used when hashing stable component ids. */
   packageName?: string;
-  /** Refuse to compile a value read once in a setup and then kept. */
+  /** Refuse to compile a value read once in a setup and then kept. Default: true. */
   strictReactivity?: boolean;
 }
 ```
@@ -41,9 +41,8 @@ the default `app` and shipped in one bundle would collide.
 
 ## strictReactivity
 
-```ts
-firsthand({ packageName: 'my-app', strictReactivity: true });
-```
+**On by default.** `firsthand({ packageName: 'my-app', strictReactivity: false })`
+turns it off.
 
 Refuses to compile a declaration whose value is read once in a component setup
 and then kept — the mistake the single-run setup invites
@@ -71,12 +70,60 @@ alone too: those bodies run again.
 What it therefore cannot see is a read that leaves the module — `doSomething(props)`
 with the read in another file. That is what the runtime half is for:
 [`setStrictReactivity(true)`](core.md#setstrictreactivity) reports the same
-mistake during development, including the cases no compiler can follow. The two
-are separate switches on purpose, because one is a build setting and the other
-is something your application turns on where it configures development.
+mistake during development, including the cases no compiler can follow.
+
+**The runtime half stays opt-in, and this one does not.** The difference is
+precision. The compiler sees the _shape_ of a declaration and only reports the
+one that is almost always wrong; the runtime sees a read with nothing
+subscribing, which `signal(props.initial)` also is. A check that is usually
+right can be on by default. One that is often wrong would only teach people to
+ignore it.
 
 Neither costs anything in production: this one runs at build time, and the other
 lives in a module the production build replaces with empty functions.
+
+## devtools
+
+```ts
+firsthand({ packageName: 'my-app', devtools: true });
+```
+
+Labels each cell with the variable that holds it and the line it was written
+on, for [devtools](devtools.md). **The Vite plugin turns this on while serving
+and off while building**, so a production build emits nothing; the option
+overrides that either way.
+
+```tsx
+const count = signal(0);
+// becomes, in development only:
+const count = _$label(signal(0), 'signal', 'count (main.tsx:9)');
+```
+
+It exists because neither half is available at runtime. A runtime cannot see
+that the variable is called `count`, and `new Error().stack` reports a position
+in the _compiled_ module — browsers do not apply source maps to `error.stack`,
+so the line it names is not the line that was written. The compiler knows both.
+
+Only `signal`, `computed` and `deepSignal` assigned to a plain identifier are
+labelled. Anything else is left alone and simply unnamed.
+
+## Source maps
+
+The Vite plugin returns one, so a debugger shows the JSX rather than the
+hoisted templates and protocol calls it compiles to. `compileModule` is the
+entry point that produces it:
+
+```ts
+import { compileModule } from '@firsthandjs/compiler';
+
+const { code, map } = compileModule(source, { filename, sourceMaps: true });
+```
+
+`map` is a `SourceMap` — the shape a bundler expects, so the plugin's
+`transform` result is assignable to Rollup's `SourceMapInput` without a cast.
+It is `null` when no map was asked for.
+
+`transform` remains the string-returning form, and asks for no map.
 
 ## The Babel plugin
 

@@ -8,5 +8,6 @@
 
 export { default as firsthandPlugin } from './transform.js';
 export type { FirsthandPluginOptions } from './transform.js';
-export { transform } from './api.js';
+export { compileModule, transform } from './api.js';
+export type { Compiled, SourceMap, TransformOptions } from './api.js';
 export { stableId } from './ids.js';

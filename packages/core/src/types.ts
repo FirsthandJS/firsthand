@@ -49,3 +49,44 @@ export type DeepReadonly<T> = T extends (...args: never[]) => unknown
  * object identity, copies or proxies.
  */
 export type ReadonlyProps<T> = { readonly [K in keyof T]: DeepReadonly<T[K]> };
+
+/**
+ * What a devtools frontend installs on `globalThis.__FIRSTHAND_DEVTOOLS__`
+ * (ADR-0020).
+ *
+ * Declared once, here, because every package speaks it from its own `dev`
+ * module and none of them import each other's. A type costs nothing at
+ * runtime, so sharing the definition does not share any code.
+ */
+export interface DevtoolsHook {
+  /** Set by the frontend once it is ready to receive labels. */
+  attached: boolean;
+  /** Labels a node of the graph: 'signal', 'computed' or 'effect'. */
+  label(target: object, kind: string, name: string): void;
+  /** The source that just changed, paired with whatever runs next. */
+  cause(dep: object): void;
+  /** A scope that owns cells, so the frontend can enumerate from the top. */
+  root(owner: object): void;
+  /** The effect that is running, or `null` between runs. */
+  running(effect: object | null): void;
+  /**
+   * A scope that belongs to a component instance, and what it is called.
+   *
+   * The owner tree already knows the shape; only the DOM layer knows the name,
+   * and only at the moment the instance is created.
+   */
+  component(owner: object, name: string): void;
+  /** The node and property a part is writing, from inside its own effect. */
+  part(node: object, property: string): void;
+  /**
+   * What the query cache just did: an entry created, invalidated or dropped.
+   *
+   * The cache is the one part of the framework whose behaviour is not in the
+   * reactive graph — a tag match is a decision rather than an edge.
+   */
+  query(event: string, key: string, tags: readonly string[]): void;
+}
+
+declare global {
+  var __FIRSTHAND_DEVTOOLS__: DevtoolsHook | undefined;
+}

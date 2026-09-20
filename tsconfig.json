@@ -8,6 +8,12 @@
       "path": "./packages/deep"
     },
     {
+      "path": "./packages/devtools"
+    },
+    {
+      "path": "./packages/i18n"
+    },
+    {
       "path": "./packages/dom"
     },
     {

@@ -1,6 +1,6 @@
 # @firsthandjs/deep
 
-[Reference index](../README.md#reference) · 0.72 kB gzip · depends on
+[Reference index](../README.md#reference) · 0.74 kB gzip · depends on
 `@firsthandjs/core`
 
 Reactivity that follows an object all the way down — the shape Vue calls
@@ -90,7 +90,7 @@ deepSignal(new Point()); // compile error
 That is deliberate. Those objects read their internal state through `this`, and
 `this` inside a proxy is the proxy, not the object — so a proxied `Map` throws
 on `get`. Vue solves it with a second set of handlers per collection type; this
-package solves it by saying no, which is 0.72 kB instead of several. A `Map`
+package solves it by saying no, which is 0.74 kB instead of several. A `Map`
 held **inside** deep state still works, it is simply not reactive itself:
 
 ```ts

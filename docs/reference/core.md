@@ -1,6 +1,6 @@
 # @firsthandjs/core
 
-[Reference index](../README.md#reference) · 2.36 kB gzip · no dependencies
+[Reference index](../README.md#reference) · 2.42 kB gzip · no dependencies
 
 The reactive graph, the owner tree and context. It imports nothing from the
 DOM and loads unchanged in a worker or on a server.

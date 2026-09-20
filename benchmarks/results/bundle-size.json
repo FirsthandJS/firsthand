@@ -1,23 +1,23 @@
 {
-  "measuredAt": "2026-09-20T08:00:18.387Z",
+  "measuredAt": "2026-09-20T14:55:01.268Z",
   "sizes": [
     {
       "module": "@firsthandjs/core",
-      "minified": 6633,
-      "gzip": 2412,
-      "brotli": 2189
+      "minified": 6661,
+      "gzip": 2420,
+      "brotli": 2195
     },
     {
       "module": "@firsthandjs/dom",
-      "minified": 10642,
-      "gzip": 4269,
-      "brotli": 3817
+      "minified": 10696,
+      "gzip": 4301,
+      "brotli": 3849
     },
     {
       "module": "@firsthandjs/dom/internal",
-      "minified": 10063,
-      "gzip": 4191,
-      "brotli": 3731
+      "minified": 10135,
+      "gzip": 4212,
+      "brotli": 3760
     },
     {
       "module": "@firsthandjs/jsx-runtime",
@@ -27,17 +27,29 @@
     },
     {
       "module": "full runtime (core + dom, everything imported)",
-      "minified": 16232,
-      "gzip": 6009,
-      "brotli": 5413
+      "minified": 16304,
+      "gzip": 6031,
+      "brotli": 5441
     }
   ],
   "optional": [
     {
       "module": "@firsthandjs/deep",
       "minified": 1623,
-      "gzip": 740,
-      "brotli": 675
+      "gzip": 739,
+      "brotli": 673
+    },
+    {
+      "module": "@firsthandjs/devtools",
+      "minified": 17310,
+      "gzip": 6448,
+      "brotli": 5652
+    },
+    {
+      "module": "@firsthandjs/i18n",
+      "minified": 640,
+      "gzip": 376,
+      "brotli": 328
     },
     {
       "module": "@firsthandjs/router",
@@ -47,15 +59,15 @@
     },
     {
       "module": "@firsthandjs/query",
-      "minified": 7928,
-      "gzip": 3305,
-      "brotli": 3022
+      "minified": 7961,
+      "gzip": 3318,
+      "brotli": 3034
     },
     {
       "module": "@firsthandjs/query (.gql loader path, parser tree-shaken)",
-      "minified": 5243,
-      "gzip": 2196,
-      "brotli": 2024
+      "minified": 5276,
+      "gzip": 2208,
+      "brotli": 2032
     },
     {
       "module": "@firsthandjs/styled",

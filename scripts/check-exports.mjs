@@ -55,6 +55,23 @@ const expectations = [
   { pkg: 'jsx-runtime', entry: '.', names: ['jsx', 'jsxs', 'Fragment'] },
   { pkg: 'deep', entry: '.', names: ['deepSignal', 'raw', 'isDeep'] },
   {
+    pkg: 'devtools',
+    entry: '.',
+    names: [
+      'attach',
+      'detach',
+      'cells',
+      'inspect',
+      'chain',
+      'causeOf',
+      'path',
+      'stack',
+      'timeline',
+      'queries',
+    ],
+  },
+  { pkg: 'i18n', entry: '.', names: ['translator', 'fromI18next'] },
+  {
     pkg: 'query',
     entry: '.',
     names: [
@@ -98,7 +115,11 @@ const expectations = [
     entry: '.',
     names: ['mount', 'cleanup', 'autoCleanup', 'withRoot', 'subscriberCount', 'tick'],
   },
-  { pkg: 'compiler', entry: '.', names: ['transform', 'firsthandPlugin', 'stableId'] },
+  {
+    pkg: 'compiler',
+    entry: '.',
+    names: ['transform', 'compileModule', 'firsthandPlugin', 'stableId'],
+  },
   { pkg: 'compiler', entry: './vite', names: ['firsthand'] },
 ];
 

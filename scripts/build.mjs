@@ -28,6 +28,33 @@ const productionDev = {
   },
 };
 
+/**
+ * The development-only hooks, which production replaces with empty functions.
+ *
+ * Replacing them is not quite enough: esbuild keeps a call to an empty
+ * function, because it cannot know the function is free of side effects. This
+ * list says that it is, so the calls are removed rather than merely emptied —
+ * which is the difference between "the diagnostics are disabled" and "the
+ * diagnostics are not in the file" (ADR-0019, ADR-0020).
+ *
+ * `reportUncaught` is deliberately absent: it does real work in production.
+ */
+const pureDevHooks = [
+  'devWarn',
+  'devWarnOnce',
+  'devWarnRenderedObject',
+  'devCheckSetupRead',
+  'devEnterSetup',
+  'devExitSetup',
+  'devEnterSnapshot',
+  'devExitSnapshot',
+  'devLabel',
+  'devCause',
+  'devRoot',
+  'devRunning',
+  'devPart',
+];
+
 const targets = [
   { pkg: 'core', entries: { index: 'src/index.ts' }, platform: 'browser', runtime: true },
   {
@@ -41,6 +68,24 @@ const targets = [
   // them, so they are measured separately from the core runtime budget.
   {
     pkg: 'deep',
+    entries: { index: 'src/index.ts' },
+    platform: 'browser',
+    runtime: false,
+    optional: true,
+  },
+  {
+    pkg: 'devtools',
+    entries: { index: 'src/index.ts' },
+    platform: 'browser',
+    runtime: false,
+    optional: true,
+    // The panel is reached through a dynamic import so that a session which
+    // never opens it never downloads it. That only holds if the bundler is
+    // allowed to split, which it does not do for a single entry by default.
+    split: true,
+  },
+  {
+    pkg: 'i18n',
     entries: { index: 'src/index.ts' },
     platform: 'browser',
     runtime: false,
@@ -154,15 +199,42 @@ for (const target of targets) {
     // and `@firsthandjs/dom/internal` share module state — the delegated-listener
     // registry, the configured element prefix — and building them as two
     // independent bundles would give an application two copies of it.
-    splitting: entries.length > 1,
+    splitting: entries.length > 1 || target.split === true,
     chunkNames: 'chunk-[hash]',
     platform: target.platform,
     target: target.platform === 'node' ? 'node20' : 'es2022',
     minify: target.runtime || target.optional === true,
     legalComments: 'none',
+    pure: target.runtime || target.optional === true ? pureDevHooks : [],
     external: ['@firsthandjs/*', '@babel/*', 'node:*', ...(target.external ?? [])],
     plugins: target.runtime || target.optional === true ? [productionDev] : [],
   });
+  // A second build for the packages that carry diagnostics: same code, with
+  // `dev.ts` left in place. The production build strips them, which is the
+  // point — and it also means an application installing from npm could never
+  // reach devtools or a development warning. The `development` export
+  // condition picks this one up, and Vite sets that condition while serving.
+  if (existsSync(resolve(base, 'src', 'dev.ts'))) {
+    await esbuild.build({
+      entryPoints: entries.map(([name, entry]) => ({
+        in: resolve(base, entry),
+        out: `${name}.dev`,
+      })),
+      outdir: resolve(base, 'dist'),
+      bundle: true,
+      format: 'esm',
+      splitting: entries.length > 1,
+      chunkNames: 'dev-chunk-[hash]',
+      platform: target.platform,
+      target: target.platform === 'node' ? 'node20' : 'es2022',
+      // Unminified on purpose: this build exists to produce readable warnings,
+      // and devtools name a signal after the stack frame that created it.
+      minify: false,
+      legalComments: 'none',
+      external: ['@firsthandjs/*', '@babel/*', 'node:*', ...(target.external ?? [])],
+    });
+  }
+
   if (!target.runtime && target.optional !== true) {
     continue;
   }
@@ -210,6 +282,7 @@ const loaderBuild = await esbuild.build({
   target: 'es2022',
   minify: true,
   legalComments: 'none',
+  pure: pureDevHooks,
   external: ['@firsthandjs/*'],
   plugins: [productionDev],
 });
@@ -242,6 +315,7 @@ const whole = await esbuild.build({
   target: 'es2022',
   minify: true,
   legalComments: 'none',
+  pure: pureDevHooks,
   plugins: [productionDev],
 });
 rmSync(appEntry, { force: true });

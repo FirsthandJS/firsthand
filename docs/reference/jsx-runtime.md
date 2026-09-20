@@ -1,6 +1,6 @@
 # @firsthandjs/jsx-runtime
 
-[Reference index](../README.md#reference) · 0.59 kB gzip · depends on
+[Reference index](../README.md#reference) · 0.60 kB gzip · depends on
 `@firsthandjs/dom`
 
 The JSX type namespace, and a runtime fallback for environments where the
@@ -19,11 +19,24 @@ type-check.
 // tsconfig.json
 {
   "compilerOptions": {
-    "jsx": "react-jsx",
+    // "preserve" when the compiler plugin is doing the transform, which is the
+    // usual setup; "react-jsx" when TypeScript itself emits the calls.
+    "jsx": "preserve",
     "jsxImportSource": "@firsthandjs/jsx-runtime",
   },
 }
 ```
+
+**`react-jsx` has nothing to do with React.** It is TypeScript's name for the
+_automatic JSX runtime_ — the mode that emits
+`import { jsx } from "<jsxImportSource>/jsx-runtime"` instead of calling
+`React.createElement`. TypeScript named the mode after the tool it first
+supported and kept the name; Solid, Preact and Vue configure their own runtimes
+with the same setting. With `jsxImportSource` pointing here, the import
+resolves to this package and no React is installed, imported or involved.
+
+Which of the two to use is decided by who transforms the JSX:
+[Why JSX has to be configured at all](../guide/01-getting-started.md#why-jsx-has-to-be-configured-at-all).
 
 The namespace is declared in the package's entry module rather than in a
 `.d.ts` beside it, so it is always emitted with the build and cannot go missing

@@ -39,7 +39,7 @@ const point = signal({ x: 0, y: 0 }, { equals: (a, b) => a.x === b.x && a.y === 
 const always = signal(0, { equals: false }); // notify on every write
 ```
 
-### Objects are not deeply reactive
+### A signal is not deep
 
 A signal holds a value; it does not watch inside it.
 
@@ -49,9 +49,15 @@ user.value.name = 'Grace'; // nothing happens
 user.value = { ...user.value, name: 'Grace' }; // this is the write
 ```
 
-This is a deliberate choice, not a missing feature: a proxy that watches every
-property has to allocate one per object and intercept every access. What you
-get instead is that a write is visible in the code that performs it.
+That is deliberate rather than missing: a proxy that watches every property
+allocates one per object and intercepts every access, and `signal` is the thing
+that has to stay cheap. What you get in exchange is that a write is visible in
+the code performing it.
+
+When a tree is what you have — a form, a document, a settings object — the
+other shape is [`deepSignal`](#deep-state), a few sections down. It is a
+separate package, it leaves `signal` exactly as it is, and both live in the
+same graph.
 
 ## Computeds
 

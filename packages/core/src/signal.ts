@@ -1,4 +1,5 @@
 import { Cell, defaultEquals } from './core.js';
+import { devLabel } from './dev.js';
 import type { CellOptions, Signal } from './types.js';
 
 /**
@@ -16,5 +17,7 @@ import type { CellOptions, Signal } from './types.js';
  * simply the lifetime of the reference to it.
  */
 export function signal<T>(value: T, options?: CellOptions<T>): Signal<T> {
-  return new Cell(0, value, undefined, defaultEquals(options?.equals)) as unknown as Signal<T>;
+  const cell = new Cell(0, value, undefined, defaultEquals(options?.equals));
+  devLabel(cell, 'signal', '');
+  return cell as unknown as Signal<T>;
 }

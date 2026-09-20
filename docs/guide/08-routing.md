@@ -199,7 +199,7 @@ expect(view.text()).toContain('Grace'); // no await: writes are synchronous
 A router owns paths the file system does not know about, so the host must serve
 the application's document for unknown paths. That is one rule in most static
 hosts; `createHashHistory()` is the way out when it is not available. See
-[Building and deploying](14-building.md).
+[Building and deploying](16-building.md).
 
 ---
 

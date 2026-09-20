@@ -56,11 +56,25 @@ export interface FirsthandPluginOptions {
   /**
    * Refuse to compile a value that is read once in a setup and then kept.
    *
-   * Off by default: reading once is legal and often deliberate. On, it is a
-   * build error rather than a warning, because the cases it can see are the
-   * unambiguous ones — see `checkKeptReads` (ADR-0019).
+   * **On by default.** The rule only sees declarations whose initialiser is
+   * nothing but a read, which is the shape that is almost always a mistake;
+   * anything containing a call is left alone. `false` turns it off for a
+   * codebase that has such a read on purpose and would rather not mark it with
+   * `snapshot()` — see `checkKeptReads` (ADR-0019).
    */
   strictReactivity?: boolean;
+  /**
+   * Name the cells a module creates, for devtools.
+   *
+   * A runtime cannot see that `const count = signal(0)` is called `count`, and
+   * `new Error().stack` reports a position in the *compiled* module — the
+   * browser does not apply source maps to `error.stack`, so the line it names
+   * is not the line that was written. The compiler knows both, so it says so.
+   *
+   * Off by default and turned on by the Vite plugin while serving: a
+   * production build emits nothing.
+   */
+  devtools?: boolean;
 }
 
 export default function firsthandPlugin(
@@ -111,6 +125,12 @@ export default function firsthandPlugin(
 
       CallExpression(path: NodePath<t.CallExpression>, state: State) {
         annotateComponent(path, state, options);
+      },
+
+      VariableDeclarator(path: NodePath<t.VariableDeclarator>, state: State) {
+        if (options.devtools === true) {
+          nameCell(path, state);
+        }
       },
     },
   };
@@ -169,7 +189,7 @@ function annotateComponent(
   }
   const name = declaredName(path);
   rewritePropsDestructuring(path, name, state);
-  if (options.strictReactivity === true) {
+  if (options.strictReactivity !== false) {
     checkKeptReads(path.get('arguments.0') as NodePath<t.Function>, name);
   }
   path.node.arguments = [
@@ -268,6 +288,50 @@ function readsOnly(node: t.Node, propsName: string | null): boolean {
   return walk(node) && read;
 }
 
+/** The factories whose result is worth naming after the variable holding it. */
+const NAMED = new Map([
+  ['signal', 'signal'],
+  ['computed', 'computed'],
+  ['deepSignal', 'signal'],
+]);
+
+/**
+ * Labels `const count = signal(0)` with `count` and where it was written.
+ *
+ * Emitted only under the `devtools` option, so a production build is
+ * byte-identical to one compiled without it. The label is wrapped around the
+ * call rather than passed into it: `signal` keeps its signature, and a cell
+ * created any other way is simply unnamed rather than special.
+ */
+function nameCell(path: NodePath<t.VariableDeclarator>, state: State): void {
+  const init = path.node.init;
+  const target = path.node.id;
+  if (!t.isCallExpression(init) || !t.isIdentifier(target) || !t.isIdentifier(init.callee)) {
+    return;
+  }
+  const kind = NAMED.get(init.callee.name);
+  if (kind === undefined) {
+    return;
+  }
+  const binding = path.scope.getBinding(init.callee.name);
+  if (binding === undefined || !isFirsthandImport(binding)) {
+    return;
+  }
+  // Both are present for anything parsed from a file, which is the only way
+  // this visitor is reached: Babel fills `loc` from the source, and the plugin
+  // is always given a filename by the bundler and by the tests.
+  const line = (init.loc as t.SourceLocation).start.line;
+  const source = state.filename as string;
+  const cut = Math.max(source.lastIndexOf('/'), source.lastIndexOf(String.fromCharCode(92)));
+  const where = `${source.slice(cut + 1)}:${String(line)}`;
+  const call = t.callExpression(runtime(state, 'label'), [
+    init,
+    t.stringLiteral(kind),
+    t.stringLiteral(`${target.name} (${where})`),
+  ]);
+  path.node.init = call;
+}
+
 function isFirsthandImport(binding: { path: NodePath }): boolean {
   const parent = binding.path.parentPath;
   if (!parent.isImportDeclaration()) {
@@ -350,7 +414,9 @@ function rewritePropsDestructuring(
   for (const entry of references) {
     for (const reference of entry.paths) {
       if (entry.access !== propsId) {
-        reference.replaceWith(t.cloneNode(entry.access));
+        // The position of the identifier being replaced, so `{v}` still points
+        // at `{v}` once it has become `props.inner.v`.
+        reference.replaceWith(located(t.cloneNode(entry.access), reference.node));
       }
     }
   }
@@ -698,7 +764,10 @@ function emitAttribute(
     build.statements.push(
       expressionStatement(
         t.callExpression(runtime(state, 'bind'), [
-          t.arrowFunctionExpression([], dynamicAttributeCall(name, value, self, state, tag)),
+          located(
+            t.arrowFunctionExpression([], dynamicAttributeCall(name, value, self, state, tag)),
+            value,
+          ),
         ]),
       ),
     );
@@ -972,13 +1041,18 @@ function emitChildren(
       // rebuild the whole list on every evaluation.
       entry.kind === 'list'
         ? (entry.expression as t.Expression)
-        : t.arrowFunctionExpression([], entry.expression as t.Expression),
+        : thunk(entry.expression as t.Expression),
     ];
     if (!isLast) {
       build.html.push('<!>');
       const id = reference();
       args.push(t.cloneNode(id));
     }
+    // The call is deliberately left without a position, and only the thunk
+    // inside it carries one. Both would map to `{value}`, and a debugger takes
+    // the first location on a line — which would be this call, and it runs
+    // once, when the part is created. The thunk runs on every update, which is
+    // where a breakpoint on that expression is expected to stop.
     build.statements.push(expressionStatement(t.callExpression(runtime(state, 'insert'), args)));
     index++;
   }
@@ -1126,6 +1200,54 @@ function compileChildren(children: t.JSXElement['children'], state: State): t.Ex
   return result;
 }
 
+/**
+ * Wraps an expression so a part can re-read it, and gives the wrapper its
+ * position.
+ *
+ * The position moves from the expression to the thunk rather than being copied
+ * to both. A debugger draws one marker per distinct original column on a line,
+ * and an expression that kept its own position produced two — one where it
+ * begins and one where it ends — which look identical and do the same thing.
+ * With the wrapper owning the position, every breakable place inside it
+ * reports the same column: one marker, on the expression, hit on the first
+ * evaluation and on every later one.
+ */
+function thunk(expression: t.Expression): t.ArrowFunctionExpression {
+  const arrow = t.arrowFunctionExpression([], expression);
+  const loc = expression.loc;
+  if (loc !== null && loc !== undefined) {
+    // A point rather than a range. The generator maps both ends of a node, and
+    // an end one column along is a second marker that looks identical to the
+    // first and does the same thing. A wrapper the compiler invented does not
+    // span anything in the source anyway — it belongs at the place the
+    // expression begins.
+    arrow.loc = { ...loc, end: loc.start };
+    expression.loc = null;
+  }
+  return arrow;
+}
+
 function expressionStatement(expression: t.Expression): t.Statement {
-  return t.expressionStatement(expression);
+  return located(t.expressionStatement(expression), expression);
+}
+
+/**
+ * Gives a node the compiler built the position of the code it stands for.
+ *
+ * Without this the generated statement has no position at all, so the source
+ * map has nothing to say about it — and a debugger cannot put a breakpoint on
+ * a line it cannot find. `{v}` becoming `_$insert(el, () => props.v)` is the
+ * case that matters: that call *is* the expression, and should be reachable
+ * where the expression was written.
+ */
+function located<T extends t.Node>(node: T, source: t.Node | null | undefined): T {
+  if (source == null || source.loc == null) {
+    // Generated from something generated: there is no original position to
+    // pass on, and inventing one would point a debugger at the wrong line.
+    return node;
+  }
+  // `loc` alone: the generator maps from it, and copying `start`/`end` as well
+  // would mean two more assignments and two fallbacks that cannot be reached.
+  node.loc = source.loc;
+  return node;
 }

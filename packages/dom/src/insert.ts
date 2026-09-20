@@ -1,5 +1,5 @@
 import { bind, getOwner, onCleanup, runWithOwner, type Owner } from '@firsthandjs/core';
-import { devWarnRenderedObject } from './dev.js';
+import { devPart, devWarnRenderedObject } from './dev.js';
 
 /** What a child part currently owns in the DOM. */
 export type ChildSlot = Node | Node[] | null;
@@ -88,9 +88,17 @@ export function applyChild(
 ): ChildSlot {
   const type = typeof value;
   if (value == null || type === 'boolean') {
+    // Reported here too, not only when there is text: a part that currently
+    // renders nothing still writes this node, and devtools that only knew
+    // about it once it had a value would go quiet exactly when someone is
+    // asking why the node is empty.
+    devPart(parent, 'text');
     return clear(current);
   }
   if (type === 'string' || type === 'number') {
+    // Devtools attribute this write to the effect that is running, which is how
+    // `{count.value}` becomes `p.text` rather than an anonymous effect.
+    devPart(parent, 'text');
     const text = String(value);
     if (current !== null && !Array.isArray(current) && current.nodeType === TEXT_NODE) {
       // The fast path that matters: one property write, no allocation.

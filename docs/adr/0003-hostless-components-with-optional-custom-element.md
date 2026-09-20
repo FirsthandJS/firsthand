@@ -55,17 +55,18 @@ Mounting 2000 components of the same component, Chromium, median of
 
 | Variant                       |            Mount | Update all | DOM nodes |
 | ----------------------------- | ---------------: | ---------: | --------: |
-| hostless (default)            |     **13.95 ms** |    8.45 ms |      2000 |
-| `{ tag: true }`               | 23.15 ms (1.66x) |    9.25 ms |      4000 |
-| `{ tag: true, shadow: true }` | 23.90 ms (1.71x) |    9.75 ms |     2000* |
+| hostless (default)            |     **15.35 ms** |   10.20 ms |      2000 |
+| `{ tag: true }`               | 24.25 ms (1.58x) |    9.80 ms |      4000 |
+| `{ tag: true, shadow: true }` | 26.45 ms (1.72x) |   10.10 ms |     2000* |
 
 \* the shadowed variant's content lives in a shadow root, so a light-DOM node
 count does not see it; it is the same number of nodes plus 2000 shadow roots.
 
 **The original wording overstated the case.** This ADR said the cost was "large
 enough to dominate a mass mount". It is 1.5x-1.7x on mount, depending on the
-run — 1.51x when this table was first written, 1.66x on the latest — and about
-10 % on update. Real, and it doubles the node count, but it does not dominate.
+run — 1.51x when this table was first written, 1.58x on the latest — and
+nothing reliable at all on update, where the three variants have come out
+within a few per cent of each other in every direction. Real, and it doubles the node count, but it does not dominate.
 Both runs are in the git history of this file; neither is cherry-picked. The
 decision stands on the corrected number: paying 50 % more mount time and twice
 the DOM for a boundary most components do not need is the wrong default, and

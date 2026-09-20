@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Firsthand \u2014 a fine-grained reactive framework for the web platform",
+  "description": "Firsthand — a fine-grained reactive framework for the web platform",
   "license": "MIT",
   "engines": {
     "node": ">=20.11.0"
@@ -37,8 +37,8 @@
     "bench:compare": "node benchmarks/compare.mjs",
     "check:no-deps": "node scripts/check-no-deps.mjs",
     "bench:ic": "node benchmarks/ic.mjs",
-    "tests:readme": "node scripts/update-readme-tests.mjs",
-    "check:tests": "node scripts/update-readme-tests.mjs --check"
+    "tests:readme": "node scripts/update-test-counts.mjs",
+    "check:tests": "node scripts/update-test-counts.mjs --check"
   },
   "overrides": {
     "qs": "^6.16.0"
@@ -64,6 +64,7 @@
     "eslint": "^10.11.0",
     "globals": "^17.12.0",
     "happy-dom": "^20.14.5",
+    "i18next": "^26.4.2",
     "playwright": "^1.63.0",
     "prettier": "^3.9.8",
     "react": "19.2.0",

@@ -3,7 +3,7 @@
 [Reference index](../README.md#reference) · a development dependency; nothing
 here ships
 
-Mounting, cleanup and leak probes. Guide: [Testing](../guide/12-testing.md).
+Mounting, cleanup and leak probes. Guide: [Testing](../guide/13-testing.md).
 
 ---
 

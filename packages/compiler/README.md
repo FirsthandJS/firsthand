@@ -2,7 +2,7 @@
 
 The build-time half of Firsthand. Nothing here ships to the browser.
 
-**Documentation:** [guide](https://github.com/firsthandjs/firsthand/blob/main/docs/guide/14-building.md) · [API reference](https://github.com/firsthandjs/firsthand/blob/main/docs/reference/compiler.md) · [all docs](https://github.com/firsthandjs/firsthand/blob/main/docs/README.md)
+**Documentation:** [guide](https://github.com/firsthandjs/firsthand/blob/main/docs/guide/16-building.md) · [API reference](https://github.com/firsthandjs/firsthand/blob/main/docs/reference/compiler.md) · [all docs](https://github.com/firsthandjs/firsthand/blob/main/docs/README.md)
 
 ```ts
 // vite.config.ts

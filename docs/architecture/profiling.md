@@ -44,15 +44,35 @@ CPU profiler, 100 µs sampling interval.
 
 | Scenario               | Top self time                                                                                      |
 | ---------------------- | -------------------------------------------------------------------------------------------------- |
-| `mount-1k`             | the row body, then `removeChild` (91 ms) and `cloneNode` (31 ms) — the platform, not the framework |
-| `update-every-10th-1k` | the row body, then `applyChild` (6 ms)                                                             |
-| `swap-rows-1k`         | the row body, then `reconcile` (7 ms)                                                              |
-| `rapid-signal-writes`  | `applyChild` (71 ms), then `flush` (7 ms)                                                          |
+| `mount-1k`             | the row body, then `removeChild` (96 ms) and `cloneNode` (33 ms) — the platform, not the framework |
+| `update-every-10th-1k` | the row body, then `applyChild` (10 ms)                                                            |
+| `swap-rows-1k`         | the row body, then `reconcile` (11 ms)                                                             |
+| `rapid-signal-writes`  | `applyChild` (84 ms), then `flush` (7 ms)                                                          |
 
 The recurring answer is that the framework is not where the time goes: the
 application callback and the DOM are. `applyChild` leading the rapid-write
 scenario is the exception and is expected — with nothing else happening, the
 text-node write _is_ the workload.
+
+### The build this profiles
+
+The timed benchmark uses the published bundles, which are minified — every
+hotspot would be a one-letter name — so the profile resolves
+`@firsthandjs/*` to the package sources instead, unminified and with names
+kept.
+
+That has to be the _same_ code, and for a while it was not. The diagnostics
+seam is its own module, so resolving to `src/` pulled in `dev.ts` rather than
+the stub the published build swaps in, and the profile measured a development
+build: `hook` and `devCheckSetupRead` sat near the top of the rapid-write
+scenario, ahead of frames that are actually in a shipped bundle. The build now
+performs the same `dev.js` → `dev.prod.ts` swap, and marks the same hooks pure,
+as `scripts/build.mjs` does.
+
+It is worth knowing what that difference was, because it is the price of
+developing rather than shipping: in `rapid-signal-writes`, the diagnostics were
+about 73 ms of self time against `applyChild`'s 84 ms. None of it is in a
+production bundle, and all of it is in the build you develop against.
 
 ## What this does not measure
 

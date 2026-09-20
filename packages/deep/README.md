@@ -9,7 +9,7 @@ signal — the shape Vue calls `reactive()`.
 npm install @firsthandjs/deep
 ```
 
-0.72 kB gzip. It depends on `@firsthandjs/core` and changes nothing about
+0.74 kB gzip. It depends on `@firsthandjs/core` and changes nothing about
 `signal`.
 
 ```ts

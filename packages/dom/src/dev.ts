@@ -8,6 +8,8 @@
  * ARCHITECTURE section 8, item 6.
  */
 
+import type { DevtoolsHook } from '@firsthandjs/core';
+
 export function devWarn(message: string): void {
   console.warn(`[firsthand] ${message}`);
 }
@@ -42,4 +44,50 @@ export function devWarnRenderedObject(value: object): void {
       : `An object was rendered as text, so the page shows "${String(value)}". ` +
           'Render a string, a number or a node.',
   );
+}
+
+// ---------------------------------------------------------------------------
+// Devtools (ADR-0020)
+// ---------------------------------------------------------------------------
+
+/**
+ * The devtools hook, or `undefined` while nothing is listening.
+ *
+ * Deliberately a second, local reading of the same global rather than an
+ * import from `@firsthandjs/core`: the packages do not gain a shared devtools
+ * surface, and production ships neither side because both modules are replaced.
+ */
+function hook(): DevtoolsHook | undefined {
+  const installed = globalThis.__FIRSTHAND_DEVTOOLS__;
+  return installed !== undefined && installed.attached ? installed : undefined;
+}
+
+/**
+ * Reports the node and property a part is writing.
+ *
+ * Called from inside the part's own effect, so devtools can attribute it to
+ * whatever is running and turn an anonymous effect into `button.disabled`.
+ */
+export function devPart(node: object, property: string): void {
+  hook()?.part(node, property);
+}
+
+/** Names the scope a component instance runs in. */
+export function devComponent(owner: object, name: string): void {
+  hook()?.component(owner, name);
+}
+
+/**
+ * Names a cell, from a label the compiler wrote.
+ *
+ * The value is returned so the call can wrap the expression it names, which
+ * keeps `signal` unchanged and leaves a cell created any other way simply
+ * unnamed. In a production build this is an empty function and the compiler
+ * emits no call to it at all.
+ */
+export function label<T>(value: T, kind: string, name: string): T {
+  if (typeof value === 'object' && value !== null) {
+    hook()?.label(value, kind, name);
+  }
+  return value;
 }

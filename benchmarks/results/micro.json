@@ -1,12 +1,12 @@
 {
   "metadata": {
-    "timestamp": "2026-09-19T16:18:41.739Z",
+    "timestamp": "2026-09-20T15:27:55.596Z",
     "os": "win32 10.0.19045",
     "cpu": "Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz",
     "cores": 12,
     "browser": "chromium",
     "nodeVersion": "v24.19.0",
-    "gitCommit": "1908ce50198de6e12081e04721a0a1ff34ef2faa",
+    "gitCommit": "6a28ebd425a04539f50e7da428d6b25583d38861",
     "components": 2000,
     "warmupRepetitions": 3,
     "measuredRepetitions": 12
@@ -14,20 +14,20 @@
   "elementHost": [
     {
       "variant": "hostless",
-      "mountMedian": 13.950000002980232,
-      "updateMedian": 8.450000002980232,
+      "mountMedian": 15.349999999627471,
+      "updateMedian": 10.200000001117587,
       "domNodes": 2000
     },
     {
       "variant": "hosted",
-      "mountMedian": 23.149999991059303,
-      "updateMedian": 9.249999985098839,
+      "mountMedian": 24.25,
+      "updateMedian": 9.800000000745058,
       "domNodes": 4000
     },
     {
       "variant": "shadowed",
-      "mountMedian": 23.900000005960464,
-      "updateMedian": 9.749999985098839,
+      "mountMedian": 26.449999999254942,
+      "updateMedian": 10.099999999627471,
       "domNodes": 2000
     }
   ],
@@ -36,36 +36,36 @@
       "depth": 1,
       "rows": 2000,
       "setup": {
-        "delegated": 0.09999999403953552,
-        "direct": 0.30000001192092896
+        "delegated": 0,
+        "direct": 0.30000000074505806
       },
       "dispatch": {
-        "delegated": 7.25,
-        "direct": 8.549999997019768
+        "delegated": 7.700000001117587,
+        "direct": 8.699999999254942
       }
     },
     {
       "depth": 5,
       "rows": 2000,
       "setup": {
-        "delegated": 0.09999999403953552,
-        "direct": 0.3999999910593033
+        "delegated": 0.09999999776482582,
+        "direct": 0.3999999985098839
       },
       "dispatch": {
-        "delegated": 8.600000008940697,
-        "direct": 10.150000005960464
+        "delegated": 8.400000000372529,
+        "direct": 10
       }
     },
     {
       "depth": 20,
       "rows": 2000,
       "setup": {
-        "delegated": 0.09999999403953552,
-        "direct": 0.6000000238418579
+        "delegated": 0.09999999776482582,
+        "direct": 0.599999999627471
       },
       "dispatch": {
-        "delegated": 20.349999994039536,
-        "direct": 21.950000002980232
+        "delegated": 19.649999998509884,
+        "direct": 20.250000001862645
       }
     }
   ]

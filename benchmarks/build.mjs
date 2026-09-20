@@ -33,6 +33,43 @@ const firsthandSources = {
   },
 };
 
+/**
+ * The same `dev.js` -> `dev.prod.ts` swap the published build performs.
+ *
+ * Without it the source-resolved build profiles the *development* code: the
+ * diagnostics seam is a separate module, so resolving `@firsthandjs/core` to
+ * `src/` pulls in `dev.ts` rather than the stub the published bundle uses.
+ * That put `hook`, `devCheckSetupRead` and their callers near the top of the
+ * profile — hotspots that are not in any shipped bundle, ahead of the ones
+ * that are. A profile that points at code nobody runs is worse than no
+ * profile.
+ */
+const productionDev = {
+  name: 'firsthand-production-dev',
+  setup(build) {
+    build.onResolve({ filter: /(^|\/)dev\.js$/ }, (args) => ({
+      path: resolve(args.resolveDir, args.path.replace(/dev\.js$/, 'dev.prod.ts')),
+    }));
+  },
+};
+
+/** The hooks the published build annotates as pure, so their calls go too. */
+const pureDevHooks = [
+  'devWarn',
+  'devWarnOnce',
+  'devWarnRenderedObject',
+  'devCheckSetupRead',
+  'devEnterSetup',
+  'devExitSetup',
+  'devEnterSnapshot',
+  'devExitSnapshot',
+  'devLabel',
+  'devCause',
+  'devRoot',
+  'devRunning',
+  'devPart',
+];
+
 const firsthandCompiler = {
   name: 'firsthand',
   setup(build) {
@@ -62,7 +99,11 @@ export async function buildBenchmark({ minify = true } = {}) {
     metafile: true,
     legalComments: 'none',
     define: { 'process.env.NODE_ENV': '"production"' },
-    plugins: minify ? [firsthandCompiler] : [firsthandSources, firsthandCompiler],
+    // The published bundles are built this way, and the point of the
+    // source-resolved build is readable names for the *same* code — not
+    // different code.
+    pure: pureDevHooks,
+    plugins: minify ? [firsthandCompiler] : [firsthandSources, productionDev, firsthandCompiler],
   });
   return result.metafile;
 }

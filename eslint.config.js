@@ -47,6 +47,15 @@ export default tseslint.config(
     },
   },
   {
+    // Devtools are a tool for the console, so they may use it. `info` rather
+    // than `warn`: attaching is not a problem, and dressing it as one would
+    // train people to ignore the warnings that are.
+    files: ['packages/devtools/src/**/*.ts'],
+    rules: {
+      'no-console': ['error', { allow: ['info', 'warn', 'error'] }],
+    },
+  },
+  {
     // The reactive core must stay loadable without a DOM.
     files: ['packages/core/src/**/*.ts'],
     rules: {

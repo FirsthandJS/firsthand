@@ -1,6 +1,6 @@
 # @firsthandjs/dom
 
-[Reference index](../README.md#reference) · 4.15 kB gzip · depends on
+[Reference index](../README.md#reference) · 4.30 kB gzip · depends on
 `@firsthandjs/core`
 
 Components, rendering, and the DOM parts the compiler emits. Re-exports

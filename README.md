@@ -25,9 +25,9 @@ handler is created once and always reads the current value.
 
 <!-- headline:start -->
 <!-- prettier-ignore-start -->
-The whole runtime is **5.87 kB gzip** with no production dependencies. On the
-render/update set it is **1.56× faster** than React 19.2.0 (geometric mean of 27
-scenarios, 95 % CI 1.25–2.10) — measured in the same browser session with
+The whole runtime is **5.89 kB gzip** with no production dependencies. On the
+render/update set it is **1.54× faster** than React 19.2.0 (geometric mean of 27
+scenarios, 95 % CI 1.23–2.09) — measured in the same browser session with
 byte-identical DOM verified before any timing, and with every scenario published,
 including the 2 React wins.
 <!-- prettier-ignore-end -->
@@ -185,7 +185,7 @@ valid TSX element type with no `as` at the use site.
 This file is the overview and the evidence. How to _use_ the framework is in
 [`docs/`](docs/README.md).
 
-**[The guide](docs/guide/)** — fourteen pages, in order:
+**[The guide](docs/guide/)** — sixteen pages, in order:
 [getting started](docs/guide/01-getting-started.md),
 [reactivity](docs/guide/02-reactivity.md),
 [components](docs/guide/03-components.md),
@@ -197,9 +197,11 @@ This file is the overview and the evidence. How to _use_ the framework is in
 [data](docs/guide/09-data.md),
 [web components](docs/guide/10-web-components.md),
 [React interop](docs/guide/11-react-interop.md),
-[testing](docs/guide/12-testing.md),
-[performance](docs/guide/13-performance.md),
-[building and deploying](docs/guide/14-building.md).
+[internationalisation](docs/guide/12-internationalisation.md),
+[testing](docs/guide/13-testing.md),
+[devtools](docs/guide/14-devtools.md),
+[performance](docs/guide/15-performance.md),
+[building and deploying](docs/guide/16-building.md).
 
 **[The reference](docs/reference/)** — one page per package, every export with
 its signature:
@@ -207,6 +209,9 @@ its signature:
 [dom](docs/reference/dom.md),
 [jsx-runtime](docs/reference/jsx-runtime.md),
 [compiler](docs/reference/compiler.md),
+[deep](docs/reference/deep.md),
+[devtools](docs/reference/devtools.md),
+[i18n](docs/reference/i18n.md),
 [router](docs/reference/router.md),
 [query](docs/reference/query.md),
 [styled](docs/reference/styled.md),
@@ -228,15 +233,17 @@ Shoelace and styled components on one page) and
 
 | Package                    | Size (gzip) | What it is                                      |
 | -------------------------- | ----------- | ----------------------------------------------- |
-| `@firsthandjs/core`        | 2.36 kB     | Signals, computeds, effects, context, owners    |
-| `@firsthandjs/dom`         | 4.15 kB     | Components, rendering, elements, lists, portals |
-| `@firsthandjs/jsx-runtime` | 0.59 kB     | JSX types, and the runtime fallback             |
-| `@firsthandjs/deep`        | 0.72 kB     | Deep reactivity: every property is a signal     |
+| `@firsthandjs/core`        | 2.42 kB     | Signals, computeds, effects, context, owners    |
+| `@firsthandjs/dom`         | 4.30 kB     | Components, rendering, elements, lists, portals |
+| `@firsthandjs/jsx-runtime` | 0.60 kB     | JSX types, and the runtime fallback             |
+| `@firsthandjs/deep`        | 0.74 kB     | Deep reactivity: every property is a signal     |
+| `@firsthandjs/devtools`    | 1.96 kB     | **Experimental.** What updates what, and why    |
 | `@firsthandjs/compiler`    | build only  | The TSX transform and the bundler plugin        |
-| `@firsthandjs/router`      | 3.36 kB     | Routes, links, history, lazy routes             |
-| `@firsthandjs/query`       | 3.23 kB     | The cache, tags, REST, GraphQL, codegen         |
-| `@firsthandjs/styled`      | 1.97 kB     | CSS-in-JS with custom properties                |
-| `@firsthandjs/react`       | 0.66 kB     | React components inside Firsthand               |
+| `@firsthandjs/router`      | 3.44 kB     | Routes, links, history, lazy routes             |
+| `@firsthandjs/query`       | 3.32 kB     | The cache, tags, REST, GraphQL, codegen         |
+| `@firsthandjs/styled`      | 2.02 kB     | CSS-in-JS with custom properties                |
+| `@firsthandjs/react`       | 0.68 kB     | React components inside Firsthand               |
+| `@firsthandjs/i18n`        | 0.38 kB     | i18next and friends, made reactive              |
 | `@firsthandjs/testing`     | dev only    | `mount`, `cleanup`, leak probes                 |
 
 Every package is independent: installing `@firsthandjs/dom` pulls in the core and
@@ -264,41 +271,41 @@ with the conclusions using the same numbers.
 Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz, 12 cores · Chromium via Playwright · Node v24.19.0 ·
 25 measured repetitions after 5 warmups ·
 production builds · interleaved in one browser session ·
-DOM equality verified before timing · commit `1908ce50` ·
-2026-09-19
+DOM equality verified before timing · commit `6a28ebd4` ·
+2026-09-20
 
 | Scenario | Firsthand median | React median | Firsthand p95 | React p95 | Faster |
 | --- | ---: | ---: | ---: | ---: | :--- |
-| `mount-1k` | 33.00 ms | 39.50 ms | 41.30 ms | 55.30 ms | Firsthand 1.20× |
-| `mount-10k` | 396.50 ms | 619.10 ms | 458.60 ms | 686.20 ms | Firsthand 1.56× |
-| `replace-1k` | 39.60 ms | 48.60 ms | 44.30 ms | 53.70 ms | Firsthand 1.23× |
-| `replace-10k` ~ | 447.50 ms | 779.20 ms | 563.60 ms | 964.80 ms | Firsthand 1.74× |
-| `update-every-10th-1k` | 7.70 ms | 8.30 ms | 8.60 ms | 9.70 ms | Firsthand 1.08× |
-| `update-every-10th-10k` | 87.50 ms | 90.20 ms | 129.50 ms | 106.30 ms | Firsthand 1.03× |
+| `mount-1k` | 36.50 ms | 42.60 ms | 44.50 ms | 49.30 ms | Firsthand 1.17× |
+| `mount-10k` | 424.30 ms | 679.60 ms | 473.80 ms | 812.40 ms | Firsthand 1.60× |
+| `replace-1k` | 43.10 ms | 52.30 ms | 49.60 ms | 59.30 ms | Firsthand 1.21× |
+| `replace-10k` | 476.10 ms | 875.30 ms | 568.20 ms | 1027.00 ms | Firsthand 1.84× |
+| `update-every-10th-1k` | 8.50 ms | 9.20 ms | 12.40 ms | 11.30 ms | Firsthand 1.08× |
+| `update-every-10th-10k` | 92.10 ms | 100.60 ms | 122.00 ms | 111.60 ms | Firsthand 1.09× |
 | `select-row` ~ | 0.40 ms | 0.50 ms | 0.50 ms | 0.60 ms | Firsthand 1.25× |
-| `append-1k-to-1k` ~ | 41.40 ms | 43.40 ms | 83.60 ms | 52.70 ms | Firsthand 1.05× |
-| `append-1k-to-10k` | 70.30 ms | 77.80 ms | 106.20 ms | 95.40 ms | Firsthand 1.11× |
-| `remove-row` | 2.50 ms | 3.00 ms | 4.30 ms | 4.00 ms | Firsthand 1.20× |
-| `swap-rows-1k` | 2.70 ms | 33.10 ms | 3.10 ms | 45.50 ms | Firsthand 12.26× |
-| `swap-rows-10k` ~ | 36.10 ms | 556.30 ms | 64.30 ms | 651.80 ms | Firsthand 15.41× |
-| `reverse-1k` | 31.10 ms | 33.40 ms | 36.60 ms | 38.10 ms | Firsthand 1.07× |
-| `reverse-10k` | 378.20 ms | 582.90 ms | 445.30 ms | 693.70 ms | Firsthand 1.54× |
-| `clear-1k` | 4.90 ms | 8.50 ms | 5.60 ms | 9.60 ms | Firsthand 1.73× |
-| `clear-10k` | 51.50 ms | 88.90 ms | 62.60 ms | 100.40 ms | Firsthand 1.73× |
-| `prepend-1k-to-10k` | 78.70 ms | 83.10 ms | 93.10 ms | 106.70 ms | Firsthand 1.06× |
-| `update-single-row-10k` | 32.50 ms | 33.20 ms | 43.50 ms | 37.20 ms | Firsthand 1.02× |
-| `conditional-branch-switch-1k` | 13.60 ms | 19.10 ms | 22.30 ms | 27.90 ms | Firsthand 1.40× |
-| `deep-tree-mount` | 1.00 ms | 1.40 ms | 1.70 ms | 2.10 ms | Firsthand 1.40× |
-| `context-change-1` ~ | 0.10 ms | 0.10 ms | 0.20 ms | 0.20 ms | React 1.00× |
-| `context-change-100` | 1.10 ms | 1.20 ms | 2.20 ms | 2.80 ms | Firsthand 1.09× |
-| `context-change-10k` | 114.60 ms | 128.90 ms | 136.10 ms | 199.40 ms | Firsthand 1.12× |
-| `rapid-updates-1k-unbatched` ~ | 0.50 ms | 2.30 ms | 0.90 ms | 3.40 ms | Firsthand 4.60× |
-| `rapid-updates-1k-batched` | 0.10 ms | 0.20 ms | 0.20 ms | 0.40 ms | Firsthand 2.00× |
-| `portal-update` ~ | 0.10 ms | 0.10 ms | 0.40 ms | 0.10 ms | React 1.00× |
-| `input-event-latency` ~ | 0.20 ms | 0.20 ms | 0.40 ms | 0.30 ms | Firsthand 1.00× |
+| `append-1k-to-1k` | 41.70 ms | 46.60 ms | 58.40 ms | 54.50 ms | Firsthand 1.12× |
+| `append-1k-to-10k` | 75.30 ms | 82.60 ms | 124.80 ms | 103.20 ms | Firsthand 1.10× |
+| `remove-row` | 2.80 ms | 3.20 ms | 3.40 ms | 3.80 ms | Firsthand 1.14× |
+| `swap-rows-1k` | 3.00 ms | 35.20 ms | 4.00 ms | 42.60 ms | Firsthand 11.73× |
+| `swap-rows-10k` | 37.30 ms | 607.00 ms | 76.80 ms | 725.60 ms | Firsthand 16.27× |
+| `reverse-1k` | 33.50 ms | 36.40 ms | 39.00 ms | 46.30 ms | Firsthand 1.09× |
+| `reverse-10k` | 406.00 ms | 635.80 ms | 578.00 ms | 787.10 ms | Firsthand 1.57× |
+| `clear-1k` | 5.40 ms | 6.60 ms | 7.10 ms | 7.40 ms | Firsthand 1.22× |
+| `clear-10k` | 56.00 ms | 66.80 ms | 68.50 ms | 86.50 ms | Firsthand 1.19× |
+| `prepend-1k-to-10k` | 82.70 ms | 86.50 ms | 99.60 ms | 156.90 ms | Firsthand 1.05× |
+| `update-single-row-10k` | 34.50 ms | 35.00 ms | 51.50 ms | 42.80 ms | Firsthand 1.01× |
+| `conditional-branch-switch-1k` | 15.30 ms | 18.10 ms | 17.10 ms | 26.70 ms | Firsthand 1.18× |
+| `deep-tree-mount` | 1.10 ms | 1.50 ms | 1.40 ms | 2.00 ms | Firsthand 1.36× |
+| `context-change-1` ~ | 0.10 ms | 0.20 ms | 0.20 ms | 0.20 ms | Firsthand 2.00× |
+| `context-change-100` | 1.20 ms | 1.30 ms | 1.60 ms | 1.90 ms | Firsthand 1.08× |
+| `context-change-10k` | 122.30 ms | 134.80 ms | 140.90 ms | 178.20 ms | Firsthand 1.10× |
+| `rapid-updates-1k-unbatched` | 0.50 ms | 2.40 ms | 0.70 ms | 3.10 ms | Firsthand 4.80× |
+| `rapid-updates-1k-batched` ~ | 0.20 ms | 0.30 ms | 0.50 ms | 0.50 ms | Firsthand 1.50× |
+| `portal-update` ~ | 0.10 ms | 0.10 ms | 0.30 ms | 0.20 ms | React 1.00× |
+| `input-event-latency` ~ | 0.20 ms | 0.20 ms | 0.50 ms | 0.30 ms | React 1.00× |
 
-**Geometric mean of the per-scenario ratios: 1.563×**
-(95 % bootstrap CI 1.246–2.102). The interval
+**Geometric mean of the per-scenario ratios: 1.542×**
+(95 % bootstrap CI 1.230–2.088). The interval
 excludes 1.0, which is the condition this project set before it would make an
 aggregate claim at all. Firsthand was faster in 25 of 27 scenarios in this run.
 
@@ -317,8 +324,8 @@ of 1 000 rows, so it includes parsing and first-execution compilation.
 
 | | after mounting 1 000 rows | after 100 update cycles | after disposal | cold start |
 | --- | ---: | ---: | ---: | ---: |
-| **Firsthand** | 1.76 MB | 1.93 MB | 0.26 MB | 58.60 ms |
-| React | 2.21 MB | 2.80 MB | 0.60 MB | 78.60 ms |
+| **Firsthand** | 1.76 MB | 1.88 MB | 0.21 MB | 76.20 ms |
+| React | 2.21 MB | 2.80 MB | 0.60 MB | 88.90 ms |
 
 The third column is the one to read: it is what the page still holds once
 the tree has been torn down.
@@ -332,19 +339,19 @@ different sample sizes would quietly weaken the confidence interval.
 
 | Scenario | Firsthand median | React median | Faster |
 | --- | ---: | ---: | :--- |
-| `mount-100k` | 3995.20 ms | 32645.10 ms | Firsthand 8.17× |
-| `clear-100k` | 592.90 ms | 1841.00 ms | Firsthand 3.11× |
-| `update-every-10th-100k` | 929.00 ms | 1020.90 ms | Firsthand 1.10× |
+| `mount-100k` | 4051.90 ms | 30877.50 ms | Firsthand 7.62× |
+| `clear-100k` | 579.30 ms | 1860.90 ms | Firsthand 3.21× |
+| `update-every-10th-100k` | 929.20 ms | 1084.60 ms | Firsthand 1.17× |
 
 ### Bundle size
 
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
-| `@firsthandjs/core` | 6.48 kB | **2.36 kB** | 2.14 kB |
-| `@firsthandjs/dom` | 10.39 kB | **4.17 kB** | 3.73 kB |
-| `@firsthandjs/dom/internal` | 9.83 kB | **4.09 kB** | 3.64 kB |
+| `@firsthandjs/core` | 6.50 kB | **2.36 kB** | 2.14 kB |
+| `@firsthandjs/dom` | 10.45 kB | **4.20 kB** | 3.76 kB |
+| `@firsthandjs/dom/internal` | 9.90 kB | **4.11 kB** | 3.67 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
-| full runtime (core + dom, everything imported) | 15.85 kB | **5.87 kB** | 5.29 kB |
+| full runtime (core + dom, everything imported) | 15.92 kB | **5.89 kB** | 5.31 kB |
 
 
 Optional packages, downloaded only by an application that imports them:
@@ -352,9 +359,11 @@ Optional packages, downloaded only by an application that imports them:
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
 | `@firsthandjs/deep` | 1.58 kB | **0.72 kB** | 0.66 kB |
+| `@firsthandjs/devtools` | 16.90 kB | **6.30 kB** | 5.52 kB |
+| `@firsthandjs/i18n` | 0.63 kB | **0.37 kB** | 0.32 kB |
 | `@firsthandjs/router` | 8.36 kB | **3.36 kB** | 3.06 kB |
-| `@firsthandjs/query` | 7.74 kB | **3.23 kB** | 2.95 kB |
-| `@firsthandjs/query (.gql loader path, parser tree-shaken)` | 5.12 kB | **2.14 kB** | 1.98 kB |
+| `@firsthandjs/query` | 7.77 kB | **3.24 kB** | 2.96 kB |
+| `@firsthandjs/query (.gql loader path, parser tree-shaken)` | 5.15 kB | **2.16 kB** | 1.98 kB |
 | `@firsthandjs/styled` | 4.18 kB | **1.98 kB** | 1.79 kB |
 | `@firsthandjs/react` | 1.19 kB | **0.66 kB** | 0.58 kB |
 | `@firsthandjs/react/auto` | 1.20 kB | **0.66 kB** | 0.58 kB |
@@ -451,7 +460,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 635 tests under Vitest and 87
+This repository is the demonstration: 759 tests under Vitest and 87
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all seven examples.
 <!-- prettier-ignore-end -->
@@ -467,7 +476,7 @@ counter, args as props, the router on a memory history and the query cache
 mutating and invalidating — in a real browser.
 
 Full guide, including which Vitest environment to use and how to assert that a
-DOM node survived an update: [`docs/guide/12-testing.md`](docs/guide/12-testing.md).
+DOM node survived an update: [`docs/guide/13-testing.md`](docs/guide/13-testing.md).
 
 ## Browser support
 

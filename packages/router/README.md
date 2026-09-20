@@ -8,7 +8,7 @@ Nested routes, real links, and route code that arrives when the route does.
 npm install @firsthandjs/router
 ```
 
-3.36 kB gzip. No dependencies other than `@firsthandjs/core` and `@firsthandjs/dom`.
+3.44 kB gzip. No dependencies other than `@firsthandjs/core` and `@firsthandjs/dom`.
 
 ## The shape of it
 
