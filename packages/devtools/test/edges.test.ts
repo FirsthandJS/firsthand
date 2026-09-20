@@ -261,12 +261,12 @@ describe('frames that say nothing', () => {
       count.value = 2;
     });
 
-    expect(timeline()[0]?.stack).toEqual(['handleClick (order.ts:12:9)']);
+    expect(timeline()[0]?.stack).toEqual(['handleClick (/app/order.ts:12:9)']);
   });
 });
 
 describe('reading a stack frame', () => {
-  it('keeps the name and the position, and drops the server URL', () => {
+  it('keeps the frames exactly as the engine gave them', () => {
     attach();
     const count = signal(1);
     withStack(
@@ -281,9 +281,11 @@ describe('reading a stack frame', () => {
       },
     );
 
+    // Raw, positions in the compiled module and all: resolving them needs the
+    // module's map, which the panel reads when it shows them.
     expect(timeline()[0]?.stack).toEqual([
-      'handleSave (order.ts:31:7)',
-      'main.tsx:11:10',
+      'handleSave (http://localhost:5173/src/order.ts?v=abc:31:7)',
+      'http://localhost:5173/src/main.tsx:11:10',
       '<anonymous>',
     ]);
   });

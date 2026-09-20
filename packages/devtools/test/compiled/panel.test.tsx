@@ -511,6 +511,36 @@ describe('a write with nowhere to point', () => {
   });
 });
 
+describe('a frame served by a development server', () => {
+  it('drops the cache-busting query from the file name', () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+
+    // Vite serves `main.tsx?v=8f1c2d`, which changes on every restart and
+    // says nothing about where the write came from.
+    const RealError = globalThis.Error;
+    const Fake = class extends RealError {
+      constructor() {
+        super();
+        Object.defineProperty(this, 'stack', {
+          value: 'Error\n    at trigger (http://localhost:5173/src/app.tsx?v=8f1c2d:31:7)',
+          configurable: true,
+        });
+      }
+    };
+    globalThis.Error = Fake as unknown as ErrorConstructor;
+    count.value = 2;
+    globalThis.Error = RealError;
+
+    open();
+    press('[data-tab="timeline"]');
+    (one('.tick') as HTMLElement).click();
+
+    expect(body()).toContain('trigger (app.tsx:31:7)');
+    expect(body()).not.toContain('v=8f1c2d');
+  });
+});
+
 describe('where the detail sits', () => {
   it('keeps the detail out of the scrolling list', () => {
     const count = signal(1);

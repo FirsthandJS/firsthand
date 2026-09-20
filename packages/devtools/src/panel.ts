@@ -20,6 +20,7 @@ import {
   type GraphNode,
   type Update,
 } from './index.js';
+import { original } from './source.js';
 
 const STYLE = `
 :host { all: initial; }
@@ -263,6 +264,46 @@ function track(updates: Update[]): HTMLElement {
   return list;
 }
 
+/**
+ * A frame as a person reads it: `handleSave (order.ts:31:7)`.
+ *
+ * A development server serves modules by URL, so an untouched frame is most of
+ * a line of `http://localhost:5173/src/…` before it says anything useful.
+ */
+function shorten(frame: string): string {
+  const parts = /^(.*?)\(?([^()\s]+):(\d+):(\d+)\)?$/.exec(frame);
+  if (parts === null) {
+    // Something without a position — `<anonymous>`, or a frame shape this
+    // engine spells differently. Left as it came.
+    return frame;
+  }
+  const [, name, path, line, column] = parts as unknown as [string, string, string, string, string];
+  const cut = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+  const tail = path.slice(cut + 1);
+  // A development server appends `?v=…` to the URL it serves, which is noise
+  // in a stack and different on every restart.
+  const query = tail.indexOf('?');
+  const file = (query === -1 ? tail : tail.slice(0, query)).trim();
+  const where = `${file}:${line}:${column}`;
+  return name.trim() === '' ? where : `${name.trim()} (${where})`;
+}
+
+/**
+ * One frame, shown at once and corrected when the map has been read.
+ *
+ * The engine's position is in the compiled module, which is not a line anyone
+ * wrote. Resolving it needs the module and its map, so it cannot be done while
+ * the write is happening — the frame appears immediately and is replaced when
+ * the answer arrives.
+ */
+function frameLine(frame: string): HTMLElement {
+  const line = text('div', '', shorten(frame));
+  void original(frame).then((resolved) => {
+    line.textContent = shorten(resolved);
+  });
+  return line;
+}
+
 /** Keeps a detail in view while the list above it scrolls. */
 function pin(detail: HTMLElement): HTMLElement {
   detail.classList.add('pinned');
@@ -292,7 +333,7 @@ function detailsOf(update: Update): HTMLElement {
     const frames = document.createElement('div');
     frames.className = 'stack';
     for (const frame of update.stack) {
-      frames.append(text('div', '', frame));
+      frames.append(frameLine(frame));
     }
     detail.append(frames);
   }

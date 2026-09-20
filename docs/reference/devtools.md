@@ -148,6 +148,8 @@ interface Update {
   source: string;
   /** What ran, in the order it ran. */
   ran: string[];
+  /** Where the write came from, application frames only. */
+  stack: string[];
 }
 ```
 
@@ -159,6 +161,12 @@ An entry whose `ran` is empty is a write that woke nothing. That is not a gap
 in the recording; it is usually the answer.
 
 The last 100 updates.
+
+`stack` holds the frames exactly as the engine gave them, which means positions
+in the **compiled** module: browsers do not apply source maps to `error.stack`.
+The panel reads each one back through the map the module already carries and
+shows the written position instead. Anything else reading `stack` should do the
+same, or say plainly that the numbers are generated ones.
 
 ## queries
 

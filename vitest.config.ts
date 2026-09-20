@@ -36,6 +36,7 @@ export default defineConfig({
       ),
       '@firsthandjs/core': source('core'),
       '@firsthandjs/deep': source('deep'),
+      '@firsthandjs/compiler': source('compiler'),
       '@firsthandjs/devtools': source('devtools'),
       '@firsthandjs/i18n': source('i18n'),
       '@firsthandjs/dom': source('dom'),

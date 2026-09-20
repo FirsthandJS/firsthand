@@ -147,6 +147,12 @@ production build emits none of it.
 The compiler also produces a source map now, so a debugger shows the JSX that
 was written rather than the templates and protocol calls it became.
 
+The call stack in the panel is read back through that same map. A frame arrives
+as a position in the compiled module — `main.tsx:8:5`, a line the author never
+wrote — and the panel fetches the module, decodes the map it already carries,
+and shows `main.tsx:5:3` instead: the line you would find by opening the file.
+A frame it cannot resolve is shown as it came, rather than guessed at.
+
 ## What the names mean
 
 | You see                | It is                                                       |
