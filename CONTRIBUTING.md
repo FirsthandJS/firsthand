@@ -59,6 +59,11 @@ event delegation), `bench:profile` (allocation), `bench:reconcilers`,
 `bench:ic` (whether `.value` reads stay monomorphic), and
 `BENCH_SCALE=heavy npm run bench` for the 100 000-row set.
 
+CI does not benchmark every pull request: a shared runner's numbers are too
+noisy to gate on, and the job is slow enough to delay the checks that do gate.
+Add the **`benchmark`** label to a pull request to run it there, or use the
+weekly run and `workflow_dispatch`.
+
 If your change makes the code materially harder to read and the benchmark shows
 no difference, it will be asked for revert. If it shows a difference, say how
 much.
