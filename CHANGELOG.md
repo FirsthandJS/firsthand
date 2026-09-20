@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **`strictReactivity` is on by default in the compiler.** A declaration whose
+  initialiser is nothing but a read — `const x = v.value`, `const id = props.id`
+  — is now a build error rather than a silently frozen value. `firsthand({
+strictReactivity: false })` restores the previous behaviour.
+
+  It shipped off in 0.3.0, on the reasoning that a check people have to opt into
+  is a check they trust. What that missed is that the person most likely to make
+  this mistake is the one who has just started and has not read the option list.
+  The rule only sees declarations that are _nothing but_ a read — anything
+  containing a call, including `signal(props.initial)`, is left alone — so it is
+  right almost every time it fires, and that is what a default has to earn.
+
+  `setStrictReactivity` stays opt-in. It reports a read with nothing
+  subscribing, which a deliberate one also is.
+
 ### Added
 
 - `@firsthandjs/devtools` — see which signal updates which DOM node, what
@@ -25,6 +42,14 @@ All notable changes to this project are documented here. The format follows
   those nodes and reads the structure when asked. `chain(node)` draws the path,
   `inspect(node)` returns it as data, `cells()` lists what is alive, and
   `causeOf(node)` names what changed.
+
+  The query cache and deep state are covered too. `queries()` returns what the
+  cache did — created, invalidated, dropped, with readable tags — because that
+  is the one part of the framework whose behaviour is not in the graph: a tag
+  match is a decision rather than an edge, and an invalidation that matched
+  nothing looks exactly like one that was never sent. Deep properties are named
+  by their path, `user.address.city`, recorded at the only moment it is
+  knowable — when a nested object is first reached through its parent.
 
   Off until `attach()` is called, and **nothing ships**: the hooks live in the
   modules the production build replaces with empty functions, so a shipped

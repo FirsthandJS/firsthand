@@ -56,9 +56,11 @@ export interface FirsthandPluginOptions {
   /**
    * Refuse to compile a value that is read once in a setup and then kept.
    *
-   * Off by default: reading once is legal and often deliberate. On, it is a
-   * build error rather than a warning, because the cases it can see are the
-   * unambiguous ones — see `checkKeptReads` (ADR-0019).
+   * **On by default.** The rule only sees declarations whose initialiser is
+   * nothing but a read, which is the shape that is almost always a mistake;
+   * anything containing a call is left alone. `false` turns it off for a
+   * codebase that has such a read on purpose and would rather not mark it with
+   * `snapshot()` — see `checkKeptReads` (ADR-0019).
    */
   strictReactivity?: boolean;
 }
@@ -169,7 +171,7 @@ function annotateComponent(
   }
   const name = declaredName(path);
   rewritePropsDestructuring(path, name, state);
-  if (options.strictReactivity === true) {
+  if (options.strictReactivity !== false) {
     checkKeptReads(path.get('arguments.0') as NodePath<t.Function>, name);
   }
   path.node.arguments = [

@@ -57,7 +57,7 @@ const expectations = [
   {
     pkg: 'devtools',
     entry: '.',
-    names: ['attach', 'detach', 'cells', 'inspect', 'chain', 'causeOf'],
+    names: ['attach', 'detach', 'cells', 'inspect', 'chain', 'causeOf', 'queries'],
   },
   {
     pkg: 'query',

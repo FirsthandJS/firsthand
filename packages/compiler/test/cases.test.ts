@@ -332,11 +332,20 @@ const A = component((props) => { const once = snapshot(() => props.id); return <
     expect(out).toContain("'x' + 1");
   });
 
-  it('says nothing at all while it is off', () => {
-    const out = compile(
+  it('can be turned off for a codebase that means it', () => {
+    const out = transform(
       `${IMPORTS}const A = component((props) => { const id = props.id; return <p>{id}</p>; });`,
+      { filename: 'src/demo.tsx', packageName: 'demo', strictReactivity: false },
     );
     expect(out).toContain('const id = props.id');
+  });
+
+  it('is on without being asked', () => {
+    expect(() =>
+      compile(
+        `${IMPORTS}const A = component((props) => { const id = props.id; return <p>{id}</p>; });`,
+      ),
+    ).toThrow(/is read once/);
   });
 });
 
@@ -477,13 +486,15 @@ describe('component declarations', () => {
   });
 
   it('reuses a block body a rest element already has', () => {
+    // `String(a)` rather than `a`: a declaration that is nothing but a read is
+    // refused by strict reactivity, and this test is about the block body.
     const out = compile(
-      `${IMPORTS}const A = component(({ a, ...rest }) => { const b = a; return <p {...rest}>{b}</p>; });`,
+      `${IMPORTS}const A = component(({ a, ...rest }) => { const b = String(a); return <p {...rest}>{b}</p>; });`,
     );
     expect(out).toContain('_$rest(_props, ["a"])');
     // The block the author wrote is reused: `rest` is prepended to it, and the
     // statements that were already there keep their order.
-    expect(out.indexOf('const rest =')).toBeLessThan(out.indexOf('const b = _props.a'));
+    expect(out.indexOf('const rest =')).toBeLessThan(out.indexOf('const b = String(_props.a)'));
   });
 
   it('leaves a plain identifier parameter alone', () => {

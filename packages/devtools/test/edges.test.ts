@@ -8,7 +8,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createRoot, signal } from '@firsthandjs/core';
-import { attach, cells, detach, inspect } from '@firsthandjs/devtools';
+import { attach, cells, detach, inspect, queries } from '@firsthandjs/devtools';
+import { createQueryClient, tag } from '@firsthandjs/query';
 
 beforeEach(() => {
   document.body.innerHTML = '';
@@ -165,5 +166,42 @@ describe('roots that are gone', () => {
     // The reference is weak, so the walk drops it on the way past rather than
     // holding a disposed scope alive for the life of the page.
     expect(cells()).toEqual([]);
+  });
+});
+
+describe('the query cache', () => {
+  it('records what the cache did, in order, with its tags', async () => {
+    attach();
+    const client = createQueryClient({ cacheTime: 1000 });
+    const query = { tags: [tag('order', { id: 7 })], fetch: () => Promise.resolve('ok') };
+
+    void client.load(query);
+    await client.invalidate(tag('order'));
+    client.clear();
+
+    expect(queries().map((e) => e.event)).toEqual(['created', 'invalidated', 'dropped']);
+    expect(queries()[0]?.tags).toEqual(['order(id: 7)']);
+  });
+
+  it('forgets the log when detached', () => {
+    attach();
+    const client = createQueryClient({});
+    void client.load({ tags: [tag('thing')], fetch: () => Promise.resolve(1) });
+    expect(queries()).toHaveLength(1);
+
+    detach();
+    expect(queries()).toEqual([]);
+  });
+
+  it('keeps the log bounded rather than growing with the session', () => {
+    attach();
+    const client = createQueryClient({});
+    for (let i = 0; i < 205; i++) {
+      void client.load({ tags: [tag('row', { n: i })], fetch: () => Promise.resolve(i) });
+    }
+
+    // 200 entries, and the oldest are the ones that went.
+    expect(queries()).toHaveLength(200);
+    expect(queries()[0]?.tags).toEqual(['row(n: 5)']);
   });
 });

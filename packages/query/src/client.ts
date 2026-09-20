@@ -16,6 +16,7 @@ import {
   type Signal,
 } from '@firsthandjs/core';
 import { anyTagMatches, tagsKey, type Tag } from './tags.js';
+import { devQuery } from './dev.js';
 
 export type QueryStatus = 'idle' | 'pending' | 'success' | 'error';
 
@@ -165,6 +166,7 @@ export function createQueryClient(options: QueryClientOptions = {}): QueryClient
       collect: null,
     };
     entries.set(key, created);
+    devQuery('created', key, definition.tags);
     return created;
   }
 
@@ -242,6 +244,7 @@ export function createQueryClient(options: QueryClientOptions = {}): QueryClient
 
   function drop(entry: Record_): void {
     entry.controller?.abort();
+    devQuery('dropped', entry.key, entry.tags);
     entries.delete(entry.key);
   }
 
@@ -255,6 +258,10 @@ export function createQueryClient(options: QueryClientOptions = {}): QueryClient
         if (!anyTagMatches(patterns, entry.tags)) {
           continue;
         }
+        // Reported per matched entry rather than per call: an invalidation
+        // that hits nothing is indistinguishable from one never sent, and
+        // that is the confusion this exists to end.
+        devQuery('invalidated', entry.key, entry.tags);
         entry.invalid = true;
         if (entry.subscribers > 0) {
           waiting.push(run(entry));

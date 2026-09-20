@@ -6,6 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { computed, effect, signal } from '@firsthandjs/core';
+import { deepSignal } from '@firsthandjs/deep';
 import { component } from '@firsthandjs/dom';
 import { render } from '@firsthandjs/dom';
 import { attach, causeOf, cells, chain, detach, inspect } from '@firsthandjs/devtools';
@@ -158,5 +159,46 @@ describe('the chain', () => {
     const middle = part?.dependencies[0];
     expect(middle?.kind).toBe('computed');
     expect(middle?.dependencies[0]?.kind).toBe('signal');
+  });
+});
+
+describe('deep state', () => {
+  it('names a property by its path through the tree', () => {
+    const state = deepSignal({ user: { address: { city: 'Cambridge' } } });
+    render(() => <p>{state.user.address.city}</p>, host);
+
+    const [part] = inspect(host.querySelector('p') as Node);
+    expect(part?.dependencies.map((d) => d.name)).toContain('user.address.city');
+  });
+
+  it('calls the which-keys-exist subscription `keys`', () => {
+    const state = deepSignal<Record<string, string>>({ a: '1' });
+    render(() => <p>{Object.keys(state).length}</p>, host);
+
+    // `Object.keys`, `for…in` and spreading all subscribe to one thing: whether
+    // the set of keys changed. It is a symbol internally; a panel should not
+    // have to show that.
+    expect(inspect(host.querySelector('p') as Node)[0]?.dependencies[0]?.name).toBe('keys');
+  });
+
+  it('names a top-level property without a prefix', () => {
+    const state = deepSignal({ title: 'Draft' });
+    render(() => <p>{state.title}</p>, host);
+
+    expect(inspect(host.querySelector('p') as Node)[0]?.dependencies[0]?.name).toBe('title');
+  });
+
+  it('names an array length, and shows both subscriptions the read made', () => {
+    const state = deepSignal({ todos: ['write'] });
+    render(() => <p>{state.todos.length}</p>, host);
+
+    // Reading `state.todos.length` subscribes twice: to the `todos` property of
+    // the root, and to the array's own `length`. Both are in the graph, so both
+    // are shown — which is the answer to "why did this update when I replaced
+    // the whole array?".
+    expect(inspect(host.querySelector('p') as Node)[0]?.dependencies.map((d) => d.name)).toEqual([
+      'todos',
+      'todos.length',
+    ]);
   });
 });

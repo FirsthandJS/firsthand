@@ -25,7 +25,7 @@ function firsthand(options?: FirsthandPluginOptions): VitePluginLike;
 interface FirsthandPluginOptions {
   /** Used when hashing stable component ids. */
   packageName?: string;
-  /** Refuse to compile a value read once in a setup and then kept. */
+  /** Refuse to compile a value read once in a setup and then kept. Default: true. */
   strictReactivity?: boolean;
 }
 ```
@@ -41,9 +41,8 @@ the default `app` and shipped in one bundle would collide.
 
 ## strictReactivity
 
-```ts
-firsthand({ packageName: 'my-app', strictReactivity: true });
-```
+**On by default.** `firsthand({ packageName: 'my-app', strictReactivity: false })`
+turns it off.
 
 Refuses to compile a declaration whose value is read once in a component setup
 and then kept — the mistake the single-run setup invites
@@ -71,9 +70,14 @@ alone too: those bodies run again.
 What it therefore cannot see is a read that leaves the module — `doSomething(props)`
 with the read in another file. That is what the runtime half is for:
 [`setStrictReactivity(true)`](core.md#setstrictreactivity) reports the same
-mistake during development, including the cases no compiler can follow. The two
-are separate switches on purpose, because one is a build setting and the other
-is something your application turns on where it configures development.
+mistake during development, including the cases no compiler can follow.
+
+**The runtime half stays opt-in, and this one does not.** The difference is
+precision. The compiler sees the _shape_ of a declaration and only reports the
+one that is almost always wrong; the runtime sees a read with nothing
+subscribing, which `signal(props.initial)` also is. A check that is usually
+right can be on by default. One that is often wrong would only teach people to
+ignore it.
 
 Neither costs anything in production: this one runs at build time, and the other
 lives in a module the production build replaces with empty functions.

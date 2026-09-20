@@ -98,11 +98,61 @@ run since anything changed, or if nothing reactive writes the node.
 This is the one thing devtools record rather than read: the graph keeps no
 history, because nothing needs it once the flush is over.
 
+## queries
+
+```ts
+function queries(): QueryEvent[];
+
+interface QueryEvent {
+  event: 'created' | 'invalidated' | 'dropped';
+  key: string;
+  tags: readonly string[];
+}
+```
+
+What the query cache has done, oldest first. This is the one part of the
+framework whose behaviour is **not** in the reactive graph: a tag match is a
+decision rather than an edge, and an invalidation that matched nothing looks
+exactly like one that was never sent.
+
+```ts
+queries().filter((e) => e.event === 'invalidated');
+// [{ event: 'invalidated', key: 'order|…', tags: ['order(id: 7)'] }]
+```
+
+Tags are rendered as a person would write them — `order(id: 7)` — rather than
+as the cache's own key, which separates with control characters so two
+different tags can never collide into one string.
+
+Bounded to the last 200 events: a long session should not turn a debugging tool
+into a memory leak.
+
+## Deep state
+
+Properties of a [`deepSignal`](deep.md) are named by their path, because a
+version cell on its own says nothing — a hundred objects all have a `name`:
+
+```ts
+const state = deepSignal({ user: { address: { city: 'Cambridge' } } });
+// reading state.user.address.city subscribes to `user.address.city`
+```
+
+The path is recorded at the only moment it is knowable: when a nested object is
+first reached through its parent. An object you never reach has no path and
+costs nothing.
+
+Two names are worth knowing. `todos.length` is an array's length, which a read
+of `state.todos.length` subscribes to **in addition** to `todos` itself — both
+appear, which is the answer to "why did this update when I replaced the whole
+array?". And `keys` is what `Object.keys`, `for…in` and spreading subscribe to:
+whether the set of keys changed.
+
 ## What the names are
 
 | Source            | Example                     | When                                    |
 | ----------------- | --------------------------- | --------------------------------------- |
 | The DOM write     | `button.disabled`, `p.text` | Any part                                |
+| The property path | `user.address.city`         | Deep state                              |
 | The function      | `isEditable`                | A named `computed` or `effect` body     |
 | The creation site | `order.ts:12:19`            | Everything else, including every signal |
 

@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-09-20T10:03:42.257Z",
+  "measuredAt": "2026-09-20T10:19:03.975Z",
   "sizes": [
     {
       "module": "@firsthandjs/core",
@@ -36,14 +36,14 @@
     {
       "module": "@firsthandjs/deep",
       "minified": 1623,
-      "gzip": 740,
-      "brotli": 675
+      "gzip": 739,
+      "brotli": 673
     },
     {
       "module": "@firsthandjs/devtools",
-      "minified": 2328,
-      "gzip": 1147,
-      "brotli": 1037
+      "minified": 2456,
+      "gzip": 1215,
+      "brotli": 1101
     },
     {
       "module": "@firsthandjs/router",
@@ -53,15 +53,15 @@
     },
     {
       "module": "@firsthandjs/query",
-      "minified": 7928,
-      "gzip": 3305,
-      "brotli": 3022
+      "minified": 7961,
+      "gzip": 3318,
+      "brotli": 3034
     },
     {
       "module": "@firsthandjs/query (.gql loader path, parser tree-shaken)",
-      "minified": 5243,
-      "gzip": 2196,
-      "brotli": 2024
+      "minified": 5276,
+      "gzip": 2208,
+      "brotli": 2032
     },
     {
       "module": "@firsthandjs/styled",

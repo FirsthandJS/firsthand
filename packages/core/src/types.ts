@@ -71,6 +71,13 @@ export interface DevtoolsHook {
   running(effect: object | null): void;
   /** The node and property a part is writing, from inside its own effect. */
   part(node: object, property: string): void;
+  /**
+   * What the query cache just did: an entry created, invalidated or dropped.
+   *
+   * The cache is the one part of the framework whose behaviour is not in the
+   * reactive graph — a tag match is a decision rather than an edge.
+   */
+  query(event: string, key: string, tags: readonly string[]): void;
 }
 
 declare global {

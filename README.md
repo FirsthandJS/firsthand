@@ -353,10 +353,10 @@ Optional packages, downloaded only by an application that imports them:
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
 | `@firsthandjs/deep` | 1.58 kB | **0.72 kB** | 0.66 kB |
-| `@firsthandjs/devtools` | 2.27 kB | **1.12 kB** | 1.01 kB |
+| `@firsthandjs/devtools` | 2.40 kB | **1.19 kB** | 1.08 kB |
 | `@firsthandjs/router` | 8.36 kB | **3.36 kB** | 3.06 kB |
-| `@firsthandjs/query` | 7.74 kB | **3.23 kB** | 2.95 kB |
-| `@firsthandjs/query (.gql loader path, parser tree-shaken)` | 5.12 kB | **2.14 kB** | 1.98 kB |
+| `@firsthandjs/query` | 7.77 kB | **3.24 kB** | 2.96 kB |
+| `@firsthandjs/query (.gql loader path, parser tree-shaken)` | 5.15 kB | **2.16 kB** | 1.98 kB |
 | `@firsthandjs/styled` | 4.18 kB | **1.98 kB** | 1.79 kB |
 | `@firsthandjs/react` | 1.19 kB | **0.66 kB** | 0.58 kB |
 | `@firsthandjs/react/auto` | 1.20 kB | **0.66 kB** | 0.58 kB |
@@ -453,7 +453,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 655 tests under Vitest and 87
+This repository is the demonstration: 663 tests under Vitest and 87
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all seven examples.
 <!-- prettier-ignore-end -->

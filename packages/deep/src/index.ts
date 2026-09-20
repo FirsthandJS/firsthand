@@ -31,6 +31,7 @@
  * for the rest.
  */
 import { batch, signal, type Signal } from '@firsthandjs/core';
+import { devLabelProperty, devRemember } from './dev.js';
 
 /**
  * What may be made deeply reactive: an object or an array.
@@ -71,6 +72,7 @@ function versionOf(target: object, key: PropertyKey): Signal<number> {
   let cell = table.get(key);
   if (cell === undefined) {
     cell = signal(0);
+    devLabelProperty(cell, target, key);
     table.set(key, cell);
   }
   return cell;
@@ -146,7 +148,13 @@ const handler: ProxyHandler<Deep> = {
     track(target, key);
     // Nested objects are wrapped on the way out, lazily: an object nobody
     // reaches is never proxied.
-    return reactiveKind(value) ? deepSignal(value) : value;
+    if (!reactiveKind(value)) {
+      return value;
+    }
+    // Devtools learn the path here and nowhere else: this is the one moment
+    // the child and the key that reached it are both in hand.
+    devRemember(target, key, value);
+    return deepSignal(value);
   },
 
   set(target, key, next, receiver) {

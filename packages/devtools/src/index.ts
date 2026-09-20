@@ -16,6 +16,15 @@ import type { DevtoolsHook } from '@firsthandjs/core';
 /** What a node of the graph is. */
 export type NodeKind = 'signal' | 'computed' | 'effect' | 'part';
 
+/** Something the query cache did. */
+export interface QueryEvent {
+  event: 'created' | 'invalidated' | 'dropped';
+  /** The cache key: its tags and variables, as the client derived them. */
+  key: string;
+  /** The tags the entry carries, which is what an invalidation matches on. */
+  tags: readonly string[];
+}
+
 /** One node of the graph, as devtools describe it. */
 export interface GraphNode {
   kind: NodeKind;
@@ -62,6 +71,10 @@ const parts = new WeakMap<object, { node: object; property: string }>();
 const writers = new WeakMap<object, Set<object>>();
 /** Why each effect last ran. */
 const causes = new WeakMap<object, object>();
+/** What the query cache has done, newest last. */
+const cacheLog: QueryEvent[] = [];
+/** Bounded: a long session would otherwise keep every fetch it ever made. */
+const LOG_LIMIT = 200;
 const roots = new Set<WeakRef<OwnerLike>>();
 
 let running: object | null = null;
@@ -142,6 +155,12 @@ export function attach(): void {
         causes.set(effect, lastCause);
       }
     },
+    query(event, key, tags) {
+      cacheLog.push({ event: event as QueryEvent['event'], key, tags });
+      if (cacheLog.length > LOG_LIMIT) {
+        cacheLog.shift();
+      }
+    },
     part(node, property) {
       if (running === null) {
         return;
@@ -168,6 +187,7 @@ export function detach(): void {
   installed = null;
   running = null;
   lastCause = null;
+  cacheLog.length = 0;
   roots.clear();
 }
 
@@ -326,4 +346,21 @@ export function causeOf(node: Node): string | null {
     }
   }
   return null;
+}
+
+/**
+ * What the query cache has done, oldest first.
+ *
+ * The cache is the one part of the framework whose behaviour is not in the
+ * reactive graph: a tag match is a decision rather than an edge, and an
+ * invalidation that matched nothing looks exactly like one that was never
+ * sent. Bounded to the last 200 events, because a long session should not
+ * become a memory leak in a debugging tool.
+ *
+ * ```ts
+ * queries().filter((e) => e.event === 'invalidated');
+ * ```
+ */
+export function queries(): QueryEvent[] {
+  return [...cacheLog];
 }

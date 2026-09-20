@@ -83,8 +83,14 @@ what you meant. It untracks exactly as `untrack` does. The difference is that
 it is documented as intent, so both halves stay quiet inside it and the next
 reader knows the frozen value was chosen.
 
-Both are off by default. That is the second constraint applied honestly: a team
-opts into strictness, rather than being taught to skim past warnings.
+**The compiler rule is on by default; the runtime report is not.** That split
+is the second constraint applied where it actually bites. The compiler sees the
+_shape_ of a declaration and reports only the one that is almost always wrong —
+anything containing a call is left alone, which is most deliberate reads. The
+runtime sees a read with nothing subscribing, and `signal(props.initial)` is
+exactly that, so it would be wrong often enough to be ignored.
+
+A check that is usually right can be on. One that is often wrong cannot.
 
 ## Performance implications
 
@@ -117,8 +123,16 @@ development module only.
 
 ## Rejected alternatives
 
-- **On by default.** The honest cases are too common; the report would be noise
-  in week one and ignored by week two.
+- **Both on by default**, which is where this ADR started for the compiler rule
+  and stayed for the runtime one. The runtime check cannot distinguish
+  `signal(props.initial)` from a mistake, so it would be noise in week one and
+  ignored by week two.
+- **Both off by default**, which is where the compiler rule started. It was
+  changed after someone set up a new project, wrote `const x = v.value` in a
+  setup, and got no error — the report that would have been most useful was the
+  one nobody had turned on. The rule is narrow enough to be right almost every
+  time it fires, and `strictReactivity: false` is there for a codebase that
+  disagrees.
 - **A warning instead of a build error at compile time.** A warning in a build
   log is read once. Where the compiler is sure — and the rule is narrow enough
   to be sure — refusing is more useful than mentioning.
