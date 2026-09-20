@@ -108,7 +108,7 @@ Measured rather than asserted, because the constraint was the point.
 
 - **No devtools code ships.** The production bundle contains neither the hooks
   nor their strings: `grep` for the protocol in `packages/*/dist` finds nothing.
-- **The hot path is untouched.** `bench:ic` reports 1.01× for a site reading
+- **The hot path is untouched.** `bench:ic` reports 1.02× for a site reading
   mixed cell shapes against one reading a single shape — the same ratio as
   before, and the control still costs ~29×. The first draft of this change put
   the cause hook inside `propagate`, the inner loop of the graph; it was moved

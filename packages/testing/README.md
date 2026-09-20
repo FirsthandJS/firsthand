@@ -4,7 +4,7 @@ Mounting, cleanup and leak probes. Deliberately small: Firsthand renders real DO
 so the DOM is the API — there is no wrapper object to learn and no query
 language re-implemented on top of `querySelector`.
 
-**Documentation:** [guide](https://github.com/firsthandjs/firsthand/blob/main/docs/guide/12-testing.md) · [API reference](https://github.com/firsthandjs/firsthand/blob/main/docs/reference/testing.md) · [all docs](https://github.com/firsthandjs/firsthand/blob/main/docs/README.md)
+**Documentation:** [guide](https://github.com/firsthandjs/firsthand/blob/main/docs/guide/13-testing.md) · [API reference](https://github.com/firsthandjs/firsthand/blob/main/docs/reference/testing.md) · [all docs](https://github.com/firsthandjs/firsthand/blob/main/docs/README.md)
 
 ```ts
 import { afterEach } from 'vitest';
@@ -33,6 +33,6 @@ events and `:hover` all behave differently in a detached tree, and a test that
 only passes detached is a test of something else.
 
 Full guide, including Vitest environments and Playwright:
-[the testing guide](../../docs/guide/12-testing.md).
+[the testing guide](../../docs/guide/13-testing.md).
 
 MIT licensed.

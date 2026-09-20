@@ -1,7 +1,7 @@
 # Testing
 
-[Index](../README.md) · Previous: [React interop](11-react-interop.md) · Next:
-[Devtools](13-devtools.md)
+[Index](../README.md) · Previous: [Internationalisation](12-internationalisation.md) · Next:
+[Devtools](14-devtools.md)
 
 ---
 
@@ -14,10 +14,14 @@ view.get<HTMLButtonElement>('button').click();
 expect(view.text()).toBe('1'); // no await, no flush, no act()
 ```
 
-This repository tests itself the way it documents here: 561 unit and compiler
-tests under Vitest, and 29 cross-engine tests under Playwright — 87 runs across
-Chromium, Firefox and WebKit — covering the framework, the router, the query
+<!-- tests:start -->
+<!-- prettier-ignore-start -->
+This repository tests itself the way it documents here: 757 unit and
+compiler tests under Vitest, and 87 runs under Playwright across
+Chromium, Firefox and WebKit, covering the framework, the router, the query
 cache and all seven example applications.
+<!-- prettier-ignore-end -->
+<!-- tests:end -->
 
 ## Vitest
 
@@ -243,4 +247,4 @@ them at 100 % coverage with mutation testing on top.
 
 ---
 
-Next: [Devtools](13-devtools.md).
+Next: [Devtools](14-devtools.md).

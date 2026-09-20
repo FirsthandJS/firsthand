@@ -1,6 +1,6 @@
 # @firsthandjs/react
 
-[Reference index](../README.md#reference) · 0.66 kB gzip · peer dependencies
+[Reference index](../README.md#reference) · 0.68 kB gzip · peer dependencies
 `react` and `react-dom` (18 or 19)
 
 Runs a React component inside a Firsthand tree, which is how MUI, Ant Design,
@@ -135,4 +135,4 @@ resolve: {
 One React root per bridged instance, and React's own reconciliation for what is
 inside it. That is the honest price of using a React component; it does not
 make the rest of the application re-render, and nothing outside the bridge pays
-for it. Numbers are in the [performance guide](../guide/14-performance.md).
+for it. Numbers are in the [performance guide](../guide/15-performance.md).

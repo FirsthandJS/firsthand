@@ -1,12 +1,12 @@
 {
   "metadata": {
-    "timestamp": "2026-09-19T16:19:36.569Z",
+    "timestamp": "2026-09-20T15:30:14.493Z",
     "os": "win32 10.0.19045",
     "cpu": "Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz",
     "cores": 12,
     "browser": "chromium",
     "nodeVersion": "v24.19.0",
-    "gitCommit": "1908ce50198de6e12081e04721a0a1ff34ef2faa",
+    "gitCommit": "6a28ebd425a04539f50e7da428d6b25583d38861",
     "buildMode": "production",
     "note": "Firsthand only. Sampling profilers: figures are estimates, not exact counts."
   },
@@ -14,94 +14,94 @@
     {
       "id": "mount-1k",
       "repetitions": 20,
-      "bytesTotal": 2001160,
-      "bytesPerOperation": 100058,
+      "bytesTotal": 1984500,
+      "bytesPerOperation": 99225,
       "allocationHotspots": [
         {
           "name": "(anonymous)",
-          "value": 922912
+          "value": 895328
         },
         {
           "name": "insert",
-          "value": 511888
+          "value": 509812
         },
         {
           "name": "get row",
-          "value": 111384
-        },
-        {
-          "name": "createRow",
-          "value": 97792
+          "value": 112788
         },
         {
           "name": "signal",
-          "value": 95712
+          "value": 109200
+        },
+        {
+          "name": "createRow",
+          "value": 93100
         },
         {
           "name": "collect",
-          "value": 81928
+          "value": 73644
         },
         {
           "name": "(IDLE_EXTERNAL)",
-          "value": 63104
+          "value": 62988
         },
         {
           "name": "applyChild",
-          "value": 49340
+          "value": 53656
         }
       ],
       "selfTimeHotspots": [
         {
           "name": "run",
-          "value": 723.0002743202417
+          "value": 635.7614009546539
         },
         {
           "name": "removeChild",
-          "value": 102.23002175226587
-        },
-        {
-          "name": "cloneNode",
-          "value": 50.49916737160122
+          "value": 95.61968257756564
         },
         {
           "name": "(anonymous)",
-          "value": 44.340732326284
+          "value": 45.2551169451074
+        },
+        {
+          "name": "cloneNode",
+          "value": 32.84645584725537
         },
         {
           "name": "insertBefore",
-          "value": 23.40205317220544
-        },
-        {
-          "name": "(program)",
-          "value": 9.853496072507554
-        },
-        {
-          "name": "createTextNode",
-          "value": 9.237652567975832
+          "value": 24.817322195704058
         },
         {
           "name": "(garbage collector)",
-          "value": 9.237652567975832
+          "value": 10.94881861575179
         },
         {
-          "name": "on",
-          "value": 6.774278549848943
+          "name": "insert",
+          "value": 8.029133651551312
         },
         {
-          "name": "reconcile",
-          "value": 6.774278549848943
+          "name": "createTextNode",
+          "value": 6.569291169451074
+        },
+        {
+          "name": "(program)",
+          "value": 5.839369928400955
+        },
+        {
+          "name": "runEffect",
+          "value": 5.839369928400955
         }
       ]
     },
     {
       "id": "update-every-10th-1k",
       "repetitions": 50,
-      "bytesTotal": 139320,
-      "bytesPerOperation": 2786,
+      "bytesTotal": 136592,
+      "bytesPerOperation": 2732,
       "allocationHotspots": [
         {
           "name": "(anonymous)",
-          "value": 108040
+          "value": 101660
         },
         {
           "name": "set",
@@ -117,7 +117,155 @@
         },
         {
           "name": "run",
-          "value": 2536
+          "value": 3928
+        },
+        {
+          "name": "(V8 API)",
+          "value": 3036
+        },
+        {
+          "name": "evaluate",
+          "value": 2148
+        },
+        {
+          "name": "(BYTECODE_COMPILER)",
+          "value": 1640
+        }
+      ],
+      "selfTimeHotspots": [
+        {
+          "name": "run",
+          "value": 506.94091612903225
+        },
+        {
+          "name": "(anonymous)",
+          "value": 17.2550311827957
+        },
+        {
+          "name": "applyChild",
+          "value": 10.115018279569892
+        },
+        {
+          "name": "(program)",
+          "value": 7.7350139784946235
+        },
+        {
+          "name": "flatten",
+          "value": 2.975005376344086
+        },
+        {
+          "name": "(garbage collector)",
+          "value": 2.975005376344086
+        },
+        {
+          "name": "(idle)",
+          "value": 1.7850032258064514
+        },
+        {
+          "name": "runEffect",
+          "value": 1.1900021505376344
+        },
+        {
+          "name": "removeAttribute",
+          "value": 1.1900021505376344
+        },
+        {
+          "name": "reconcile",
+          "value": 0.5950010752688172
+        }
+      ]
+    },
+    {
+      "id": "update-single-row-1k",
+      "repetitions": 200,
+      "bytesTotal": 36040,
+      "bytesPerOperation": 180,
+      "allocationHotspots": [
+        {
+          "name": "set",
+          "value": 14356
+        },
+        {
+          "name": "flatten",
+          "value": 5164
+        },
+        {
+          "name": "(anonymous)",
+          "value": 4800
+        },
+        {
+          "name": "map",
+          "value": 4008
+        },
+        {
+          "name": "(V8 API)",
+          "value": 2484
+        },
+        {
+          "name": "(BYTECODE_COMPILER)",
+          "value": 2208
+        },
+        {
+          "name": "evaluate",
+          "value": 2108
+        },
+        {
+          "name": "parseEvaluationResultValue",
+          "value": 528
+        }
+      ],
+      "selfTimeHotspots": [
+        {
+          "name": "run",
+          "value": 850.7502587939699
+        },
+        {
+          "name": "(anonymous)",
+          "value": 28.642183417085434
+        },
+        {
+          "name": "flatten",
+          "value": 17.030487437185933
+        },
+        {
+          "name": "(garbage collector)",
+          "value": 8.515243718592966
+        },
+        {
+          "name": "(program)",
+          "value": 6.192904522613066
+        },
+        {
+          "name": "applyChild",
+          "value": 3.8705653266331663
+        },
+        {
+          "name": "batch",
+          "value": 3.096452261306533
+        },
+        {
+          "name": "evaluate",
+          "value": 2.3223391959799
+        },
+        {
+          "name": "reconcile",
+          "value": 1.5482261306532665
+        },
+        {
+          "name": "(idle)",
+          "value": 0.7741130653266333
+        }
+      ]
+    },
+    {
+      "id": "select-row-1k",
+      "repetitions": 200,
+      "bytesTotal": 8480,
+      "bytesPerOperation": 42,
+      "allocationHotspots": [
+        {
+          "name": "(BYTECODE_COMPILER)",
+          "value": 2768
         },
         {
           "name": "evaluate",
@@ -125,159 +273,11 @@
         },
         {
           "name": "(V8 API)",
-          "value": 1556
-        },
-        {
-          "name": "(BYTECODE_COMPILER)",
-          "value": 848
-        }
-      ],
-      "selfTimeHotspots": [
-        {
-          "name": "run",
-          "value": 593.6933046558704
-        },
-        {
-          "name": "(anonymous)",
-          "value": 11.030367408906883
-        },
-        {
-          "name": "applyChild",
-          "value": 11.030367408906883
-        },
-        {
-          "name": "(program)",
-          "value": 9.083831983805668
-        },
-        {
-          "name": "flatten",
-          "value": 3.2442257085020243
-        },
-        {
-          "name": "(garbage collector)",
-          "value": 3.2442257085020243
-        },
-        {
-          "name": "write",
-          "value": 2.5953805668016194
-        },
-        {
-          "name": "get row",
-          "value": 1.9465354251012146
-        },
-        {
-          "name": "(idle)",
-          "value": 1.2976902834008097
-        },
-        {
-          "name": "flush",
-          "value": 1.2976902834008097
-        }
-      ]
-    },
-    {
-      "id": "update-single-row-1k",
-      "repetitions": 200,
-      "bytesTotal": 35088,
-      "bytesPerOperation": 175,
-      "allocationHotspots": [
-        {
-          "name": "set",
-          "value": 14356
-        },
-        {
-          "name": "flatten",
-          "value": 5164
-        },
-        {
-          "name": "(anonymous)",
-          "value": 4260
-        },
-        {
-          "name": "map",
-          "value": 4008
-        },
-        {
-          "name": "(V8 API)",
-          "value": 3544
-        },
-        {
-          "name": "evaluate",
-          "value": 1836
-        },
-        {
-          "name": "(BYTECODE_COMPILER)",
-          "value": 1376
-        },
-        {
-          "name": "(IDLE_EXTERNAL)",
-          "value": 280
-        }
-      ],
-      "selfTimeHotspots": [
-        {
-          "name": "run",
-          "value": 898.5577700000001
-        },
-        {
-          "name": "(anonymous)",
-          "value": 39.624325000000006
-        },
-        {
-          "name": "flatten",
-          "value": 10.972890000000001
-        },
-        {
-          "name": "(program)",
-          "value": 10.363285000000001
-        },
-        {
-          "name": "(garbage collector)",
-          "value": 6.705655000000001
-        },
-        {
-          "name": "applyChild",
-          "value": 3.0480250000000004
-        },
-        {
-          "name": "batch",
-          "value": 2.4384200000000003
-        },
-        {
-          "name": "(idle)",
-          "value": 1.2192100000000001
-        },
-        {
-          "name": "write",
-          "value": 1.2192100000000001
-        },
-        {
-          "name": "reconcile",
-          "value": 0.6096050000000001
-        }
-      ]
-    },
-    {
-      "id": "select-row-1k",
-      "repetitions": 200,
-      "bytesTotal": 8188,
-      "bytesPerOperation": 41,
-      "allocationHotspots": [
-        {
-          "name": "(V8 API)",
-          "value": 3288
-        },
-        {
-          "name": "(BYTECODE_COMPILER)",
-          "value": 1928
-        },
-        {
-          "name": "evaluate",
-          "value": 1868
+          "value": 1924
         },
         {
           "name": "parseEvaluationResultValue",
-          "value": 392
+          "value": 656
         },
         {
           "name": "(PARSER)",
@@ -286,27 +286,27 @@
         {
           "name": "(anonymous)",
           "value": 328
+        },
+        {
+          "name": "(IDLE_EXTERNAL)",
+          "value": 264
         }
       ],
       "selfTimeHotspots": [
         {
           "name": "(idle)",
-          "value": 10.5978
+          "value": 9.0456
         },
         {
           "name": "(program)",
-          "value": 3.5326
-        },
-        {
-          "name": "applyProp",
-          "value": 3.5326
-        },
-        {
-          "name": "(root)",
-          "value": 0
+          "value": 3.0152
         },
         {
           "name": "(anonymous)",
+          "value": 3.0152
+        },
+        {
+          "name": "(root)",
           "value": 0
         },
         {
@@ -328,18 +328,22 @@
         {
           "name": "flush",
           "value": 0
+        },
+        {
+          "name": "runEffect",
+          "value": 0
         }
       ]
     },
     {
       "id": "swap-rows-1k",
       "repetitions": 100,
-      "bytesTotal": 52808,
-      "bytesPerOperation": 528,
+      "bytesTotal": 52056,
+      "bytesPerOperation": 521,
       "allocationHotspots": [
         {
-          "name": "run",
-          "value": 22624
+          "name": "delete",
+          "value": 16720
         },
         {
           "name": "set",
@@ -350,140 +354,140 @@
           "value": 5164
         },
         {
+          "name": "run",
+          "value": 4684
+        },
+        {
           "name": "slice",
           "value": 4008
         },
         {
+          "name": "(BYTECODE_COMPILER)",
+          "value": 2176
+        },
+        {
           "name": "(V8 API)",
-          "value": 2236
+          "value": 2088
         },
         {
           "name": "evaluate",
-          "value": 2132
-        },
-        {
-          "name": "parseEvaluationResultValue",
-          "value": 920
-        },
-        {
-          "name": "(BYTECODE_COMPILER)",
-          "value": 816
+          "value": 2084
         }
       ],
       "selfTimeHotspots": [
         {
           "name": "run",
-          "value": 332.9792417218543
-        },
-        {
-          "name": "reconcile",
-          "value": 13.604210264900662
+          "value": 274.3603653846154
         },
         {
           "name": "(anonymous)",
-          "value": 12.30857119205298
+          "value": 15.695673076923079
+        },
+        {
+          "name": "reconcile",
+          "value": 11.300884615384616
         },
         {
           "name": "(garbage collector)",
-          "value": 9.069473509933776
-        },
-        {
-          "name": "flatten",
-          "value": 7.773834437086093
+          "value": 5.650442307692308
         },
         {
           "name": "(program)",
-          "value": 4.534736754966888
+          "value": 5.022615384615385
         },
         {
-          "name": "insertBefore",
-          "value": 3.8869172185430463
-        },
-        {
-          "name": "compact.value.createComponent.row",
-          "value": 1.9434586092715231
-        },
-        {
-          "name": "applyChild",
-          "value": 1.295639072847682
+          "name": "flatten",
+          "value": 5.022615384615385
         },
         {
           "name": "longestIncreasing",
-          "value": 1.295639072847682
+          "value": 2.5113076923076925
+        },
+        {
+          "name": "(idle)",
+          "value": 1.2556538461538462
+        },
+        {
+          "name": "write",
+          "value": 1.2556538461538462
+        },
+        {
+          "name": "applyChild",
+          "value": 1.2556538461538462
         }
       ]
     },
     {
       "id": "rapid-signal-writes",
       "repetitions": 20,
-      "bytesTotal": 19544,
-      "bytesPerOperation": 977,
+      "bytesTotal": 13132,
+      "bytesPerOperation": 657,
       "allocationHotspots": [
         {
-          "name": "get value",
-          "value": 8188
-        },
-        {
-          "name": "isArray",
-          "value": 4664
+          "name": "flush",
+          "value": 6524
         },
         {
           "name": "(V8 API)",
-          "value": 2388
-        },
-        {
-          "name": "(BYTECODE_COMPILER)",
-          "value": 1956
+          "value": 2708
         },
         {
           "name": "evaluate",
           "value": 1820
         },
         {
+          "name": "(BYTECODE_COMPILER)",
+          "value": 1096
+        },
+        {
           "name": "parseEvaluationResultValue",
-          "value": 528
+          "value": 656
+        },
+        {
+          "name": "(anonymous)",
+          "value": 328
         }
       ],
       "selfTimeHotspots": [
         {
           "name": "applyChild",
-          "value": 117.54745728643216
+          "value": 83.68550980392156
         },
         {
           "name": "run",
-          "value": 13.244783919597989
+          "value": 12.216862745098037
         },
         {
           "name": "flush",
-          "value": 11.589185929648242
+          "value": 7.330117647058823
         },
         {
           "name": "(garbage collector)",
-          "value": 4.966793969849246
-        },
-        {
-          "name": "(anonymous)",
-          "value": 4.138994974874372
+          "value": 6.108431372549019
         },
         {
           "name": "write",
-          "value": 4.138994974874372
+          "value": 4.886745098039215
         },
         {
-          "name": "runEffect",
-          "value": 4.138994974874372
-        },
-        {
-          "name": "(idle)",
-          "value": 2.483396984924623
+          "name": "(anonymous)",
+          "value": 3.665058823529411
         },
         {
           "name": "(program)",
-          "value": 1.6555979899497488
+          "value": 2.4433725490196077
+        },
+        {
+          "name": "runEffect",
+          "value": 1.8325294117647057
         },
         {
           "name": "clearScope",
-          "value": 0.8277989949748744
+          "value": 1.8325294117647057
+        },
+        {
+          "name": "(idle)",
+          "value": 0.6108431372549019
         }
       ]
     }

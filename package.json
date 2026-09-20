@@ -37,8 +37,8 @@
     "bench:compare": "node benchmarks/compare.mjs",
     "check:no-deps": "node scripts/check-no-deps.mjs",
     "bench:ic": "node benchmarks/ic.mjs",
-    "tests:readme": "node scripts/update-readme-tests.mjs",
-    "check:tests": "node scripts/update-readme-tests.mjs --check"
+    "tests:readme": "node scripts/update-test-counts.mjs",
+    "check:tests": "node scripts/update-test-counts.mjs --check"
   },
   "overrides": {
     "qs": "^6.16.0"

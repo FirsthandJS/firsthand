@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-09-20
 
 ### Changed
 
@@ -30,7 +30,7 @@ strictReactivity: false })` restores the previous behaviour.
   happening.
 
   ```
-  order.ts:12:19
+  status (order.ts:12)
      ↓
   computed(isEditable)
      ↓
@@ -52,13 +52,81 @@ strictReactivity: false })` restores the previous behaviour.
   by their path, `user.address.city`, recorded at the only moment it is
   knowable — when a nested object is first reached through its parent.
 
-  Off until `attach()` is called, and **nothing ships**: the hooks live in the
-  modules the production build replaces with empty functions, so a shipped
-  bundle contains neither the code nor its strings. Measured rather than
-  assumed: `bench:ic` still reports 1.01x for mixed cell shapes, and the calls
+  Off until `attach()` is called, and the framework's side of it **ships
+  nothing**: the hooks live in the modules the production build replaces with
+  empty functions, so a shipped bundle contains neither that code nor its
+  strings. The package itself is an ordinary module and is not stripped —
+  import it behind `import.meta.env.DEV` if you do not want it in your bundle.
+  Measured rather than assumed: `bench:ic` still reports 1.02x for mixed cell shapes, and the calls
   to those empty functions cost 14 bytes minified and 5 gzip across the whole
   runtime — reported rather than rounded away
   ([ADR-0020](docs/adr/0020-devtools-without-a-runtime-cost.md)).
+
+  There is a panel as well as an API, because the common case is "that element
+  is wrong" and pointing at it should be the whole interaction. **Ctrl+Shift+F**
+  opens it: pick an element and it draws the path from the signals down to the
+  DOM write as boxes, marks the one that caused the last run, names the
+  components the node sits in, and lists the recent updates with a bar for how
+  far each one reached. A Timeline tab shows every update in the page, filtered
+  by source, with the call stack of the write behind each entry. The panel's
+  code is behind a dynamic import, so a session that never opens it never
+  downloads it. The package itself is **not** replaced in a production build —
+  import it behind a dev-only guard if you do not want it in your bundle.
+
+  Every position it shows is read back through the source map. Browsers do not
+  apply source maps to `error.stack`, so a frame names a line in the compiled
+  module — which in a framework that turns JSX into templates and thunks is a
+  line nobody wrote, and a call stack that looks authoritative while being
+  wrong is worse than none. The panel fetches the module, decodes the map it
+  already carries, and shows the written position; anything it cannot resolve
+  it hands back untouched rather than guessing.
+
+- **`@firsthandjs/i18n`** — `translator()` adapts any store-shaped translator,
+  and `fromI18next()` wires up i18next in one line. A language change, a
+  namespace that finishes loading and a resource added at runtime all invalidate
+  the same cell, batched, so every translated part on the page updates once.
+  Nothing is wrapped: `t` keeps its own types, including the ones a typed
+  i18next resource table gives it.
+
+- **Source maps from the compiler.** The Vite plugin emits them, so a debugger
+  shows the TSX that was written rather than the templates and protocol calls
+  it became — and a breakpoint can be set on a JSX expression itself.
+
+### Performance
+
+- **Re-measured on this release, and nothing moved.** The render/update set is
+  1.542x React 19.2.0 (geometric mean of 27 scenarios, 95 % CI 1.230–2.088),
+  against 1.563x (1.246–2.102) at 0.2.0. The intervals almost coincide; the
+  same machine measures 4–6 % differently from one day to the next and both
+  implementations move together when it does, which is why the ratio is what
+  gets published. At 100 000 rows: 4.1 s against React's 30.9 s.
+
+- **The profiler was measuring the wrong build.** `npm run bench:profile`
+  resolves `@firsthandjs/*` to the package sources, so that hotspots have names
+  — and the diagnostics seam is its own module, so that pulled in `dev.ts`
+  rather than the stub the published build swaps in. `hook` and
+  `devCheckSetupRead` sat near the top of the rapid-write profile, ahead of
+  frames that are in a shipped bundle. The profiling build now performs the
+  same swap, and marks the same hooks pure, as the release build does. Nothing
+  about the shipped code changes; what changes is that the profile now points
+  at it.
+
+  The size of what was being mistaken for production cost, since it is worth
+  knowing: about 73 ms of self time against `applyChild`'s 84 ms in
+  `rapid-signal-writes`. That is the price of the build you develop against,
+  and none of it ships.
+
+### Fixed
+
+- **A breakpoint on `{v}` is hit, once per update.** A JSX expression compiles
+  to two things on one generated line: the call that creates the part, which
+  runs once while the part is being built, and the thunk that re-reads the
+  value on every update. Both carried the expression's position and a debugger
+  takes the first location on a line, so the breakpoint landed on the call —
+  set it and nothing stopped, step into the file and you arrived at exactly
+  that line. The thunk keeps the position now and the call has none, and a
+  thunk spans a point rather than a range, so one marker is drawn rather than
+  two.
 
 ## [0.3.0] - 2026-09-20
 

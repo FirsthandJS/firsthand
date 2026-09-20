@@ -1,7 +1,7 @@
 # Performance
 
-[Index](../README.md) · Previous: [Devtools](13-devtools.md) · Next:
-[Building and deploying](15-building.md)
+[Index](../README.md) · Previous: [Devtools](14-devtools.md) · Next:
+[Building and deploying](16-building.md)
 
 ---
 
@@ -126,10 +126,16 @@ copying whether or not you use this framework.
 ## The numbers, and their caveats
 
 The README publishes them in full, including the scenarios React wins and the
-rows whose spread makes a median unreliable. The short version: about 1.56×
-faster than React 19 on the render/update set, 4.0 s against 32.6 s at 100 000
+rows whose spread makes a median unreliable. The short version: about 1.54×
+faster than React 19 on the render/update set, 4.1 s against 30.9 s at 100 000
 rows, less memory retained and less left behind after disposal, all in
 Chromium.
+
+Those absolute milliseconds are worth less than the ratio. The same machine
+measures 4–6 % differently from one day to the next — thermal state, what else
+the operating system is doing — and both implementations move together when it
+does. That is the reason every scenario is measured in one interleaved browser
+session: the ratio survives a slow day, the medians do not.
 
 What is **not** measured: Firefox and WebKit performance (they run the
 correctness suite only), and JavaScript time separately from the layout it
@@ -137,4 +143,4 @@ causes — every timing deliberately includes it.
 
 ---
 
-Next: [Building and deploying](15-building.md).
+Next: [Building and deploying](16-building.md).

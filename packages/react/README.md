@@ -9,7 +9,7 @@ written for React.
 npm install @firsthandjs/react react react-dom
 ```
 
-0.66 kB gzip. React and react-dom are peer dependencies: an application that
+0.68 kB gzip. React and react-dom are peer dependencies: an application that
 never imports this package does not install them.
 
 ```tsx

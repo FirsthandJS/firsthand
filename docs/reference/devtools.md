@@ -1,10 +1,10 @@
 # @firsthandjs/devtools
 
-[Reference index](../README.md#reference) · 1.12 kB gzip · depends on
+[Reference index](../README.md#reference) · 1.96 kB gzip · depends on
 `@firsthandjs/core` · development only
 
 See which signal updates which DOM node, what depends on what, and why an
-effect ran. Guide: [Devtools](../guide/13-devtools.md). Reasoning:
+effect ran. Guide: [Devtools](../guide/14-devtools.md). Reasoning:
 [ADR-0020](../adr/0020-devtools-without-a-runtime-cost.md).
 
 ```ts
@@ -21,7 +21,7 @@ if (import.meta.env.DEV) {
 > **Experimental.** This package is new and its shape is still moving. The
 > names, the returned structures and the panel will change without a major
 > version while that is true; nothing else in the framework depends on it, and
-> a production build contains none of it.
+> nothing else in the framework depends on it.
 
 ## The console, and the panel
 
@@ -239,14 +239,18 @@ it does a stack frame.
 
 ## What it costs
 
-**Nothing ships.** The hooks this reads live in modules the production build
-replaces with empty functions, so a shipped bundle contains neither the code
-nor its strings, and this package is downloaded only by an application that
-imports it. Of the package itself, 1.40 kB gzip is the part an import pulls in;
-the panel is a further 1.95 kB, loaded when it is opened.
+**The framework's side ships nothing.** The hooks this reads live in modules
+the production build replaces with empty functions, so a shipped bundle
+contains neither that code nor its strings.
+
+**This package is not stripped.** It is an ordinary module: imported
+unconditionally it is in your production bundle, so guard the import with
+`import.meta.env.DEV` (or your bundler's equivalent) if that matters. Of the
+package itself, 1.96 kB gzip is the part an import pulls in; the panel is a
+further 4.83 kB, loaded when it is opened.
 
 The one honest exception, measured rather than rounded away: the _calls_ to
 those empty functions cost **32 bytes minified, 9 gzip** across the whole
 runtime, because a bundler cannot prove a call has no effect. Nothing else
-moves: `bench:ic` reports mixed cell shapes at 1.01×, and a 2000-component
+moves: `bench:ic` reports mixed cell shapes at 1.02×, and a 2000-component
 mount measures the same as a build with the call sites removed.

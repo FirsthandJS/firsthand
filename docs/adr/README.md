@@ -28,3 +28,4 @@ performance or semantics are affected.
 | [0018](0018-deep-reactivity-as-its-own-package.md)               | Deep reactivity beside signals, not inside them            | accepted                          |
 | [0019](0019-strict-reactivity.md)                                | Strict reactivity, paid for at build time                  | accepted                          |
 | [0020](0020-devtools-without-a-runtime-cost.md)                  | Devtools that production does not pay for                  | accepted                          |
+| [0021](0021-localisation-as-an-adapter.md)                       | Localisation as an adapter, not a library                  | accepted                          |

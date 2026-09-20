@@ -2,8 +2,7 @@
 
 > **Experimental.** This package is new and its shape is still moving. The
 > names, the returned structures and the panel will change without a major
-> version while that is true; nothing else in the framework depends on it, and
-> a production build contains none of it.
+> version while that is true, and nothing else in the framework depends on it.
 
 See which signal updates which DOM node, what depends on what, and why an
 effect ran.
@@ -60,10 +59,23 @@ with its dependencies and their dependencies, as far down as you ask.
 
 ## What it costs
 
-Nothing, in a production build. The hooks it reads live in modules the build
-replaces with empty functions, so a shipped bundle contains neither the code
-nor its strings — and this package is only downloaded by an application that
-imports it.
+The framework's side of it ships nothing: the hooks this reads live in modules
+the production build replaces with empty functions, so a shipped bundle
+contains neither that code nor its strings, whether or not you use devtools.
+
+This package is not stripped, though — it is an ordinary module, so an
+unconditional import puts it in your production bundle. Guard it if that
+matters:
+
+```ts
+if (import.meta.env.DEV) {
+  const { attach } = await import('@firsthandjs/devtools');
+  attach();
+}
+```
+
+An import pulls in 1.96 kB gzip; the panel is a further 4.83 kB, loaded when it
+is opened.
 
 In development it records nothing until `attach()` is called, because naming
 every cell costs a `WeakMap` write and a hundred thousand rows would feel it.
@@ -75,7 +87,7 @@ propagation and disposal need it: every cell carries its dependencies and its
 subscribers, and every owner carries its children. This package attaches names
 to those nodes and reads the structure when asked.
 
-**Documentation:** [guide](../../docs/guide/13-devtools.md) ·
+**Documentation:** [guide](../../docs/guide/14-devtools.md) ·
 [API reference](../../docs/reference/devtools.md) ·
 [ADR-0020](../../docs/adr/0020-devtools-without-a-runtime-cost.md) for the
 reasoning.

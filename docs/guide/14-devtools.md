@@ -1,14 +1,13 @@
 # Devtools
 
-[Index](../README.md) · Previous: [Testing](12-testing.md) · Next:
-[Performance](14-performance.md)
+[Index](../README.md) · Previous: [Testing](13-testing.md) · Next:
+[Performance](15-performance.md)
 
 ---
 
 > **Experimental.** This package is new and its shape is still moving. The
 > names, the returned structures and the panel will change without a major
-> version while that is true; nothing else in the framework depends on it, and
-> a production build contains none of it.
+> version while that is true, and nothing else in the framework depends on it.
 
 Fine-grained reactivity is pleasant in the small and opaque in the large. Small
 means you can hold the graph in your head. Large means somebody asks why a
@@ -299,18 +298,35 @@ is a performance bug that is otherwise invisible until the profile is taken.
 
 ## What it costs
 
-**Nothing in production.** The hooks devtools read live in modules the build
-replaces with empty functions, so a shipped bundle contains neither the code
-nor the message strings, and the package itself is only downloaded by an
-application that imports it.
+**The framework's side of it ships nothing.** The hooks devtools read live in
+modules the production build replaces with empty functions, so a shipped bundle
+contains neither that code nor its message strings — whether or not you use
+devtools at all.
 
-Of the package, an application that imports it downloads 1.40 kB gzip; the
-panel is another 1.95 kB, and only if it is opened.
+**This package is not stripped, though.** It is an ordinary module, so an
+unconditional `import` puts it in your production bundle. Import it behind a
+dev-only guard if you do not want that:
+
+```ts
+// src/devtools.ts — imported first by the entry module
+if (import.meta.env.DEV) {
+  const { attach } = await import('@firsthandjs/devtools');
+  attach();
+}
+```
+
+Its own module, and imported first, because imports are hoisted: `attach()`
+written among the imports of your entry module would run after every one of
+them had been evaluated, and anything created during that evaluation would be
+recorded without a name.
+
+Of the package, an import pulls in 1.96 kB gzip; the panel is a further
+4.83 kB, and only if it is opened.
 
 The measured exception, because this documentation does not round numbers away:
 the _calls_ to those empty functions cost 32 bytes minified and 9 gzip across
 the whole runtime, since a bundler cannot prove a call has no effect. Nothing
-measurable beyond that: `bench:ic` still reports mixed cell shapes at 1.01× a
+measurable beyond that: `bench:ic` still reports mixed cell shapes at 1.02× a
 single shape, and mounting 2000 components takes the same 14.00 ms as a build
 with the call sites removed outright.
 
@@ -324,5 +340,5 @@ works and still appears; it is simply unnamed.
 
 ---
 
-Next: [Performance](14-performance.md) — what is fast by construction, what is
+Next: [Performance](15-performance.md) — what is fast by construction, what is
 not, and how to measure it.

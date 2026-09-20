@@ -29,15 +29,21 @@ packages/
   jsx-runtime/  jsx/jsxs/jsxDEV + Fragment (runtime fallback path)
   compiler/     TSX -> template + parts transform (build time only)
   testing/      test helpers (flush, mount harness, leak probes)
+  deep/         reactivity that follows an object all the way down (optional)
   router/       nested routes, links, on-demand route code       (optional)
   query/        tag-based cache for REST and GraphQL             (optional)
   styled/       CSS-in-JS over custom properties                 (optional)
   react/        React components inside Firsthand                   (optional)
+  i18n/         a translation function, made reactive            (optional)
+  devtools/     reads the graph the runtime already keeps    (development only)
 ```
 
-`router`, `query`, `styled` and `react` are optional in the sense that matters:
-an application that does not import them does not download them, and the
-runtime budget below is measured without them. Only `react` has peer
+`deep`, `router`, `query`, `styled`, `react` and `i18n` are optional in the
+sense that matters: an application that does not import them does not download
+them, and the runtime budget below is measured without them. `devtools` is
+development only — it reads the graph through hooks the production build
+replaces with empty functions, and it is the one package an application should
+import behind a dev-only guard, because it is not itself stripped. Only `react` has peer
 dependencies, and `scripts/check-no-deps.mjs` fails if any other package so
 much as imports React.
 
@@ -54,6 +60,9 @@ Dependency rule, enforced in CI by an import-boundary lint rule:
 | `query`       | `core`, `dom`                                               |
 | `styled`      | `core`, `dom`, `jsx-runtime` (types only)                   |
 | `react`       | `core`, `dom`, and `react`/`react-dom` as peers             |
+| `deep`        | `core`                                                      |
+| `i18n`        | `core`                                                      |
+| `devtools`    | `core` (types only; it reads the graph through hooks)       |
 
 `core` must remain loadable in a worker or on the server with no `document`
 present. `compiler` never ships to the browser.

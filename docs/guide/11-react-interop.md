@@ -1,7 +1,7 @@
 # React interop
 
 [Index](../README.md) · Previous: [Web components](10-web-components.md) ·
-Next: [Testing](12-testing.md)
+Next: [Internationalisation](12-internationalisation.md)
 
 ---
 
@@ -180,4 +180,4 @@ deserve the real one. The reasoning is in
 
 ---
 
-Next: [Testing](12-testing.md).
+Next: [Internationalisation](12-internationalisation.md).

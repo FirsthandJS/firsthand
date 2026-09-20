@@ -1,6 +1,6 @@
 # Building and deploying
 
-[Index](../README.md) · Previous: [Performance](14-performance.md)
+[Index](../README.md) · Previous: [Performance](15-performance.md)
 
 ---
 
@@ -30,6 +30,23 @@ _statically_ whether an expression is reactive — that question is undecidable,
 and being wrong means missed updates — so it wraps expressions and the runtime
 keeps an effect only if the thunk actually read something
 ([ADR-0009](../adr/0009-compiler-templates-and-thunks.md)).
+
+## Debugging what you wrote
+
+The compiled module above is not what anyone wants to look at in a debugger, so
+the plugin emits a source map and the browser shows the TSX instead.
+
+A breakpoint can be set on a **JSX expression itself** — on the `{count.value}`
+rather than on the line around it — and it is hit on the first render and on
+every update after. That last part is worth knowing why: an expression compiles
+to two things on one generated line, the call that creates the part and the
+thunk that re-reads the value. The thunk is the one that runs again, so it is
+the one the map points at.
+
+Stack frames are a separate matter: browsers do not apply source maps to
+`error.stack`, so a frame you print yourself names a line in the compiled
+module. The [devtools panel](14-devtools.md) resolves those through the same
+map before showing them.
 
 ## Bundlers
 

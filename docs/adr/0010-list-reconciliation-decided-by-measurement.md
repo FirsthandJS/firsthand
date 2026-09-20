@@ -59,9 +59,9 @@ the whole matrix:
 
 | Candidate                    | Relative cost | DOM mutations |
 | ---------------------------- | ------------: | ------------: |
-| **LIS (shipped)**            |    **1.006x** |         58970 |
-| two-ended prefix/suffix scan |        1.170x |         80440 |
-| naive remove-and-reinsert    |        1.489x |        123400 |
+| **LIS (shipped)**            |    **1.010x** |         58970 |
+| two-ended prefix/suffix scan |        1.154x |         80440 |
+| naive remove-and-reinsert    |        1.484x |        123400 |
 
 ### 10 000 nodes
 
@@ -108,7 +108,7 @@ slower than the scan. That trade is accepted and published rather than hidden;
 a list that is reversed in full is rarer than one that is sorted, filtered or
 swapped.
 
-The naive baseline is 1.49x and issues twice the mutations. It stays in the
+The naive baseline is 1.48x and issues twice the mutations. It stays in the
 harness as the floor.
 
 ## Performance implications

@@ -61,16 +61,16 @@ including DOM construction buries the difference the measurement exists to see.
 
 | Nesting depth | Setup, delegated | Setup, direct | Dispatch, delegated | Dispatch, direct |
 | ------------: | ---------------: | ------------: | ------------------: | ---------------: |
-|             1 |          0.10 ms |       0.30 ms |             7.25 ms |          8.55 ms |
-|             5 |          0.10 ms |       0.40 ms |             8.60 ms |         10.15 ms |
-|            20 |          0.10 ms |       0.60 ms |            20.35 ms |         21.95 ms |
+|             1 |          0.00 ms |       0.30 ms |             7.70 ms |          8.70 ms |
+|             5 |          0.10 ms |       0.40 ms |             8.40 ms |         10.00 ms |
+|            20 |          0.10 ms |       0.60 ms |            19.65 ms |         20.25 ms |
 
 Both ends of the trade came out in favour of delegation:
 
 - **Registration** is essentially free (0.00–0.10 ms for 2000 handlers) against
   0.30–0.60 ms for `addEventListener`. Both are small; the ratio is not.
 - **Dispatch** is _faster_ delegated at every depth tested, including depth 20
-  where the `composedPath()` walk is longest (11.75 ms against 12.30 ms).
+  where the `composedPath()` walk is longest (19.65 ms against 20.25 ms).
 
 This refutes the risk the project recorded against this decision (R4 in
 `docs/architecture/risks.md`), which was that the delegation lookup might cost

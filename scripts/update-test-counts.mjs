@@ -1,11 +1,16 @@
 /**
- * Regenerates the README's test counts from the suites themselves.
+ * Regenerates the documented test counts from the suites themselves.
  *
  * The same rule the benchmark numbers already follow: a figure appears in the
- * README because something measured it, not because someone typed it. The test
- * count was the one claim that escaped that — it said 561 long after the suite
- * had grown past 600, which is exactly the kind of quiet drift that makes a
- * reader stop trusting the other numbers on the page.
+ * documentation because something measured it, not because someone typed it.
+ * The test count was the one claim that escaped that — it said 561 long after
+ * the suite had grown past 600, which is exactly the kind of quiet drift that
+ * makes a reader stop trusting the other numbers on the page.
+ *
+ * Two files carry the number: the README, and the testing guide, which tells
+ * the reader this repository is tested the way the chapter describes. A claim
+ * like that is worth less than nothing when its number is a year out of date,
+ * so it is generated here too.
  *
  * The Vitest count comes from the JSON report `npm run coverage` writes, so it
  * costs nothing extra: the suite has just run. The Playwright count comes from
@@ -90,31 +95,54 @@ const word = (value) => WORDS[value] ?? String(value);
 // The prettier-ignore pair is what the benchmark block uses, and for the same
 // reason: without it Prettier reflows the generated sentence, the next `--check`
 // reports drift, and regenerating puts it back — forever.
-const body = `${START}
+const wrap = (sentence) => `${START}
 <!-- prettier-ignore-start -->
-This repository is the demonstration: ${unit} tests under Vitest and ${browser}
-under Playwright across Chromium, Firefox and WebKit, covering the framework,
-the router, the query cache and all ${word(examples)} examples.
+${sentence}
 <!-- prettier-ignore-end -->
 ${END}`;
 
-const path = resolve(root, 'README.md');
-const readme = readFileSync(path, 'utf8');
-const start = readme.indexOf(START);
-const end = readme.indexOf(END);
-if (start === -1 || end === -1) {
-  console.error(`README.md is missing the ${START} / ${END} markers.`);
-  process.exit(1);
-}
-const updated = readme.slice(0, start) + body + readme.slice(end + END.length);
+const targets = [
+  {
+    file: 'README.md',
+    body: wrap(`This repository is the demonstration: ${unit} tests under Vitest and ${browser}
+under Playwright across Chromium, Firefox and WebKit, covering the framework,
+the router, the query cache and all ${word(examples)} examples.`),
+  },
+  {
+    file: 'docs/guide/13-testing.md',
+    body: wrap(`This repository tests itself the way it documents here: ${unit} unit and
+compiler tests under Vitest, and ${browser} runs under Playwright across
+Chromium, Firefox and WebKit, covering the framework, the router, the query
+cache and all ${word(examples)} example applications.`),
+  },
+];
 
-if (check) {
-  if (updated !== readme) {
-    console.error('README.md test counts have drifted. Run `npm run tests:readme`.');
+let drifted = false;
+for (const target of targets) {
+  const path = resolve(root, target.file);
+  const current = readFileSync(path, 'utf8');
+  const start = current.indexOf(START);
+  const end = current.indexOf(END);
+  if (start === -1 || end === -1) {
+    console.error(`${target.file} is missing the ${START} / ${END} markers.`);
     process.exit(1);
   }
-  console.log(`README test counts are current: ${unit} unit, ${browser} browser.`);
-} else {
-  writeFileSync(path, updated);
-  console.log(`README test counts regenerated: ${unit} unit, ${browser} browser.`);
+  const updated = current.slice(0, start) + target.body + current.slice(end + END.length);
+  if (check) {
+    if (updated !== current) {
+      console.error(`${target.file} test counts have drifted. Run \`npm run tests:readme\`.`);
+      drifted = true;
+    }
+  } else if (updated !== current) {
+    writeFileSync(path, updated);
+  }
 }
+
+if (drifted) {
+  process.exit(1);
+}
+console.log(
+  check
+    ? `Test counts are current: ${unit} unit, ${browser} browser.`
+    : `Test counts regenerated: ${unit} unit, ${browser} browser.`,
+);

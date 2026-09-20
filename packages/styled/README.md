@@ -8,7 +8,7 @@ styled-components' API, on a framework that renders once.
 npm install @firsthandjs/styled
 ```
 
-1.97 kB gzip, against styled-components v6's 13.03 kB with React already
+2.02 kB gzip, against styled-components v6's 13.03 kB with React already
 external — both measured the same way, by bundling the package with its peers
 excluded. It needs no React, and no preprocessor.
 
@@ -83,7 +83,7 @@ resolution already in the sheet reuses it.
 
 `&:hover`, `@media`, `& > li` — all of it is **native CSS nesting**, which
 every browser this framework supports has. There is no preprocessor in this
-package, which is most of why it is 1.97 kB rather than 13.
+package, which is most of why it is 2.02 kB rather than 13.
 
 ## Props
 

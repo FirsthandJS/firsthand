@@ -1,6 +1,6 @@
 # @firsthandjs/query
 
-[Reference index](../README.md#reference) · 3.23 kB gzip (2.14 kB with the
+[Reference index](../README.md#reference) · 3.32 kB gzip (2.21 kB with the
 `.gql` loader, which leaves the parser out) · depends on `@firsthandjs/dom`
 
 A cache in front of the network, invalidated by tags. Guide:

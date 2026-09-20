@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-09-20T11:11:34.628Z",
+  "measuredAt": "2026-09-20T15:11:17.623Z",
   "environment": {
     "node": "v24.19.0",
     "v8": "13.6.233.17-node.51",
@@ -9,27 +9,27 @@
   "readsPerSample": 2000000,
   "results": {
     "one shape": {
-      "medianNs": 3.28695,
-      "minNs": 3.0439,
-      "maxNs": 3.5005,
+      "medianNs": 3.49285,
+      "minNs": 3.2272,
+      "maxNs": 3.64025,
       "samples": 15
     },
     "mixed cells": {
-      "medianNs": 3.31655,
-      "minNs": 3.04945,
-      "maxNs": 3.7949,
+      "medianNs": 3.5778,
+      "minNs": 3.4104,
+      "maxNs": 3.844,
       "samples": 15
     },
     "many shapes": {
-      "medianNs": 81.53985,
-      "minNs": 78.6991,
-      "maxNs": 85.7224,
+      "medianNs": 99.15445,
+      "minNs": 96.5126,
+      "maxNs": 129.3285,
       "samples": 15
     }
   },
   "ratios": {
     "one shape": 1,
-    "mixed cells": 1.0090053088729674,
-    "many shapes": 24.807146442750877
+    "mixed cells": 1.0243211131311107,
+    "many shapes": 28.387835148947136
   }
 }

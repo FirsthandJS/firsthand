@@ -21,10 +21,11 @@ Read in order the first time; each page assumes the ones before it.
 | 9   | [Data](guide/09-data.md)                                   | The tag-based cache, REST, GraphQL, `.gql` files and codegen      |
 | 10  | [Web components](guide/10-web-components.md)               | Using them, and publishing your own components as custom elements |
 | 11  | [React interop](guide/11-react-interop.md)                 | MUI and friends, and what the bridge costs                        |
-| 12  | [Testing](guide/12-testing.md)                             | Vitest, Playwright, Storybook, and what is worth asserting        |
-| 13  | [Devtools](guide/13-devtools.md)                           | See what updates what, why it ran, and what the cache did         |
-| 14  | [Performance](guide/14-performance.md)                     | What is fast by construction, what is not, and how to measure     |
-| 15  | [Building and deploying](guide/15-building.md)             | The compiler, bundlers, chunking, hosting                         |
+| 12  | [Internationalisation](guide/12-internationalisation.md)   | i18next and friends, made reactive                                |
+| 13  | [Testing](guide/13-testing.md)                             | Vitest, Playwright, Storybook, and what is worth asserting        |
+| 14  | [Devtools](guide/14-devtools.md)                           | See what updates what, why it ran, and what the cache did         |
+| 15  | [Performance](guide/15-performance.md)                     | What is fast by construction, what is not, and how to measure     |
+| 16  | [Building and deploying](guide/16-building.md)             | The compiler, bundlers, chunking, hosting                         |
 
 ## Reference
 
@@ -32,16 +33,17 @@ One page per package, listing every export with its signature.
 
 | Package                                                | Size (gzip) | What it is                                         |
 | ------------------------------------------------------ | ----------- | -------------------------------------------------- |
-| [`@firsthandjs/core`](reference/core.md)               | 2.36 kB     | Signals, computeds, effects, context, owners       |
-| [`@firsthandjs/dom`](reference/dom.md)                 | 4.15 kB     | Components, rendering, elements, lists, portals    |
-| [`@firsthandjs/jsx-runtime`](reference/jsx-runtime.md) | 0.59 kB     | JSX types, and the runtime fallback                |
+| [`@firsthandjs/core`](reference/core.md)               | 2.42 kB     | Signals, computeds, effects, context, owners       |
+| [`@firsthandjs/dom`](reference/dom.md)                 | 4.30 kB     | Components, rendering, elements, lists, portals    |
+| [`@firsthandjs/jsx-runtime`](reference/jsx-runtime.md) | 0.60 kB     | JSX types, and the runtime fallback                |
 | [`@firsthandjs/compiler`](reference/compiler.md)       | build only  | The TSX transform and the bundler plugin           |
-| [`@firsthandjs/deep`](reference/deep.md)               | 0.72 kB     | Deep reactivity: every property is a signal        |
-| [`@firsthandjs/devtools`](reference/devtools.md)       | 1.40 kB     | **Experimental.** What updates what, why, and when |
-| [`@firsthandjs/router`](reference/router.md)           | 3.36 kB     | Typed routes, links, history, lazy routes          |
-| [`@firsthandjs/query`](reference/query.md)             | 3.23 kB     | The cache, tags, REST, GraphQL, codegen            |
-| [`@firsthandjs/styled`](reference/styled.md)           | 1.97 kB     | CSS-in-JS with custom properties                   |
-| [`@firsthandjs/react`](reference/react.md)             | 0.66 kB     | React components inside Firsthand, directly or not |
+| [`@firsthandjs/deep`](reference/deep.md)               | 0.74 kB     | Deep reactivity: every property is a signal        |
+| [`@firsthandjs/devtools`](reference/devtools.md)       | 1.96 kB     | **Experimental.** What updates what, why, and when |
+| [`@firsthandjs/i18n`](reference/i18n.md)               | 0.38 kB     | i18next and friends, made reactive                 |
+| [`@firsthandjs/router`](reference/router.md)           | 3.44 kB     | Typed routes, links, history, lazy routes          |
+| [`@firsthandjs/query`](reference/query.md)             | 3.32 kB     | The cache, tags, REST, GraphQL, codegen            |
+| [`@firsthandjs/styled`](reference/styled.md)           | 2.02 kB     | CSS-in-JS with custom properties                   |
+| [`@firsthandjs/react`](reference/react.md)             | 0.68 kB     | React components inside Firsthand, directly or not |
 | [`@firsthandjs/testing`](reference/testing.md)         | dev only    | `mount`, `cleanup`, leak probes                    |
 
 Sizes are measured by `npm run build` and published in the

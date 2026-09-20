@@ -9,7 +9,7 @@ than by cache keys.
 npm install @firsthandjs/query
 ```
 
-3.23 kB gzip — 2.14 kB with the `.graphql` loader, which leaves the document
+3.32 kB gzip — 2.21 kB with the `.graphql` loader, which leaves the document
 parser out of the bundle. No dependencies other than `@firsthandjs/core` and
 `@firsthandjs/dom`.
 

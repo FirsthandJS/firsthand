@@ -256,15 +256,18 @@ stop(); // every effect unsubscribed, every cleanup run, every node removed
 
 You will meet these as you need them; none is required to start.
 
-| Package                 | When you need it                               |
-| ----------------------- | ---------------------------------------------- |
-| `@firsthandjs/dom`      | Always. Components, rendering, signals         |
-| `@firsthandjs/compiler` | Always, as a dev dependency                    |
-| `@firsthandjs/router`   | More than one page                             |
-| `@firsthandjs/query`    | Talking to a server                            |
-| `@firsthandjs/styled`   | Styles written next to the component           |
-| `@firsthandjs/react`    | A component library that only exists for React |
-| `@firsthandjs/testing`  | Tests                                          |
+| Package                 | When you need it                                |
+| ----------------------- | ----------------------------------------------- |
+| `@firsthandjs/dom`      | Always. Components, rendering, signals          |
+| `@firsthandjs/compiler` | Always, as a dev dependency                     |
+| `@firsthandjs/router`   | More than one page                              |
+| `@firsthandjs/query`    | Talking to a server                             |
+| `@firsthandjs/styled`   | Styles written next to the component            |
+| `@firsthandjs/react`    | A component library that only exists for React  |
+| `@firsthandjs/deep`     | State shaped like a tree, not like a value      |
+| `@firsthandjs/i18n`     | Translations that update when the language does |
+| `@firsthandjs/devtools` | Seeing what updates what, while developing      |
+| `@firsthandjs/testing`  | Tests                                           |
 
 ## Without a build step
 

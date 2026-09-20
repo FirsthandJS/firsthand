@@ -1,12 +1,12 @@
 {
   "metadata": {
-    "timestamp": "2026-09-19T16:21:08.729Z",
+    "timestamp": "2026-09-20T15:29:00.900Z",
     "os": "win32 10.0.19045",
     "cpu": "Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz",
     "cores": 12,
     "browser": "chromium",
     "nodeVersion": "v24.19.0",
-    "gitCommit": "1908ce50198de6e12081e04721a0a1ff34ef2faa",
+    "gitCommit": "6a28ebd425a04539f50e7da428d6b25583d38861",
     "warmupRepetitions": 3,
     "measuredRepetitions": 15,
     "correctnessVerified": true
@@ -17,19 +17,19 @@
       "size": 1000,
       "candidates": {
         "shipped": {
-          "median": 2,
+          "median": 2.100000001490116,
           "samples": 15,
           "inserts": 100,
           "removals": 0
         },
         "prefixSuffix": {
-          "median": 2,
+          "median": 2.100000001490116,
           "samples": 15,
           "inserts": 100,
           "removals": 0
         },
         "naive": {
-          "median": 4.199999988079071,
+          "median": 4.300000000745058,
           "samples": 15,
           "inserts": 1100,
           "removals": 0
@@ -41,19 +41,19 @@
       "size": 1000,
       "candidates": {
         "shipped": {
-          "median": 2.0999999940395355,
+          "median": 2.199999999254942,
           "samples": 15,
           "inserts": 100,
           "removals": 0
         },
         "prefixSuffix": {
-          "median": 2.0999999940395355,
+          "median": 2.199999999254942,
           "samples": 15,
           "inserts": 100,
           "removals": 0
         },
         "naive": {
-          "median": 4.199999988079071,
+          "median": 4.399999998509884,
           "samples": 15,
           "inserts": 1100,
           "removals": 0
@@ -65,19 +65,19 @@
       "size": 1000,
       "candidates": {
         "shipped": {
-          "median": 2.199999988079071,
+          "median": 2.300000000745058,
           "samples": 15,
           "inserts": 100,
           "removals": 0
         },
         "prefixSuffix": {
-          "median": 2.199999988079071,
+          "median": 2.199999999254942,
           "samples": 15,
           "inserts": 100,
           "removals": 0
         },
         "naive": {
-          "median": 4.199999988079071,
+          "median": 4.399999998509884,
           "samples": 15,
           "inserts": 1100,
           "removals": 0
@@ -89,19 +89,19 @@
       "size": 1000,
       "candidates": {
         "shipped": {
-          "median": 1.800000011920929,
+          "median": 1.8999999985098839,
           "samples": 15,
           "inserts": 0,
           "removals": 100
         },
         "prefixSuffix": {
-          "median": 1.800000011920929,
+          "median": 1.8999999985098839,
           "samples": 15,
           "inserts": 0,
           "removals": 100
         },
         "naive": {
-          "median": 3.5,
+          "median": 3.600000001490116,
           "samples": 15,
           "inserts": 900,
           "removals": 100
@@ -113,19 +113,19 @@
       "size": 1000,
       "candidates": {
         "shipped": {
-          "median": 1.800000011920929,
+          "median": 1.9000000022351742,
           "samples": 15,
           "inserts": 2,
           "removals": 0
         },
         "prefixSuffix": {
-          "median": 3.7999999821186066,
+          "median": 3.899999998509884,
           "samples": 15,
           "inserts": 997,
           "removals": 0
         },
         "naive": {
-          "median": 3.699999988079071,
+          "median": 3.7000000029802322,
           "samples": 15,
           "inserts": 1000,
           "removals": 0
@@ -137,19 +137,19 @@
       "size": 1000,
       "candidates": {
         "shipped": {
-          "median": 3.800000011920929,
+          "median": 3.899999998509884,
           "samples": 15,
           "inserts": 999,
           "removals": 0
         },
         "prefixSuffix": {
-          "median": 3.800000011920929,
+          "median": 3.899999998509884,
           "samples": 15,
           "inserts": 999,
           "removals": 0
         },
         "naive": {
-          "median": 3.699999988079071,
+          "median": 3.7000000029802322,
           "samples": 15,
           "inserts": 1000,
           "removals": 0
@@ -161,19 +161,19 @@
       "size": 1000,
       "candidates": {
         "shipped": {
-          "median": 2.2999999821186066,
+          "median": 2.300000000745058,
           "samples": 15,
           "inserts": 182,
           "removals": 0
         },
         "prefixSuffix": {
-          "median": 3.7000000178813934,
+          "median": 4,
           "samples": 15,
           "inserts": 988,
           "removals": 0
         },
         "naive": {
-          "median": 3.800000011920929,
+          "median": 4,
           "samples": 15,
           "inserts": 1000,
           "removals": 0
@@ -185,19 +185,19 @@
       "size": 1000,
       "candidates": {
         "shipped": {
-          "median": 3.7000000178813934,
+          "median": 3.899999998509884,
           "samples": 15,
           "inserts": 850,
           "removals": 0
         },
         "prefixSuffix": {
-          "median": 3.9000000059604645,
+          "median": 4,
           "samples": 15,
           "inserts": 990,
           "removals": 0
         },
         "naive": {
-          "median": 3.699999988079071,
+          "median": 3.900000002235174,
           "samples": 15,
           "inserts": 1000,
           "removals": 0
@@ -209,19 +209,19 @@
       "size": 1000,
       "candidates": {
         "shipped": {
-          "median": 3.7999999821186066,
+          "median": 3.899999998509884,
           "samples": 15,
           "inserts": 1000,
           "removals": 1000
         },
         "prefixSuffix": {
-          "median": 3.699999988079071,
+          "median": 4,
           "samples": 15,
           "inserts": 1000,
           "removals": 1000
         },
         "naive": {
-          "median": 3.7000000178813934,
+          "median": 3.899999998509884,
           "samples": 15,
           "inserts": 1000,
           "removals": 1000
@@ -233,19 +233,19 @@
       "size": 1000,
       "candidates": {
         "shipped": {
-          "median": 0.5999999940395355,
+          "median": 0.6999999992549419,
           "samples": 15,
           "inserts": 0,
           "removals": 1000
         },
         "prefixSuffix": {
-          "median": 0.699999988079071,
+          "median": 0.6999999992549419,
           "samples": 15,
           "inserts": 0,
           "removals": 1000
         },
         "naive": {
-          "median": 0.699999988079071,
+          "median": 0.6999999992549419,
           "samples": 15,
           "inserts": 0,
           "removals": 1000
@@ -257,19 +257,19 @@
       "size": 10000,
       "candidates": {
         "shipped": {
-          "median": 28,
+          "median": 27.5,
           "samples": 15,
           "inserts": 1000,
           "removals": 0
         },
         "prefixSuffix": {
-          "median": 28.599999994039536,
+          "median": 29.099999997764826,
           "samples": 15,
           "inserts": 1000,
           "removals": 0
         },
         "naive": {
-          "median": 51.099999994039536,
+          "median": 51.899999998509884,
           "samples": 15,
           "inserts": 11000,
           "removals": 0
@@ -281,19 +281,19 @@
       "size": 10000,
       "candidates": {
         "shipped": {
-          "median": 26.30000001192093,
+          "median": 29.099999997764826,
           "samples": 15,
           "inserts": 1000,
           "removals": 0
         },
         "prefixSuffix": {
-          "median": 29.5,
+          "median": 35.5,
           "samples": 15,
           "inserts": 1000,
           "removals": 0
         },
         "naive": {
-          "median": 55.29999998211861,
+          "median": 47.599999997764826,
           "samples": 15,
           "inserts": 11000,
           "removals": 0
@@ -305,19 +305,19 @@
       "size": 10000,
       "candidates": {
         "shipped": {
-          "median": 20.5,
+          "median": 20.600000001490116,
           "samples": 15,
           "inserts": 100,
           "removals": 0
         },
         "prefixSuffix": {
-          "median": 21.19999998807907,
+          "median": 21.100000001490116,
           "samples": 15,
           "inserts": 100,
           "removals": 0
         },
         "naive": {
-          "median": 43.30000001192093,
+          "median": 45.5,
           "samples": 15,
           "inserts": 10100,
           "removals": 0
@@ -329,19 +329,19 @@
       "size": 10000,
       "candidates": {
         "shipped": {
-          "median": 22,
+          "median": 21.799999997019768,
           "samples": 15,
           "inserts": 0,
           "removals": 1000
         },
         "prefixSuffix": {
-          "median": 21.900000005960464,
+          "median": 20.5,
           "samples": 15,
           "inserts": 0,
           "removals": 1000
         },
         "naive": {
-          "median": 39.5,
+          "median": 37.80000000074506,
           "samples": 15,
           "inserts": 9000,
           "removals": 1000
@@ -353,19 +353,19 @@
       "size": 10000,
       "candidates": {
         "shipped": {
-          "median": 21.900000005960464,
+          "median": 22,
           "samples": 15,
           "inserts": 2,
           "removals": 0
         },
         "prefixSuffix": {
-          "median": 42.599999994039536,
+          "median": 42.900000002235174,
           "samples": 15,
           "inserts": 9997,
           "removals": 0
         },
         "naive": {
-          "median": 42.80000001192093,
+          "median": 43.19999999925494,
           "samples": 15,
           "inserts": 10000,
           "removals": 0
@@ -377,19 +377,19 @@
       "size": 10000,
       "candidates": {
         "shipped": {
-          "median": 41,
+          "median": 43.099999997764826,
           "samples": 15,
           "inserts": 9999,
           "removals": 0
         },
         "prefixSuffix": {
-          "median": 44.19999998807907,
+          "median": 45.100000001490116,
           "samples": 15,
           "inserts": 9999,
           "removals": 0
         },
         "naive": {
-          "median": 41.80000001192093,
+          "median": 42.19999999925494,
           "samples": 15,
           "inserts": 10000,
           "removals": 0
@@ -401,19 +401,19 @@
       "size": 10000,
       "candidates": {
         "shipped": {
-          "median": 27.900000005960464,
+          "median": 28.399999998509884,
           "samples": 15,
           "inserts": 1811,
           "removals": 0
         },
         "prefixSuffix": {
-          "median": 46,
+          "median": 44.900000002235174,
           "samples": 15,
           "inserts": 9980,
           "removals": 0
         },
         "naive": {
-          "median": 43.099999994039536,
+          "median": 45.600000001490116,
           "samples": 15,
           "inserts": 10000,
           "removals": 0
@@ -425,19 +425,19 @@
       "size": 10000,
       "candidates": {
         "shipped": {
-          "median": 45.29999998211861,
+          "median": 47.5,
           "samples": 15,
           "inserts": 8625,
           "removals": 0
         },
         "prefixSuffix": {
-          "median": 47.20000001788139,
+          "median": 47.5,
           "samples": 15,
           "inserts": 9990,
           "removals": 0
         },
         "naive": {
-          "median": 45.80000001192093,
+          "median": 51.80000000074506,
           "samples": 15,
           "inserts": 10000,
           "removals": 0
@@ -449,19 +449,19 @@
       "size": 10000,
       "candidates": {
         "shipped": {
-          "median": 43.39999997615814,
+          "median": 42.70000000298023,
           "samples": 15,
           "inserts": 10000,
           "removals": 10000
         },
         "prefixSuffix": {
-          "median": 53.099999994039536,
+          "median": 43.5,
           "samples": 15,
           "inserts": 10000,
           "removals": 10000
         },
         "naive": {
-          "median": 41.80000001192093,
+          "median": 47.5,
           "samples": 15,
           "inserts": 10000,
           "removals": 10000
@@ -473,19 +473,19 @@
       "size": 10000,
       "candidates": {
         "shipped": {
-          "median": 6.5999999940395355,
+          "median": 6.699999999254942,
           "samples": 15,
           "inserts": 0,
           "removals": 10000
         },
         "prefixSuffix": {
-          "median": 6.5,
+          "median": 6.600000001490116,
           "samples": 15,
           "inserts": 0,
           "removals": 10000
         },
         "naive": {
-          "median": 6.5999999940395355,
+          "median": 7,
           "samples": 15,
           "inserts": 0,
           "removals": 10000
@@ -495,15 +495,15 @@
   ],
   "totals": {
     "shipped": {
-      "relative": 1.0055514975344118,
+      "relative": 1.0097836112432281,
       "mutations": 58970
     },
     "prefixSuffix": {
-      "relative": 1.1703819567069011,
+      "relative": 1.1540770097216568,
       "mutations": 80440
     },
     "naive": {
-      "relative": 1.488570039637604,
+      "relative": 1.4839239066823366,
       "mutations": 123400
     }
   }
