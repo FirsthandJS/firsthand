@@ -23,6 +23,8 @@ if (import.meta.env.DEV) {
 
 Then, in the browser:
 
+Press **Ctrl+Shift+F**, or:
+
 ```js
 __FIRSTHAND__.panel(); // a panel: pick an element, see what writes it and why
 ```

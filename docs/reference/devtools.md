@@ -35,6 +35,8 @@ __FIRSTHAND__.panel($0); // open the panel on it
 __FIRSTHAND__.chain($0); // or just the chain, as text
 ```
 
+**Ctrl+Shift+F** opens and closes the panel, and `attach()` says so on the
+console once, because a tool that gives no sign of itself is one nobody opens.
 `__FIRSTHAND__.panel()` opens a panel in the page: pick an element, see what
 writes it and why. It lives in a shadow root with `all: initial`, so neither
 stylesheet reaches the other, and its code is behind a dynamic import — a

@@ -29,6 +29,14 @@ export interface Update {
   source: string;
   /** What ran, in the order it ran. */
   ran: string[];
+  /**
+   * Where the write came from, application frames only.
+   *
+   * "Which signal changed" is half an answer; the other half is which of your
+   * code changed it, and an event handler three files away is exactly the case
+   * where the graph cannot help.
+   */
+  stack: string[];
 }
 
 /** Something the query cache did. */
@@ -112,6 +120,8 @@ const roots = new Set<WeakRef<OwnerLike>>();
 let running: object | null = null;
 /** Told after each effect run, so the panel can redraw what it is showing. */
 let watcher: (() => void) | null = null;
+/** The shortcut listener, kept so `detach` can take it away again. */
+let shortcut: ((event: KeyboardEvent) => void) | null = null;
 /** The source of the write being flushed, until the next one. */
 let lastCause: object | null = null;
 let installed: DevtoolsHook | null = null;
@@ -136,6 +146,31 @@ const MUTABLE = 1 << 0;
  */
 const FRAMEWORK =
   /@firsthandjs|[\\/]node_modules[\\/]|[\\/]packages[\\/](core|dom|deep|devtools|jsx-runtime|query|router|styled|testing)[\\/]src[\\/]/;
+
+/**
+ * The application frames of the current call, nearest first.
+ *
+ * Captured per write rather than per read: a write is a deliberate act and
+ * there are few of them, while reads are the hot path and must never be
+ * touched. Bounded to six, because a stack is a hint and not a transcript.
+ */
+function callers(): string[] {
+  const frames = (new Error().stack ?? '').split('\n').slice(1);
+  const own: string[] = [];
+  for (const frame of frames) {
+    if (FRAMEWORK.test(frame)) {
+      continue;
+    }
+    const trimmed = frame.trim().replace(/^at\s+/, '');
+    if (trimmed !== '') {
+      own.push(trimmed);
+    }
+    if (own.length === 6) {
+      break;
+    }
+  }
+  return own;
+}
 
 /**
  * The creation site of whatever is being labelled.
@@ -187,7 +222,12 @@ export function attach(): void {
       // belong to this one — which is the same pairing `causeOf` uses, kept as
       // a sequence rather than only as a latest.
       current = {
-        update: { at: Math.round(performance.now()), source: nameOf(dep as CellLike), ran: [] },
+        update: {
+          at: Math.round(performance.now()),
+          source: nameOf(dep as CellLike),
+          ran: [],
+          stack: callers(),
+        },
         effects: [],
       };
       updates.push(current);
@@ -239,6 +279,23 @@ export function attach(): void {
   };
   globalThis.__FIRSTHAND_DEVTOOLS__ = hook;
   installed = hook;
+
+  // A tool that gives no sign of itself is a tool nobody opens. One line, once,
+  // saying the two ways in — and a shortcut, because reaching for the console
+  // to look at the page is the wrong way round.
+  shortcut = (event: KeyboardEvent): void => {
+    if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'f') {
+      event.preventDefault();
+      void import('./panel.js').then((module) => {
+        module.toggle();
+      });
+    }
+  };
+  globalThis.addEventListener('keydown', shortcut);
+  console.info(
+    '[firsthand] devtools attached — press Ctrl+Shift+F for the panel, ' +
+      'or call __FIRSTHAND__.panel()',
+  );
   // The console cannot import. A bare specifier has no resolver there, and in
   // a bundled application the module is inside the bundle — so the API is put
   // where the console can reach it, spelled to pair with the element the
@@ -289,6 +346,10 @@ export function detach(): void {
   }
   globalThis.__FIRSTHAND_DEVTOOLS__ = undefined;
   delete (globalThis as { __FIRSTHAND__?: Console }).__FIRSTHAND__;
+  if (shortcut !== null) {
+    globalThis.removeEventListener('keydown', shortcut);
+    shortcut = null;
+  }
   installed = null;
   running = null;
   lastCause = null;

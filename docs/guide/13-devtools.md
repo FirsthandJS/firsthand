@@ -29,11 +29,18 @@ if (import.meta.env.DEV) {
 
 That is the whole setup.
 
+When the page loads it says so, once:
+
+```
+[firsthand] devtools attached — press Ctrl+Shift+F for the panel,
+or call __FIRSTHAND__.panel()
+```
+
 ## Point at it
 
-```ts
-__FIRSTHAND__.panel();
-```
+**Ctrl+Shift+F** opens and closes the panel. `__FIRSTHAND__.panel()` does the
+same from the console, and `__FIRSTHAND__.panel($0)` opens it on whatever the
+Elements panel has selected.
 
 A panel opens in the corner of the page. Press **Pick**, click the element that
 is wrong, and the answer is drawn:

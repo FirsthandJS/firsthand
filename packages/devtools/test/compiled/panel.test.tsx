@@ -6,7 +6,7 @@
  * tab shows the cache, and that closing removes everything it added — an
  * inspector that leaves listeners or styles behind is worse than none.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient, tag } from '@firsthandjs/query';
 import { signal } from '@firsthandjs/core';
 import { component, render } from '@firsthandjs/dom';
@@ -325,7 +325,11 @@ describe('the component stack, on the screen', () => {
     count.value = 2;
     refresh();
 
-    expect(body()).toContain('Last updates of this node');
+    expect(body()).toContain('Last 1 updates');
+    // And clicking one opens its detail, including where the write came from.
+    (one('.tick') as HTMLElement).click();
+    expect(body()).toContain('Written from');
+    expect(all('.stack div').some((frame) => frame.includes('panel.test'))).toBe(true);
   });
 });
 
@@ -383,5 +387,126 @@ describe('the timeline tab', () => {
     press('[data-tab="graph"]');
 
     expect(body()).toContain('Nothing selected');
+  });
+});
+
+describe('being found at all', () => {
+  it('says it is there, once, and how to open it', () => {
+    detach();
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+
+    attach();
+
+    expect(info).toHaveBeenCalledTimes(1);
+    const said = String(info.mock.calls[0]?.[0]);
+    expect(said).toContain('Ctrl+Shift+F');
+    expect(said).toContain('__FIRSTHAND__.panel()');
+    info.mockRestore();
+  });
+
+  it('opens and closes on the shortcut', async () => {
+    const press = (): void => {
+      globalThis.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'F', ctrlKey: true, shiftKey: true }),
+      );
+    };
+
+    press();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.querySelector('[data-firsthand-devtools]')).not.toBeNull();
+
+    press();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.querySelector('[data-firsthand-devtools]')).toBeNull();
+  });
+
+  it('ignores the key once detached', async () => {
+    detach();
+    globalThis.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'F', ctrlKey: true, shiftKey: true }),
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.querySelector('[data-firsthand-devtools]')).toBeNull();
+  });
+
+  it('leaves an ordinary keystroke alone', async () => {
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }));
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.querySelector('[data-firsthand-devtools]')).toBeNull();
+  });
+});
+
+describe('narrowing the timeline', () => {
+  it('offers a chip per source, and filters to one', () => {
+    const first = signal('a');
+    const second = signal('b');
+    render(
+      () => (
+        <div>
+          <p id="one">{first.value}</p>
+          <p id="two">{second.value}</p>
+        </div>
+      ),
+      host,
+    );
+
+    first.value = 'x';
+    second.value = 'y';
+    second.value = 'z';
+
+    open();
+    press('[data-tab="timeline"]');
+    expect(all('.chip')).toHaveLength(2);
+    expect(body()).toContain('3 of 3 updates');
+
+    // Narrow to the second signal: two of the three.
+    (root().querySelectorAll('.chip')[1] as HTMLElement).click();
+    expect(body()).toContain('2 of 3 updates');
+
+    // And clicking it again widens back out.
+    (root().querySelectorAll('.chip')[1] as HTMLElement).click();
+    expect(body()).toContain('3 of 3 updates');
+  });
+
+  it('closes a detail when the same row is clicked twice', () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+    count.value = 2;
+
+    open();
+    press('[data-tab="timeline"]');
+    (one('.tick') as HTMLElement).click();
+    expect(body()).toContain('Written from');
+
+    (one('.tick') as HTMLElement).click();
+    expect(body()).not.toContain('Written from');
+  });
+});
+
+describe('a write with nowhere to point', () => {
+  it('shows the detail without a stack section', () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+
+    // An engine that gives no stack: the detail still opens, with no frames.
+    const RealError = globalThis.Error;
+    const Fake = class extends RealError {
+      constructor() {
+        super();
+        Object.defineProperty(this, 'stack', { value: undefined, configurable: true });
+      }
+    };
+    globalThis.Error = Fake as unknown as ErrorConstructor;
+    count.value = 2;
+    globalThis.Error = RealError;
+
+    open();
+    press('[data-tab="timeline"]');
+    (one('.tick') as HTMLElement).click();
+
+    expect(body()).toContain('woke 1');
+    expect(body()).not.toContain('Written from');
   });
 });

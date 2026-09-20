@@ -39,8 +39,18 @@ button:hover { background: #34343c; }
 button[aria-pressed='true'] { background: #3d5afe; border-color: #3d5afe; color: #fff; }
 .body { overflow: auto; padding: 12px; }
 .empty { color: #8a8a94; }
-.hint { color: #8a8a94; margin: 10px 0 4px; font-size: 11px; text-transform: uppercase;
-  letter-spacing: 0.08em; }
+.hint { color: #7c7c88; margin: 14px 0 6px; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.1em; }
+.hint:first-child { margin-top: 0; }
+.section + .section { margin-top: 2px; }
+.stack { margin: 4px 0 0; }
+.stack div { color: #9a9aa6; padding-left: 10px; border-left: 1px solid #3a3a40; }
+.stack div:first-child { color: #e6e6e6; }
+.filters { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.filters .chip { background: #2a2a30; border: 1px solid #45454d; border-radius: 999px;
+  padding: 1px 9px; cursor: pointer; color: #9ecbff; }
+.filters .chip[aria-pressed='true'] { background: #3d5afe; border-color: #3d5afe; color: #fff; }
+.count { color: #7c7c88; }
 
 /* The path, as boxes and arrows rather than as three lines of text. */
 .flow { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
@@ -104,6 +114,8 @@ let tab: 'graph' | 'queries' | 'timeline' = 'graph';
 let frame: number | null = null;
 /** The update the timeline is showing in detail. */
 let chosen: Update | null = null;
+/** A source to narrow the timeline to, or `null` for all of them. */
+let only: string | null = null;
 
 function button(label: string, onClick: () => void): HTMLButtonElement {
   const element = document.createElement('button');
@@ -166,6 +178,7 @@ function renderGraph(body: HTMLElement): void {
 
   const where = stack(selected);
   if (where.length > 0) {
+    body.append(text('p', 'hint', 'Component'));
     const crumbs = document.createElement('div');
     crumbs.className = 'crumbs';
     for (const name of where) {
@@ -181,6 +194,7 @@ function renderGraph(body: HTMLElement): void {
   }
 
   const why = causeOf(selected);
+  body.append(text('p', 'hint', 'Path'));
   for (const part of parts) {
     drawFlow(part, why, body);
   }
@@ -195,13 +209,16 @@ function renderGraph(body: HTMLElement): void {
 
   const recent = timeline(selected).slice(-6).reverse();
   if (recent.length > 0) {
-    body.append(text('p', 'hint', 'Last updates of this node'));
-    body.append(track(recent, null));
+    body.append(text('p', 'hint', `Last ${String(recent.length)} updates`));
+    body.append(track(recent));
+  }
+  if (chosen !== null) {
+    body.append(detailsOf(chosen));
   }
 }
 
 /** The updates as rows: when, what was written, and how much it woke. */
-function track(updates: Update[], onPick: ((update: Update) => void) | null): HTMLElement {
+function track(updates: Update[]): HTMLElement {
   const most = Math.max(1, ...updates.map((update) => update.ran.length));
   const list = document.createElement('div');
   list.className = 'track';
@@ -217,14 +234,37 @@ function track(updates: Update[], onPick: ((update: Update) => void) | null): HT
     // rebuilt half the page from the one that woke nothing at all.
     bar.style.width = `${String(Math.round((update.ran.length / most) * 60) + 6)}px`;
     row.append(bar);
-    if (onPick !== null) {
-      row.addEventListener('click', () => {
-        onPick(update);
-      });
-    }
+    row.addEventListener('click', () => {
+      select(update);
+    });
     list.append(row);
   }
   return list;
+}
+
+/** Who wrote it, what it woke, and where the write came from. */
+function detailsOf(update: Update): HTMLElement {
+  const detail = document.createElement('div');
+  detail.className = 'detail';
+  detail.append(text('p', 'hint', `${update.source} woke ${String(update.ran.length)}`));
+  for (const name of update.ran) {
+    detail.append(text('div', 'ran', name));
+  }
+  if (update.stack.length > 0) {
+    detail.append(text('p', 'hint', 'Written from'));
+    const frames = document.createElement('div');
+    frames.className = 'stack';
+    for (const frame of update.stack) {
+      frames.append(text('div', '', frame));
+    }
+    detail.append(frames);
+  }
+  return detail;
+}
+
+function select(update: Update): void {
+  chosen = chosen === update ? null : update;
+  render();
 }
 
 function renderTimeline(body: HTMLElement): void {
@@ -233,20 +273,30 @@ function renderTimeline(body: HTMLElement): void {
     body.append(text('p', 'empty', 'Nothing has changed yet.'));
     return;
   }
-  body.append(
-    track([...updates].reverse(), (update) => {
-      chosen = update;
-      render();
-    }),
-  );
-  if (chosen !== null) {
-    const detail = document.createElement('div');
-    detail.className = 'detail';
-    detail.append(text('p', 'hint', `${chosen.source} woke ${String(chosen.ran.length)}`));
-    for (const name of chosen.ran) {
-      detail.append(text('div', 'ran', name));
+  // One chip per source that has written, so a busy page can be narrowed to
+  // the one signal being argued about.
+  const sources = [...new Set(updates.map((update) => update.source))];
+  if (sources.length > 1) {
+    const filters = document.createElement('div');
+    filters.className = 'filters';
+    for (const source of sources) {
+      const chip = text('span', 'chip', source);
+      chip.setAttribute('aria-pressed', String(only === source));
+      chip.addEventListener('click', () => {
+        only = only === source ? null : source;
+        chosen = null;
+        render();
+      });
+      filters.append(chip);
     }
-    body.append(detail);
+    body.append(filters);
+  }
+
+  const shown = only === null ? updates : updates.filter((update) => update.source === only);
+  body.append(text('p', 'hint', `${String(shown.length)} of ${String(updates.length)} updates`));
+  body.append(track([...shown].reverse()));
+  if (chosen !== null) {
+    body.append(detailsOf(chosen));
   }
 }
 
@@ -401,9 +451,19 @@ export function close(): void {
   host = null;
   parts = null;
   chosen = null;
+  only = null;
   picking = false;
   selected = null;
   tab = 'graph';
+}
+
+/** Opens the panel, or closes it if it is already open. */
+export function toggle(): void {
+  if (host === null) {
+    open();
+  } else {
+    close();
+  }
 }
 
 /** Shows the panel for a node the caller already has. */

@@ -414,7 +414,9 @@ function rewritePropsDestructuring(
   for (const entry of references) {
     for (const reference of entry.paths) {
       if (entry.access !== propsId) {
-        reference.replaceWith(t.cloneNode(entry.access));
+        // The position of the identifier being replaced, so `{v}` still points
+        // at `{v}` once it has become `props.inner.v`.
+        reference.replaceWith(located(t.cloneNode(entry.access), reference.node));
       }
     }
   }
@@ -762,7 +764,10 @@ function emitAttribute(
     build.statements.push(
       expressionStatement(
         t.callExpression(runtime(state, 'bind'), [
-          t.arrowFunctionExpression([], dynamicAttributeCall(name, value, self, state, tag)),
+          located(
+            t.arrowFunctionExpression([], dynamicAttributeCall(name, value, self, state, tag)),
+            value,
+          ),
         ]),
       ),
     );
@@ -1036,14 +1041,21 @@ function emitChildren(
       // rebuild the whole list on every evaluation.
       entry.kind === 'list'
         ? (entry.expression as t.Expression)
-        : t.arrowFunctionExpression([], entry.expression as t.Expression),
+        : located(
+            t.arrowFunctionExpression([], entry.expression as t.Expression),
+            entry.expression as t.Expression,
+          ),
     ];
     if (!isLast) {
       build.html.push('<!>');
       const id = reference();
       args.push(t.cloneNode(id));
     }
-    build.statements.push(expressionStatement(t.callExpression(runtime(state, 'insert'), args)));
+    build.statements.push(
+      expressionStatement(
+        located(t.callExpression(runtime(state, 'insert'), args), entry.expression as t.Expression),
+      ),
+    );
     index++;
   }
 }
@@ -1191,5 +1203,26 @@ function compileChildren(children: t.JSXElement['children'], state: State): t.Ex
 }
 
 function expressionStatement(expression: t.Expression): t.Statement {
-  return t.expressionStatement(expression);
+  return located(t.expressionStatement(expression), expression);
+}
+
+/**
+ * Gives a node the compiler built the position of the code it stands for.
+ *
+ * Without this the generated statement has no position at all, so the source
+ * map has nothing to say about it — and a debugger cannot put a breakpoint on
+ * a line it cannot find. `{v}` becoming `_$insert(el, () => props.v)` is the
+ * case that matters: that call *is* the expression, and should be reachable
+ * where the expression was written.
+ */
+function located<T extends t.Node>(node: T, source: t.Node | null | undefined): T {
+  if (source == null || source.loc == null) {
+    // Generated from something generated: there is no original position to
+    // pass on, and inventing one would point a debugger at the wrong line.
+    return node;
+  }
+  // `loc` alone: the generator maps from it, and copying `start`/`end` as well
+  // would mean two more assignments and two fallbacks that cannot be reached.
+  node.loc = source.loc;
+  return node;
 }

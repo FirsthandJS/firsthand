@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createRoot, signal } from '@firsthandjs/core';
-import { attach, cells, detach, inspect, queries, stack } from '@firsthandjs/devtools';
+import { attach, cells, detach, inspect, queries, stack, timeline } from '@firsthandjs/devtools';
 import { createQueryClient, tag } from '@firsthandjs/query';
 
 beforeEach(() => {
@@ -217,5 +217,50 @@ describe('a stack with nothing behind it', () => {
     hook().running(null);
 
     expect(stack(node)).toEqual([]);
+  });
+});
+
+describe('the call stack of a write', () => {
+  it('falls back when the engine gives no stack', () => {
+    attach();
+    const count = signal(1);
+    withStack(undefined, () => {
+      count.value = 2;
+    });
+
+    expect(timeline()[0]?.stack).toEqual([]);
+  });
+
+  it('keeps six frames, not a transcript', () => {
+    attach();
+    const count = signal(1);
+    // V8 collects ten frames by default and the framework's own use some of
+    // them, so the budget is raised for the length of this test — otherwise
+    // the cut at six is never reached and the assertion proves nothing.
+    const limit = Error.stackTraceLimit;
+    Error.stackTraceLimit = 50;
+    const deep = (left: number): void => {
+      if (left === 0) {
+        count.value = 2;
+        return;
+      }
+      deep(left - 1);
+    };
+    deep(10);
+    Error.stackTraceLimit = limit;
+
+    expect(timeline()[0]?.stack).toHaveLength(6);
+  });
+});
+
+describe('frames that say nothing', () => {
+  it('skips a blank line in a stack', () => {
+    attach();
+    const count = signal(1);
+    withStack('Error\n   \n    at handleClick (/app/order.ts:12:9)', () => {
+      count.value = 2;
+    });
+
+    expect(timeline()[0]?.stack).toEqual(['handleClick (/app/order.ts:12:9)']);
   });
 });

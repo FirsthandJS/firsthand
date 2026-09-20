@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-09-20T12:25:41.527Z",
+  "measuredAt": "2026-09-20T12:56:05.373Z",
   "sizes": [
     {
       "module": "@firsthandjs/core",
@@ -41,9 +41,9 @@
     },
     {
       "module": "@firsthandjs/devtools",
-      "minified": 11768,
-      "gzip": 4577,
-      "brotli": 4002
+      "minified": 13675,
+      "gzip": 5080,
+      "brotli": 4457
     },
     {
       "module": "@firsthandjs/i18n",

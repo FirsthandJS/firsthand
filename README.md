@@ -353,7 +353,7 @@ Optional packages, downloaded only by an application that imports them:
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
 | `@firsthandjs/deep` | 1.58 kB | **0.72 kB** | 0.66 kB |
-| `@firsthandjs/devtools` | 11.49 kB | **4.47 kB** | 3.91 kB |
+| `@firsthandjs/devtools` | 13.35 kB | **4.96 kB** | 4.35 kB |
 | `@firsthandjs/i18n` | 0.63 kB | **0.37 kB** | 0.32 kB |
 | `@firsthandjs/router` | 8.36 kB | **3.36 kB** | 3.06 kB |
 | `@firsthandjs/query` | 7.77 kB | **3.24 kB** | 2.96 kB |
@@ -454,7 +454,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 722 tests under Vitest and 87
+This repository is the demonstration: 732 tests under Vitest and 87
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all seven examples.
 <!-- prettier-ignore-end -->
