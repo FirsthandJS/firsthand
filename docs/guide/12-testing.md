@@ -1,7 +1,7 @@
 # Testing
 
 [Index](../README.md) · Previous: [React interop](11-react-interop.md) · Next:
-[Performance](13-performance.md)
+[Devtools](13-devtools.md)
 
 ---
 
@@ -243,4 +243,4 @@ them at 100 % coverage with mutation testing on top.
 
 ---
 
-Next: [Performance](13-performance.md).
+Next: [Devtools](13-devtools.md).

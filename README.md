@@ -198,8 +198,8 @@ This file is the overview and the evidence. How to _use_ the framework is in
 [web components](docs/guide/10-web-components.md),
 [React interop](docs/guide/11-react-interop.md),
 [testing](docs/guide/12-testing.md),
-[performance](docs/guide/13-performance.md),
-[building and deploying](docs/guide/14-building.md).
+[performance](docs/guide/14-performance.md),
+[building and deploying](docs/guide/15-building.md).
 
 **[The reference](docs/reference/)** — one page per package, every export with
 its signature:

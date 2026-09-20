@@ -22,8 +22,9 @@ Read in order the first time; each page assumes the ones before it.
 | 10  | [Web components](guide/10-web-components.md)               | Using them, and publishing your own components as custom elements |
 | 11  | [React interop](guide/11-react-interop.md)                 | MUI and friends, and what the bridge costs                        |
 | 12  | [Testing](guide/12-testing.md)                             | Vitest, Playwright, Storybook, and what is worth asserting        |
-| 13  | [Performance](guide/13-performance.md)                     | What is fast by construction, what is not, and how to measure     |
-| 14  | [Building and deploying](guide/14-building.md)             | The compiler, bundlers, chunking, hosting                         |
+| 13  | [Devtools](guide/13-devtools.md)                           | See what updates what, why it ran, and what the cache did         |
+| 14  | [Performance](guide/14-performance.md)                     | What is fast by construction, what is not, and how to measure     |
+| 15  | [Building and deploying](guide/15-building.md)             | The compiler, bundlers, chunking, hosting                         |
 
 ## Reference
 

@@ -53,7 +53,10 @@ propagation and disposal need it: every cell carries its dependencies and its
 subscribers, and every owner carries its children. This package attaches names
 to those nodes and reads the structure when asked.
 
-Reasoning in [ADR-0020](../../docs/adr/0020-devtools-without-a-runtime-cost.md).
+**Documentation:** [guide](../../docs/guide/13-devtools.md) ·
+[API reference](../../docs/reference/devtools.md) ·
+[ADR-0020](../../docs/adr/0020-devtools-without-a-runtime-cost.md) for the
+reasoning.
 
 ## Licence
 

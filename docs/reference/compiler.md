@@ -4,7 +4,7 @@
 browser
 
 Compiles TSX into template clones and DOM parts. Guide:
-[Building and deploying](../guide/14-building.md); design:
+[Building and deploying](../guide/15-building.md); design:
 [ADR-0009](../adr/0009-compiler-templates-and-thunks.md).
 
 ---

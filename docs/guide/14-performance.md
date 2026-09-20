@@ -1,7 +1,7 @@
 # Performance
 
-[Index](../README.md) · Previous: [Testing](12-testing.md) · Next:
-[Building and deploying](14-building.md)
+[Index](../README.md) · Previous: [Devtools](13-devtools.md) · Next:
+[Building and deploying](15-building.md)
 
 ---
 
@@ -137,4 +137,4 @@ causes — every timing deliberately includes it.
 
 ---
 
-Next: [Building and deploying](14-building.md).
+Next: [Building and deploying](15-building.md).

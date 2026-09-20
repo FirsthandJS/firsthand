@@ -4,7 +4,7 @@
 `@firsthandjs/core` · development only
 
 See which signal updates which DOM node, what depends on what, and why an
-effect ran. Reasoning:
+effect ran. Guide: [Devtools](../guide/13-devtools.md). Reasoning:
 [ADR-0020](../adr/0020-devtools-without-a-runtime-cost.md).
 
 ```ts
