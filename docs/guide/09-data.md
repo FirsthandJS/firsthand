@@ -138,6 +138,56 @@ function reading from IndexedDB.
 
 ## GraphQL
 
+### Setting up GraphQL
+
+One plugin, one config file, and a directory of operations. In order:
+
+```bash
+npm install @firsthandjs/query graphql
+npm install --save-dev @graphql-codegen/cli @graphql-codegen/typescript-operations
+```
+
+```ts
+// vite.config.ts — the loader turns .gql files into parsed documents
+import { graphql } from '@firsthandjs/query/vite';
+
+plugins: [firsthand({ packageName: 'app' }), graphql()];
+```
+
+```
+src/
+  gql/
+    boards.gql          one operation per file, cache tags as directives
+    board-fields.gql    a fragment, inlined by #import
+  graphql-types.ts      generated: result and variable types
+  graphql-modules.d.ts  generated: which .gql file has which of them
+codegen.ts              points at the schema and at src/gql
+server/schema.graphql   or wherever your schema comes from
+```
+
+```tsx
+// once, where the application starts
+provide(QueryClientContext, createQueryClient({ staleTime: 30_000 }));
+provide(GraphQLContext, createGraphQLTransport({ url: '/graphql' }));
+```
+
+```tsx
+// and then, anywhere
+import BoardsDocument from '../gql/boards.gql';
+
+const boards = useGraphQL(BoardsDocument);
+```
+
+That is the whole path. The rest of this section is what each step is for:
+[the document](#the-document) and its directives, [types](#loading-and-types),
+[the transport](#the-transport), [authentication](#authentication), and
+[more than one API](#more-than-one-api).
+
+Nothing here is required. Without the loader, `parseGraphQL(source)` does the
+same at runtime; without codegen, the types are the ones you write. The
+loader and codegen are what make a call site carry no type argument and no
+drift.
+
 ### The document
 
 Put each operation in a `.gql` file, with its cache tags as **directives**:
@@ -231,23 +281,138 @@ compiling. An operation with required variables cannot be called without them.
 
 ### The transport
 
+One call says where the server is, and it is provided like anything else:
+
 ```tsx
 import { GraphQLContext, createGraphQLTransport } from '@firsthandjs/query';
 
-provide(
-  GraphQLContext,
-  createGraphQLTransport({
-    url: '/graphql',
-    headers: () => ({ authorization: `Bearer ${token.value}` }), // read per request
-  }),
-);
+provide(GraphQLContext, createGraphQLTransport({ url: '/graphql' }));
 ```
+
+`url` is the only required option. A different origin is a full URL, and a
+proxy in `vite.config.ts` is the usual alternative during development.
 
 Errors in a GraphQL response become one thrown `FirsthandGraphQLError`, which
 lands in the query's `error` cell.
 
 Without a bundler plugin, `parseGraphQL(source)` does the same at runtime — at
 the cost of the parser, which the loader path leaves out of the bundle.
+
+### Authentication
+
+Two options carry it, and each is a function. There is no plugin system here:
+urql answers this with exchanges, Apollo with links, and both are pipelines
+you insert middleware into. What an application actually needs is a header on
+every request and somewhere to notice a rejected token.
+
+**`headers` is called per request.** Read the token out of a signal and every
+request carries the current one; nothing has to be rebuilt when it changes.
+
+```tsx
+import { signal } from '@firsthandjs/dom';
+
+export const token = signal<string | null>(localStorage.getItem('token'));
+
+provide(
+  GraphQLContext,
+  createGraphQLTransport({
+    url: '/graphql',
+    headers: () => (token.value === null ? {} : { authorization: `Bearer ${token.value}` }),
+  }),
+);
+```
+
+Reading a signal there does **not** make it a dependency of the queries that
+go out: a fetcher is imperative I/O, and what a query depends on is what its
+`define` thunk reads. Writing the token therefore does not re-fetch every
+watched query — which, on a sign-out, would send them all again without one.
+
+**`fetch` is the seam for everything else.** It wraps the request, so it is
+where a rejected token ends a session:
+
+```tsx
+const client = createQueryClient();
+
+createGraphQLTransport({
+  url: '/graphql',
+  headers: () => …,
+  fetch: async (input, init) => {
+    const response = await fetch(input, init);
+    if (response.status === 401) {
+      token.value = null;
+      client.clear(); // the next account must not read this one's cache
+    }
+    return response;
+  },
+});
+```
+
+This wants a server that answers **401** rather than a 200 with an error in
+the body. With `graphql-yoga` that is one option on the error:
+
+```ts
+throw new GraphQLError('Sign in to continue', { extensions: { http: { status: 401 } } });
+```
+
+Silent token refresh, retry with backoff, or request de-duplication would all
+go in that same function — and at three of them, a pipeline starts to earn its
+keep. Until then it is one function, and it is enough.
+
+Signing **in** is an ordinary mutation. Keep the token where the header can
+read it, and let the tags do the rest:
+
+```tsx
+const logIn = useGraphQLMutation(LogInDocument, {
+  onSuccess: (result) => {
+    token.value = result.logIn.token;
+  },
+});
+```
+
+The operation's `@invalidates` directives then refresh whatever the previous
+visitor was looking at.
+
+### More than one API
+
+`useGraphQL` reads its transport from `GraphQLContext`, which holds one value
+per subtree. That is the right shape while there is one server, and it cannot
+answer the case that turns up in real applications: **one component reading
+from two**.
+
+`createGraphQLApi` binds the same hooks to a transport of their own:
+
+```tsx
+// setup/apis.ts
+import { createGraphQLApi, createGraphQLTransport } from '@firsthandjs/query';
+
+export const billing = createGraphQLApi(createGraphQLTransport({ url: '/billing/graphql' }));
+export const catalog = createGraphQLApi(createGraphQLTransport({ url: '/catalog/graphql' }));
+```
+
+```tsx
+const Dashboard = component(() => {
+  const invoices = billing.useQuery(InvoicesDocument);
+  const products = catalog.useQuery(ProductsDocument);
+  …
+});
+```
+
+Each has its own `headers` and its own `fetch`, so two servers with different
+authentication are two transports and nothing else.
+
+**One cache serves both**, with everything that implies: deduplication,
+`staleTime`, and one namespace of tags. Two servers that both have a `user`
+therefore want distinct tag names —
+
+```graphql
+query Customer($id: ID!) @tag(name: "billing:user", id: $id) { … }
+```
+
+— or a mutation on one will invalidate a query on the other. A prefix is
+enough; the cache never parses it.
+
+REST needs none of this: `json(url)` takes the URL, so a second API is a
+second URL.
 
 ## What the cache does for you
 

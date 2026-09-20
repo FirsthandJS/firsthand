@@ -46,10 +46,16 @@ export { json, FirsthandHttpError } from './rest.js';
 export {
   GraphQLContext,
   FirsthandGraphQLError,
+  createGraphQLApi,
   createGraphQLTransport,
   useGraphQL,
   useGraphQLMutation,
 } from './graphql.js';
-export type { GraphQLTransport, TransportOptions } from './graphql.js';
+export type {
+  GraphQLApi,
+  GraphQLTransport,
+  MutationArguments,
+  TransportOptions,
+} from './graphql.js';
 export { parseGraphQL, resolveTags, FirsthandDirectiveError } from './document.js';
 export type { GraphQLDocument, TagTemplate, TagValue } from './document.js';

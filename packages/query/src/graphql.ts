@@ -97,8 +97,16 @@ export function useGraphQL<TData, TVariables extends Variables>(
   document: GraphQLDocument<TData, TVariables>,
   ...rest: QueryArguments<TVariables>
 ): QueryResult<TData> {
+  return query(useContext(GraphQLContext).value, document, ...rest);
+}
+
+/** The body of `useGraphQL`, against a transport rather than the context one. */
+function query<TData, TVariables extends Variables>(
+  transport: GraphQLTransport,
+  document: GraphQLDocument<TData, TVariables>,
+  ...rest: QueryArguments<TVariables>
+): QueryResult<TData> {
   const [variables = (): TVariables => ({}) as TVariables, options] = rest;
-  const transport = useContext(GraphQLContext).value;
   return useQuery<TData, TVariables>(() => {
     const vars = variables();
     return {
@@ -118,11 +126,25 @@ export function useGraphQL<TData, TVariables extends Variables>(
  */
 export function useGraphQLMutation<TData, TVariables extends Variables>(
   document: GraphQLDocument<TData, TVariables>,
-  options: Omit<MutationOptions<TVariables, TData>, 'mutate' | 'invalidates'> & {
-    readonly invalidates?: MutationOptions<TVariables, TData>['invalidates'];
-  } = {},
+  options: MutationArguments<TData, TVariables> = {},
 ): MutationResult<TVariables, TData> {
-  const transport = useContext(GraphQLContext).value;
+  return mutation(useContext(GraphQLContext).value, document, options);
+}
+
+/** The options `useGraphQLMutation` takes, named so an API can restate them. */
+export type MutationArguments<TData, TVariables extends Variables> = Omit<
+  MutationOptions<TVariables, TData>,
+  'mutate' | 'invalidates'
+> & {
+  readonly invalidates?: MutationOptions<TVariables, TData>['invalidates'];
+};
+
+/** The body of `useGraphQLMutation`, against a given transport. */
+function mutation<TData, TVariables extends Variables>(
+  transport: GraphQLTransport,
+  document: GraphQLDocument<TData, TVariables>,
+  options: MutationArguments<TData, TVariables> = {},
+): MutationResult<TVariables, TData> {
   return useMutation<TVariables, TData>({
     ...options,
     mutate: (input, context) => transport(document, input, context) as Promise<TData>,
@@ -130,4 +152,45 @@ export function useGraphQLMutation<TData, TVariables extends Variables>(
       options.invalidates ??
       ((_result: TData, input: TVariables): Tag[] => resolveTags(document.invalidates, input)),
   });
+}
+
+/**
+ * One GraphQL endpoint, as an object.
+ *
+ * `useGraphQL` reads the transport out of `GraphQLContext`, which is the right
+ * shape while there is one API — and there usually is. An application with two
+ * cannot use it for the second: a context holds one value per subtree, and the
+ * case that matters is a single component reading from both.
+ *
+ * ```ts
+ * export const billing = createGraphQLApi(createGraphQLTransport({ url: '/billing/graphql' }));
+ * export const catalog = createGraphQLApi(createGraphQLTransport({ url: '/catalog/graphql' }));
+ *
+ * const invoices = billing.useQuery(InvoicesDocument);
+ * const products = catalog.useQuery(ProductsDocument);   // same component, other server
+ * ```
+ *
+ * Everything else is unchanged: one cache, one set of tags, the same
+ * deduplication and invalidation. Which means tags are shared across APIs, so
+ * two servers that both have a `user` want distinct tag names —
+ * `billing:user` and `catalog:user` — or a mutation on one will invalidate a
+ * query on the other.
+ */
+export interface GraphQLApi {
+  useQuery<TData, TVariables extends Variables>(
+    document: GraphQLDocument<TData, TVariables>,
+    ...rest: QueryArguments<TVariables>
+  ): QueryResult<TData>;
+  useMutation<TData, TVariables extends Variables>(
+    document: GraphQLDocument<TData, TVariables>,
+    options?: MutationArguments<TData, TVariables>,
+  ): MutationResult<TVariables, TData>;
+}
+
+/** Binds the GraphQL hooks to one transport. See {@link GraphQLApi}. */
+export function createGraphQLApi(transport: GraphQLTransport): GraphQLApi {
+  return {
+    useQuery: (document, ...rest) => query(transport, document, ...rest),
+    useMutation: (document, options) => mutation(transport, document, options),
+  };
 }

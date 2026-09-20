@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/styled",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "CSS-in-JS for Firsthand: tagged templates, themes, and fine-grained style updates.",
   "license": "MIT",
   "type": "module",
@@ -19,9 +19,9 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@firsthandjs/core": "0.4.0",
-    "@firsthandjs/dom": "0.4.0",
-    "@firsthandjs/jsx-runtime": "0.4.0"
+    "@firsthandjs/core": "0.4.1",
+    "@firsthandjs/dom": "0.4.1",
+    "@firsthandjs/jsx-runtime": "0.4.1"
   },
   "engines": {
     "node": ">=20.11.0"

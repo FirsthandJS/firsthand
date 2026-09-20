@@ -123,6 +123,10 @@ produce an unhandled rejection.
 
 ## GraphQL, with the tags in the document
 
+Setting it up is one plugin and one config file; the guide walks the path in
+order, from `npm install` to the first typed query:
+[Setting up GraphQL](https://github.com/firsthandjs/firsthand/blob/main/docs/guide/09-data.md#setting-up-graphql).
+
 A `.graphql` file already says what it reads. Repeating that in TypeScript is
 how a cache drifts out of step with its queries, so the tag assignment lives in
 the document:
@@ -224,6 +228,32 @@ const App = component(() => {
 Per query, `staleTime` can be overridden, and `key` separates two queries that
 genuinely share tags — a list and its count, say. Tags still decide
 invalidation; the key only decides which entry the data lands in.
+
+## Authentication
+
+Two options, both functions, and no plugin system. `headers` is called once
+per request, so a token read from a signal is always the current one:
+
+```tsx
+createGraphQLTransport({
+  url: '/graphql',
+  headers: () => (token.value === null ? {} : { authorization: `Bearer ${token.value}` }),
+  // Wraps the request: where a rejected token ends the session.
+  fetch: async (input, init) => {
+    const response = await fetch(input, init);
+    if (response.status === 401) {
+      token.value = null;
+      client.clear();
+    }
+    return response;
+  },
+});
+```
+
+Reading a signal in `headers` does not make it a dependency of the queries
+going out, so writing the token does not re-fetch every watched query. The
+worked version, including what the server has to answer:
+[Authentication](https://github.com/firsthandjs/firsthand/blob/main/docs/guide/09-data.md#authentication).
 
 ## What it does for you
 

@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/testing",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Test helpers for Firsthand: mounting, cleanup and leak probes. Works with any runner.",
   "license": "MIT",
   "type": "module",
@@ -19,8 +19,8 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@firsthandjs/core": "0.4.0",
-    "@firsthandjs/dom": "0.4.0"
+    "@firsthandjs/core": "0.4.1",
+    "@firsthandjs/dom": "0.4.1"
   },
   "engines": {
     "node": ">=20.11.0"
