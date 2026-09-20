@@ -69,6 +69,13 @@ export interface DevtoolsHook {
   root(owner: object): void;
   /** The effect that is running, or `null` between runs. */
   running(effect: object | null): void;
+  /**
+   * A scope that belongs to a component instance, and what it is called.
+   *
+   * The owner tree already knows the shape; only the DOM layer knows the name,
+   * and only at the moment the instance is created.
+   */
+  component(owner: object, name: string): void;
   /** The node and property a part is writing, from inside its own effect. */
   part(node: object, property: string): void;
   /**

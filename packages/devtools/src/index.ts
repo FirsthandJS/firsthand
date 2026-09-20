@@ -16,6 +16,21 @@ import type { DevtoolsHook } from '@firsthandjs/core';
 /** What a node of the graph is. */
 export type NodeKind = 'signal' | 'computed' | 'effect' | 'part';
 
+/**
+ * One update: a write, and everything that ran because of it.
+ *
+ * This is the thing the graph cannot answer on its own. The graph says what
+ * depends on what; an update says what actually happened, in order, at a time.
+ */
+export interface Update {
+  /** Milliseconds since the page loaded, so entries can be read as a sequence. */
+  at: number;
+  /** What was written. */
+  source: string;
+  /** What ran, in the order it ran. */
+  ran: string[];
+}
+
 /** Something the query cache did. */
 export interface QueryEvent {
   event: 'created' | 'invalidated' | 'dropped';
@@ -44,6 +59,8 @@ interface CellLike {
   v: unknown;
   deps?: LinkLike;
   subs?: LinkLike;
+  /** An effect's own scope, which is where the component stack starts. */
+  scope?: OwnerLike;
 }
 
 interface LinkLike {
@@ -54,6 +71,7 @@ interface LinkLike {
 }
 
 interface OwnerLike {
+  parent: OwnerLike | null;
   head: OwnerLike | null;
   next: OwnerLike | null;
   cells: CellLike[] | null;
@@ -71,13 +89,29 @@ const parts = new WeakMap<object, { node: object; property: string }>();
 const writers = new WeakMap<object, Set<object>>();
 /** Why each effect last ran. */
 const causes = new WeakMap<object, object>();
+/** The component each scope belongs to, as the DOM layer reported it. */
+const components = new WeakMap<object, string>();
 /** What the query cache has done, newest last. */
 const cacheLog: QueryEvent[] = [];
+/**
+ * Every update, newest last.
+ *
+ * The effects are kept beside the update rather than inside it: two parts
+ * writing two paragraphs are both called `p.text`, so asking "which updates
+ * ran *this* node" has to compare identities, not names.
+ */
+const updates: { update: Update; effects: object[] }[] = [];
+/** Bounded, for the same reason the cache log is. */
+const UPDATE_LIMIT = 100;
+/** The update being collected, while its effects run. */
+let current: { update: Update; effects: object[] } | null = null;
 /** Bounded: a long session would otherwise keep every fetch it ever made. */
 const LOG_LIMIT = 200;
 const roots = new Set<WeakRef<OwnerLike>>();
 
 let running: object | null = null;
+/** Told after each effect run, so the panel can redraw what it is showing. */
+let watcher: (() => void) | null = null;
 /** The source of the write being flushed, until the next one. */
 let lastCause: object | null = null;
 let installed: DevtoolsHook | null = null;
@@ -86,15 +120,22 @@ let installed: DevtoolsHook | null = null;
 const MUTABLE = 1 << 0;
 
 /**
- * Frames that belong to the framework rather than to the application.
+ * Frames that are not the application's own.
  *
- * `@firsthandjs/…` covers an installed copy; the `packages/<name>/src` form
- * covers this repository's own tests, where the packages are sources on disk.
- * The `src` matters: a test lives under `packages/devtools/test`, and skipping
- * that would name every signal after a bundler chunk.
+ * `node_modules` is the one that matters in a real project. A development
+ * server pre-bundles dependencies into chunks with names like
+ * `chunk-VEDSTG62.js`, which carry no trace of the package they came from — so
+ * matching on `@firsthandjs` alone named every signal after a bundler
+ * artefact. Application code is never under `node_modules`, and a library
+ * creating a signal on someone's behalf is not the answer anyone wants either,
+ * so skipping all of it is right twice over.
+ *
+ * The `packages/<name>/src` form covers this repository's own tests, where the
+ * framework is sources on disk. The `src` matters: a test lives under
+ * `packages/devtools/test` and must not be skipped.
  */
 const FRAMEWORK =
-  /@firsthandjs|[\\/]packages[\\/](core|dom|deep|devtools|jsx-runtime|query|router|styled|testing)[\\/]src[\\/]/;
+  /@firsthandjs|[\\/]node_modules[\\/]|[\\/]packages[\\/](core|dom|deep|devtools|jsx-runtime|query|router|styled|testing)[\\/]src[\\/]/;
 
 /**
  * The creation site of whatever is being labelled.
@@ -142,17 +183,39 @@ export function attach(): void {
     },
     cause(dep) {
       lastCause = dep;
+      // A new write begins a new entry. Effects that run before the next write
+      // belong to this one — which is the same pairing `causeOf` uses, kept as
+      // a sequence rather than only as a latest.
+      current = {
+        update: { at: Math.round(performance.now()), source: nameOf(dep as CellLike), ran: [] },
+        effects: [],
+      };
+      updates.push(current);
+      if (updates.length > UPDATE_LIMIT) {
+        updates.shift();
+      }
     },
     root(owner) {
       roots.add(new WeakRef(owner as OwnerLike));
     },
+    component(owner, name) {
+      components.set(owner, name);
+    },
     running(effect) {
       running = effect;
+      if (effect === null) {
+        // An effect has just finished, so what the panel is showing may be
+        // out of date. Told rather than polled: a panel that redraws on a
+        // timer is either wrong between ticks or busy for no reason.
+        watcher?.();
+      }
       // Whatever runs after a write ran because of it. The core reports the
       // write once rather than once per subscriber, so this pairing is what
       // keeps the explanation out of the propagation loop.
       if (effect !== null && lastCause !== null) {
         causes.set(effect, lastCause);
+        current?.update.ran.push(nameOf(effect as CellLike));
+        current?.effects.push(effect);
       }
     },
     query(event, key, tags) {
@@ -186,6 +249,8 @@ export function attach(): void {
     chain,
     inspect,
     causeOf,
+    stack,
+    timeline,
     cells,
     queries,
     detach,
@@ -208,6 +273,8 @@ export interface Console {
   chain: typeof chain;
   inspect: typeof inspect;
   causeOf: typeof causeOf;
+  stack: typeof stack;
+  timeline: typeof timeline;
   cells: typeof cells;
   queries: typeof queries;
   detach: typeof detach;
@@ -225,6 +292,9 @@ export function detach(): void {
   installed = null;
   running = null;
   lastCause = null;
+  current = null;
+  updates.length = 0;
+  watcher = null;
   cacheLog.length = 0;
   roots.clear();
 }
@@ -401,4 +471,78 @@ export function causeOf(node: Node): string | null {
  */
 export function queries(): QueryEvent[] {
   return [...cacheLog];
+}
+
+/**
+ * Registers something to be told when the graph has settled.
+ *
+ * Used by the panel to redraw itself. Exported because the panel is a separate
+ * module, not because an application should need it.
+ */
+export function watch(onSettled: (() => void) | null): void {
+  watcher = onSettled;
+}
+
+/**
+ * The component stack a DOM node's part lives in, outermost first.
+ *
+ * The owner tree already has the shape — a component's scope is the parent of
+ * everything its setup created — so this is a walk, not a recording. What the
+ * DOM layer contributes is the name, which only it knows and only at the
+ * moment an instance is created.
+ *
+ * ```ts
+ * stack(button); // ['App', 'OrderPage', 'SaveButton']
+ * ```
+ */
+export function stack(node: Node): string[] {
+  const effects = writers.get(node);
+  if (effects === undefined) {
+    return [];
+  }
+  const names: string[] = [];
+  for (const effect of effects) {
+    let owner = (effect as CellLike).scope ?? null;
+    const found: string[] = [];
+    while (owner !== null) {
+      const name = components.get(owner);
+      if (name !== undefined) {
+        found.unshift(name);
+      }
+      owner = owner.parent;
+    }
+    if (found.length > names.length) {
+      names.length = 0;
+      names.push(...found);
+    }
+  }
+  return names;
+}
+
+/**
+ * Every update, oldest first: what was written, and what ran because of it.
+ *
+ * The graph answers "what depends on this". This answers "what happened", in
+ * order and with a time — which is the question when something updated and
+ * nobody expected it to.
+ *
+ * ```ts
+ * timeline();            // everything
+ * timeline(button);      // only the updates that ran this node's part
+ * ```
+ *
+ * The last 100 updates, so that a page left open overnight is still a
+ * debugging tool rather than a leak.
+ */
+export function timeline(node?: Node): Update[] {
+  if (node === undefined) {
+    return updates.map((entry) => entry.update);
+  }
+  const effects = writers.get(node);
+  if (effects === undefined) {
+    return [];
+  }
+  return updates
+    .filter((entry) => entry.effects.some((effect) => effects.has(effect)))
+    .map((entry) => entry.update);
 }

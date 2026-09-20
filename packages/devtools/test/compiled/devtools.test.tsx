@@ -9,7 +9,16 @@ import { computed, effect, signal } from '@firsthandjs/core';
 import { deepSignal } from '@firsthandjs/deep';
 import { component } from '@firsthandjs/dom';
 import { render } from '@firsthandjs/dom';
-import { attach, causeOf, cells, chain, detach, inspect } from '@firsthandjs/devtools';
+import {
+  attach,
+  causeOf,
+  cells,
+  chain,
+  detach,
+  inspect,
+  stack,
+  timeline,
+} from '@firsthandjs/devtools';
 
 let host: HTMLElement;
 
@@ -200,5 +209,68 @@ describe('deep state', () => {
       'todos',
       'todos.length',
     ]);
+  });
+});
+
+describe('the component stack', () => {
+  it('names the components a part lives inside, outermost first', () => {
+    const count = signal(1);
+    const Leaf = component(() => <p>{count.value}</p>, undefined, 'pkg/Leaf', 'Leaf');
+    const Middle = component(() => <section>{Leaf({})}</section>, undefined, 'pkg/Mid', 'Middle');
+    const Outer = component(() => <div>{Middle({})}</div>, undefined, 'pkg/Out', 'Outer');
+
+    render(() => Outer({}), host);
+
+    expect(stack(host.querySelector('p') as Node)).toEqual(['Outer', 'Middle', 'Leaf']);
+  });
+
+  it('has nothing to say about a node no part writes', () => {
+    render(() => <p>static</p>, host);
+    expect(stack(host.querySelector('p') as Node)).toEqual([]);
+  });
+});
+
+describe('the timeline', () => {
+  it('records what was written and what ran because of it', () => {
+    const status = signal('draft');
+    render(() => <button disabled={status.value === 'sent'}>Save</button>, host);
+
+    expect(timeline()).toEqual([]); // nothing has been written yet
+
+    status.value = 'sent';
+
+    const [update] = timeline();
+    expect(update?.source).toMatch(/devtools\.test\.tsx:\d+:\d+/);
+    expect(update?.ran).toEqual(['button.disabled']);
+    expect(typeof update?.at).toBe('number');
+  });
+
+  it('keeps them in order, and can be asked about one node', () => {
+    const first = signal('a');
+    const second = signal('b');
+    render(
+      () => (
+        <div>
+          <p id="one">{first.value}</p>
+          <p id="two">{second.value}</p>
+        </div>
+      ),
+      host,
+    );
+
+    first.value = 'x';
+    second.value = 'y';
+    first.value = 'z';
+
+    expect(timeline()).toHaveLength(3);
+    // Only the two that ran *this* node's part. Both paragraphs' parts are
+    // called `p.text`, so this has to compare identities rather than names —
+    // which is what the first version of it got wrong.
+    expect(timeline(host.querySelector('#one') as Node)).toHaveLength(2);
+  });
+
+  it('has nothing to say about a node no part writes', () => {
+    render(() => <p>static</p>, host);
+    expect(timeline(host.querySelector('p') as Node)).toEqual([]);
   });
 });

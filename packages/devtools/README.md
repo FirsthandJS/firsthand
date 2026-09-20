@@ -1,5 +1,10 @@
 # @firsthandjs/devtools
 
+> **Experimental.** This package is new and its shape is still moving. The
+> names, the returned structures and the panel will change without a major
+> version while that is true; nothing else in the framework depends on it, and
+> a production build contains none of it.
+
 See which signal updates which DOM node, what depends on what, and why an
 effect ran.
 

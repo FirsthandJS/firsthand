@@ -25,8 +25,9 @@ strictReactivity: false })` restores the previous behaviour.
 
 ### Added
 
-- `@firsthandjs/devtools` — see which signal updates which DOM node, what
-  depends on what, and why an effect ran.
+- `@firsthandjs/devtools` (**experimental**) — see which signal updates which
+  DOM node, what depends on what, why an effect ran, and what has been
+  happening.
 
   ```
   order.ts:12:19

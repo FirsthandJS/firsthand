@@ -1,7 +1,7 @@
 {
   "name": "@firsthandjs/devtools",
   "version": "0.3.0",
-  "description": "Devtools for Firsthand: see which signal updates which DOM node, and why an effect ran.",
+  "description": "Experimental devtools for Firsthand: see what updates what, why it ran, and when.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -40,6 +40,7 @@
   "keywords": [
     "firsthand",
     "devtools",
+    "experimental",
     "reactive",
     "signals",
     "debugging"

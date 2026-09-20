@@ -9,13 +9,22 @@
  * so it must not create parts, own scopes or appear in the graph it is showing.
  * Rendering it with the framework would put the inspector into its own results.
  */
-import { causeOf, chain, inspect, queries, type GraphNode } from './index.js';
+import {
+  causeOf,
+  chain,
+  inspect,
+  queries,
+  stack,
+  timeline,
+  watch,
+  type GraphNode,
+} from './index.js';
 
 const STYLE = `
 :host { all: initial; }
 .panel {
   position: fixed; right: 16px; bottom: 16px; z-index: 2147483647;
-  width: 380px; max-height: 70vh; display: flex; flex-direction: column;
+  width: 420px; max-height: 70vh; display: flex; flex-direction: column;
   font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
   color: #e6e6e6; background: #1c1c1f; border: 1px solid #3a3a40;
   border-radius: 8px; box-shadow: 0 8px 32px rgb(0 0 0 / 0.4);
@@ -40,7 +49,9 @@ button[aria-pressed='true'] { background: #3d5afe; border-color: #3d5afe; color:
 .event .created { color: #c3e88d; }
 .event .invalidated { color: #ffcb6b; }
 .event .dropped { color: #f07178; }
-.hint { color: #8a8a94; margin: 0; }
+.hint { color: #8a8a94; margin: 8px 0 2px; }
+.stack { color: #c792ea; margin: 0 0 8px; }
+.update { color: #e6e6e6; }
 `;
 
 /** The element the picker is over, highlighted without touching its styles. */
@@ -48,10 +59,18 @@ const OUTLINE = 'firsthand-devtools-outline';
 
 let host: HTMLElement | null = null;
 /** Held rather than looked up: `open` built them, so they exist while it is open. */
-let parts: { body: HTMLElement; pick: Element; graphTab: Element; queryTab: Element } | null = null;
+let parts: {
+  body: HTMLElement;
+  pick: Element;
+  graphTab: Element;
+  queryTab: Element;
+  timelineTab: Element;
+} | null = null;
 let selected: Node | null = null;
 let picking = false;
-let tab: 'graph' | 'queries' = 'graph';
+let tab: 'graph' | 'queries' | 'timeline' = 'graph';
+/** A pending redraw, so a burst of updates costs one frame rather than many. */
+let frame: number | null = null;
 
 function button(label: string, onClick: () => void): HTMLButtonElement {
   const element = document.createElement('button');
@@ -99,6 +118,10 @@ function renderGraph(body: HTMLElement): void {
     );
     return;
   }
+  const where = stack(selected);
+  if (where.length > 0) {
+    body.append(text('p', 'stack', where.join(' › ')));
+  }
   const drawn = chain(selected);
   const lines = drawn.split('\n');
   const block = document.createElement('pre');
@@ -123,6 +146,38 @@ function renderGraph(body: HTMLElement): void {
   for (const part of inspect(selected)) {
     draw(part, body, 0);
   }
+
+  const recent = timeline(selected).slice(-5).reverse();
+  if (recent.length > 0) {
+    body.append(text('p', 'hint', 'Last updates of this node'));
+    for (const update of recent) {
+      body.append(text('div', 'update', `${String(update.at)}ms  ${update.source}`));
+    }
+  }
+}
+
+function renderTimeline(body: HTMLElement): void {
+  const updates = timeline();
+  if (updates.length === 0) {
+    body.append(text('p', 'empty', 'Nothing has changed yet.'));
+    return;
+  }
+  for (const update of [...updates].reverse()) {
+    const row = document.createElement('div');
+    row.className = 'update';
+    row.append(text('span', 'kind', `${String(update.at)}ms`));
+    row.append(text('span', 'cause', ` ${update.source}`));
+    row.append(text('span', 'kind', ` → ${String(update.ran.length)}`));
+    body.append(row);
+    if (update.ran.length > 0) {
+      const ran = document.createElement('div');
+      ran.className = 'node';
+      for (const name of update.ran) {
+        ran.append(text('div', 'name', name));
+      }
+      body.append(ran);
+    }
+  }
 }
 
 function renderQueries(body: HTMLElement): void {
@@ -144,15 +199,18 @@ function render(): void {
   if (parts === null) {
     return;
   }
-  const { body, pick, graphTab, queryTab } = parts;
+  const { body, pick, graphTab, queryTab, timelineTab } = parts;
   graphTab.setAttribute('aria-pressed', String(tab === 'graph'));
   queryTab.setAttribute('aria-pressed', String(tab === 'queries'));
+  timelineTab.setAttribute('aria-pressed', String(tab === 'timeline'));
   pick.setAttribute('aria-pressed', String(picking));
   body.textContent = '';
   if (tab === 'graph') {
     renderGraph(body);
-  } else {
+  } else if (tab === 'queries') {
     renderQueries(body);
+  } else {
+    renderTimeline(body);
   }
 }
 
@@ -227,24 +285,45 @@ export function open(): void {
   });
   queryTab.dataset['tab'] = 'queries';
 
+  const timelineTab = button('Timeline', () => {
+    tab = 'timeline';
+    render();
+  });
+  timelineTab.dataset['tab'] = 'timeline';
+
   const closer = button('×', close);
   closer.setAttribute('aria-label', 'Close');
 
-  header.append(pick, graphTab, queryTab, closer);
+  header.append(pick, graphTab, queryTab, timelineTab, closer);
   const body = document.createElement('div');
   body.className = 'body';
   panel.append(header, body);
   root.append(style, panel);
   document.body.append(host);
-  parts = { body, pick, graphTab, queryTab };
+  parts = { body, pick, graphTab, queryTab, timelineTab };
 
   document.addEventListener('click', onPick, true);
   document.addEventListener('mouseover', onHover, true);
+  // Redrawn when the graph settles, not on a timer: a panel showing a value
+  // the page has already moved past is worse than one that is plainly idle.
+  watch(() => {
+    if (frame === null) {
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        render();
+      });
+    }
+  });
   render();
 }
 
 /** Closes the panel and removes everything it added to the page. */
 export function close(): void {
+  watch(null);
+  if (frame !== null) {
+    cancelAnimationFrame(frame);
+    frame = null;
+  }
   document.removeEventListener('click', onPick, true);
   document.removeEventListener('mouseover', onHover, true);
   document.querySelector(`.${OUTLINE}`)?.classList.remove(OUTLINE);

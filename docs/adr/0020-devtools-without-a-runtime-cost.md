@@ -1,6 +1,7 @@
 # ADR-0020: Devtools that production does not pay for
 
-**Status:** accepted · 2026-09-20
+**Status:** accepted · 2026-09-20 · the package is **experimental**: the
+mechanism below is settled, the surface it exposes is not
 
 ## Problem
 
@@ -112,9 +113,16 @@ Measured rather than asserted, because the constraint was the point.
   before, and the control still costs ~29×. The first draft of this change put
   the cause hook inside `propagate`, the inner loop of the graph; it was moved
   to `write`, which runs once per write rather than once per subscriber.
+- **Component creation, measured A/B.** The hook that names a component's
+  scope sits on the instantiation path, so it was compared against a build with
+  the call sites removed entirely — same machine, three runs each, medians of
+  the 2000-component mount: **14.00 ms with, 14.00 ms without**, inside a
+  spread of 13.65–14.55 ms. The arithmetic agrees: two empty calls per
+  instance is 4000 calls, roughly 6 µs, 0.04 % of the run. Below the noise by
+  construction, not by luck.
 - **The calls do cost bytes.** An empty function is removed; a _call_ to one is
   not, because a bundler cannot prove a call has no effect. Measured on the
-  full runtime: **+14 bytes minified, +5 gzip** — 0.09 %. Neither `@__PURE__`
+  full runtime: **+32 bytes minified, +9 gzip** — 0.2 %. Neither `@__PURE__`
   annotations nor esbuild's `pure` option removes them, because both act on
   module-level side-effect analysis rather than on statements inside a function
   body. The honest number is above; it is not zero, and calling it zero would

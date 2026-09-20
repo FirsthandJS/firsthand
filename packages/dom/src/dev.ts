@@ -71,3 +71,8 @@ function hook(): DevtoolsHook | undefined {
 export function devPart(node: object, property: string): void {
   hook()?.part(node, property);
 }
+
+/** Names the scope a component instance runs in. */
+export function devComponent(owner: object, name: string): void {
+  hook()?.component(owner, name);
+}

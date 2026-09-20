@@ -9,7 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createQueryClient, tag } from '@firsthandjs/query';
 import { signal } from '@firsthandjs/core';
-import { render } from '@firsthandjs/dom';
+import { component, render } from '@firsthandjs/dom';
 import { attach, detach } from '@firsthandjs/devtools';
 import { close, open, refresh, show } from '../../src/panel.js';
 
@@ -246,5 +246,129 @@ describe('reaching it from the console', () => {
   it('is gone once detached', () => {
     detach();
     expect((globalThis as { __FIRSTHAND__?: unknown }).__FIRSTHAND__).toBeUndefined();
+  });
+});
+
+describe('staying current', () => {
+  it('redraws itself when the graph settles', async () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+    show(host.querySelector('p') as Node);
+    expect(body()).toContain('= 1');
+
+    count.value = 2;
+    // One frame, however many effects ran.
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+
+    expect(body()).toContain('= 2');
+  });
+
+  it('coalesces a burst into one redraw, and drops it if closed first', async () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+    show(host.querySelector('p') as Node);
+
+    // Two writes before the frame runs: the second finds a redraw already
+    // pending and adds nothing.
+    count.value = 2;
+    count.value = 3;
+    close();
+
+    // Closed with a frame still pending, which is cancelled rather than left
+    // to draw into a panel that no longer exists.
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    expect(document.querySelector('[data-firsthand-devtools]')).toBeNull();
+  });
+
+  it('stops redrawing once closed', async () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+    show(host.querySelector('p') as Node);
+
+    close();
+    count.value = 2;
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(document.querySelector('[data-firsthand-devtools]')).toBeNull();
+  });
+});
+
+describe('the component stack, on the screen', () => {
+  it('shows which components a part lives inside', () => {
+    const count = signal(1);
+    const Leaf = component(() => <p>{count.value}</p>, undefined, 'pkg/PLeaf', 'Leaf');
+    const Outer = component(() => <div>{Leaf({})}</div>, undefined, 'pkg/POut', 'Outer');
+    render(() => Outer({}), host);
+
+    show(host.querySelector('p') as Node);
+
+    expect(body()).toContain('Outer › Leaf');
+  });
+
+  it('shows the recent updates of the node it is showing', () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+    show(host.querySelector('p') as Node);
+    expect(body()).not.toContain('Last updates');
+
+    count.value = 2;
+    refresh();
+
+    expect(body()).toContain('Last updates of this node');
+  });
+});
+
+describe('the timeline tab', () => {
+  it('says when nothing has happened', () => {
+    open();
+    press('[data-tab="timeline"]');
+
+    expect(body()).toContain('Nothing has changed yet');
+  });
+
+  it('lists what was written and what ran, newest first', () => {
+    const first = signal('a');
+    const second = signal('b');
+    render(
+      () => (
+        <div>
+          <p id="one">{first.value}</p>
+          <p id="two">{second.value}</p>
+        </div>
+      ),
+      host,
+    );
+
+    first.value = 'x';
+    second.value = 'y';
+
+    open();
+    press('[data-tab="timeline"]');
+
+    expect(body()).toContain('ms');
+    expect(body()).toContain('p.text');
+    // Newest first, so the second write is above the first.
+    expect(body().split('p.text').length - 1).toBeGreaterThanOrEqual(2);
+  });
+
+  it('shows a write that nothing reacted to, which is often the answer', () => {
+    const orphan = signal('nobody reads me');
+    orphan.value = 'still nobody';
+
+    open();
+    press('[data-tab="timeline"]');
+
+    // The entry is there with nothing under it: the write happened, and it
+    // woke no part. "Why did nothing update?" — because nothing was reading.
+    expect(body()).toContain('→ 0');
+  });
+
+  it('goes back to the graph from the timeline', () => {
+    open();
+    press('[data-tab="timeline"]');
+    press('[data-tab="graph"]');
+
+    expect(body()).toContain('Nothing selected');
   });
 });

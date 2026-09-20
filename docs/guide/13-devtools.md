@@ -5,6 +5,11 @@
 
 ---
 
+> **Experimental.** This package is new and its shape is still moving. The
+> names, the returned structures and the panel will change without a major
+> version while that is true; nothing else in the framework depends on it, and
+> a production build contains none of it.
+
 Fine-grained reactivity is pleasant in the small and opaque in the large. Small
 means you can hold the graph in your head. Large means somebody asks why a
 button is disabled, and the honest answer is "something wrote something".
@@ -140,6 +145,44 @@ const isEditable = computed(function isEditable() {
 });
 ```
 
+## Which components is it in?
+
+```ts
+__FIRSTHAND__.stack($0); // ['App', 'OrderPage', 'SaveButton']
+```
+
+Outermost first. The owner tree already has the shape — a component's scope is
+the parent of everything its setup created — so this is a walk rather than a
+recording; the DOM layer only contributes the name, which it knows at the
+moment an instance is created.
+
+The panel shows it above the chain, so picking an element tells you where in
+the application you are as well as what feeds it.
+
+## What has been happening?
+
+```ts
+__FIRSTHAND__.timeline(); // everything, oldest first
+__FIRSTHAND__.timeline($0); // only the updates that ran this node's part
+```
+
+```
+[{ at: 1843, source: 'order.ts:12:19', ran: ['button.disabled', 'p.text'] },
+ { at: 2044, source: 'order.ts:31:7',  ran: [] }]
+```
+
+Each entry is one write and everything that ran because of it, in order. The
+graph answers "what depends on this"; the timeline answers "what happened",
+which is the question when something updated and nobody expected it to — or
+when nothing did.
+
+That second entry is the case worth knowing: a write with an empty `ran` woke
+nothing at all. In the panel it reads `→ 0`, and it is very often the answer to
+"why is the screen not changing?" — because nothing was reading that signal.
+
+The last 100 updates, so a page left open overnight is still a debugging tool
+rather than a leak.
+
 ## The query cache
 
 The cache is the one part of the framework whose behaviour is **not** in the
@@ -207,9 +250,11 @@ Of the package, an application that imports it downloads 1.40 kB gzip; the
 panel is another 1.95 kB, and only if it is opened.
 
 The measured exception, because this documentation does not round numbers away:
-the _calls_ to those empty functions cost 14 bytes minified and 5 gzip across
-the whole runtime, since a bundler cannot prove a call has no effect. The hot
-path is unchanged — `bench:ic` still reports 1.01× for mixed cell shapes.
+the _calls_ to those empty functions cost 32 bytes minified and 9 gzip across
+the whole runtime, since a bundler cannot prove a call has no effect. Nothing
+measurable beyond that: `bench:ic` still reports mixed cell shapes at 1.01× a
+single shape, and mounting 2000 components takes the same 14.00 ms as a build
+with the call sites removed outright.
 
 **In development, nothing until `attach()`.** Naming every cell costs a
 `WeakMap` write, and a hundred thousand rows would feel that — which is exactly

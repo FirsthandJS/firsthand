@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createRoot, signal } from '@firsthandjs/core';
-import { attach, cells, detach, inspect, queries } from '@firsthandjs/devtools';
+import { attach, cells, detach, inspect, queries, stack } from '@firsthandjs/devtools';
 import { createQueryClient, tag } from '@firsthandjs/query';
 
 beforeEach(() => {
@@ -203,5 +203,19 @@ describe('the query cache', () => {
     // 200 entries, and the oldest are the ones that went.
     expect(queries()).toHaveLength(200);
     expect(queries()[0]?.tags).toEqual(['row(n: 5)']);
+  });
+});
+
+describe('a stack with nothing behind it', () => {
+  it('is empty for an effect that has no scope', () => {
+    attach();
+    const node = document.createElement('div');
+    // A cell with no `scope`: the shape the core gives a released effect.
+    const effect = { flags: 0, v: undefined };
+    hook().running(effect);
+    hook().part(node, 'class');
+    hook().running(null);
+
+    expect(stack(node)).toEqual([]);
   });
 });

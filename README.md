@@ -25,7 +25,7 @@ handler is created once and always reads the current value.
 
 <!-- headline:start -->
 <!-- prettier-ignore-start -->
-The whole runtime is **5.87 kB gzip** with no production dependencies. On the
+The whole runtime is **5.88 kB gzip** with no production dependencies. On the
 render/update set it is **1.56× faster** than React 19.2.0 (geometric mean of 27
 scenarios, 95 % CI 1.25–2.10) — measured in the same browser session with
 byte-identical DOM verified before any timing, and with every scenario published,
@@ -232,7 +232,7 @@ Shoelace and styled components on one page) and
 | `@firsthandjs/dom`         | 4.15 kB     | Components, rendering, elements, lists, portals |
 | `@firsthandjs/jsx-runtime` | 0.59 kB     | JSX types, and the runtime fallback             |
 | `@firsthandjs/deep`        | 0.72 kB     | Deep reactivity: every property is a signal     |
-| `@firsthandjs/devtools`    | 1.12 kB     | Read the graph: what updates what, and why      |
+| `@firsthandjs/devtools`    | 1.40 kB     | **Experimental.** What updates what, and why    |
 | `@firsthandjs/compiler`    | build only  | The TSX transform and the bundler plugin        |
 | `@firsthandjs/router`      | 3.36 kB     | Routes, links, history, lazy routes             |
 | `@firsthandjs/query`       | 3.23 kB     | The cache, tags, REST, GraphQL, codegen         |
@@ -342,10 +342,10 @@ different sample sizes would quietly weaken the confidence interval.
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
 | `@firsthandjs/core` | 6.50 kB | **2.36 kB** | 2.14 kB |
-| `@firsthandjs/dom` | 10.39 kB | **4.18 kB** | 3.73 kB |
-| `@firsthandjs/dom/internal` | 9.83 kB | **4.08 kB** | 3.64 kB |
+| `@firsthandjs/dom` | 10.41 kB | **4.18 kB** | 3.73 kB |
+| `@firsthandjs/dom/internal` | 9.84 kB | **4.09 kB** | 3.65 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
-| full runtime (core + dom, everything imported) | 15.87 kB | **5.87 kB** | 5.29 kB |
+| full runtime (core + dom, everything imported) | 15.88 kB | **5.88 kB** | 5.31 kB |
 
 
 Optional packages, downloaded only by an application that imports them:
@@ -353,7 +353,7 @@ Optional packages, downloaded only by an application that imports them:
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
 | `@firsthandjs/deep` | 1.58 kB | **0.72 kB** | 0.66 kB |
-| `@firsthandjs/devtools` | 7.35 kB | **3.14 kB** | 2.75 kB |
+| `@firsthandjs/devtools` | 9.18 kB | **3.76 kB** | 3.30 kB |
 | `@firsthandjs/i18n` | 0.63 kB | **0.37 kB** | 0.32 kB |
 | `@firsthandjs/router` | 8.36 kB | **3.36 kB** | 3.06 kB |
 | `@firsthandjs/query` | 7.77 kB | **3.24 kB** | 2.96 kB |
@@ -454,7 +454,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 695 tests under Vitest and 87
+This repository is the demonstration: 710 tests under Vitest and 87
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all seven examples.
 <!-- prettier-ignore-end -->

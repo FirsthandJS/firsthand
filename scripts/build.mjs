@@ -209,6 +209,32 @@ for (const target of targets) {
     external: ['@firsthandjs/*', '@babel/*', 'node:*', ...(target.external ?? [])],
     plugins: target.runtime || target.optional === true ? [productionDev] : [],
   });
+  // A second build for the packages that carry diagnostics: same code, with
+  // `dev.ts` left in place. The production build strips them, which is the
+  // point — and it also means an application installing from npm could never
+  // reach devtools or a development warning. The `development` export
+  // condition picks this one up, and Vite sets that condition while serving.
+  if (existsSync(resolve(base, 'src', 'dev.ts'))) {
+    await esbuild.build({
+      entryPoints: entries.map(([name, entry]) => ({
+        in: resolve(base, entry),
+        out: `${name}.dev`,
+      })),
+      outdir: resolve(base, 'dist'),
+      bundle: true,
+      format: 'esm',
+      splitting: entries.length > 1,
+      chunkNames: 'dev-chunk-[hash]',
+      platform: target.platform,
+      target: target.platform === 'node' ? 'node20' : 'es2022',
+      // Unminified on purpose: this build exists to produce readable warnings,
+      // and devtools name a signal after the stack frame that created it.
+      minify: false,
+      legalComments: 'none',
+      external: ['@firsthandjs/*', '@babel/*', 'node:*', ...(target.external ?? [])],
+    });
+  }
+
   if (!target.runtime && target.optional !== true) {
     continue;
   }

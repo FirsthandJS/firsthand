@@ -57,7 +57,17 @@ const expectations = [
   {
     pkg: 'devtools',
     entry: '.',
-    names: ['attach', 'detach', 'cells', 'inspect', 'chain', 'causeOf', 'queries'],
+    names: [
+      'attach',
+      'detach',
+      'cells',
+      'inspect',
+      'chain',
+      'causeOf',
+      'stack',
+      'timeline',
+      'queries',
+    ],
   },
   { pkg: 'i18n', entry: '.', names: ['translator', 'fromI18next'] },
   {

@@ -12,7 +12,7 @@ import {
 } from '@firsthandjs/core';
 import type { ReadonlyProps } from '@firsthandjs/core';
 import { adapt } from './adapter.js';
-import { devWarnOnce } from './dev.js';
+import { devComponent, devWarnOnce } from './dev.js';
 import { applyChild, type DynamicChild } from './insert.js';
 
 /** Marks a value as a Firsthand component; used by the JSX runtime and compiler. */
@@ -167,6 +167,7 @@ export function createComponent<P>(target: Component<P>, props: P): View {
     return createHost(target, props);
   }
   const owner = createOwner(getOwner());
+  devComponent(owner, target.name);
   const previous = setOwner(owner);
   // Restored explicitly on both paths rather than in a `finally`, so the error
   // path is ordinary code that tests can reach.
@@ -325,6 +326,7 @@ function attributeProps(
 
 function mountHost(element: FirsthandElement, target: Component<unknown>, shadow: boolean): void {
   const owner = createOwner(getOwner());
+  devComponent(owner, target.name);
   element.$owner = owner;
   const previous = setOwner(owner);
   try {

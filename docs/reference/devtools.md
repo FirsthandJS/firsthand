@@ -18,6 +18,11 @@ if (import.meta.env.DEV) {
 
 ---
 
+> **Experimental.** This package is new and its shape is still moving. The
+> names, the returned structures and the panel will change without a major
+> version while that is true; nothing else in the framework depends on it, and
+> a production build contains none of it.
+
 ## The console, and the panel
 
 `attach()` also puts the API on `globalThis.__FIRSTHAND__`, because a browser
@@ -115,6 +120,44 @@ run since anything changed, or if nothing reactive writes the node.
 This is the one thing devtools record rather than read: the graph keeps no
 history, because nothing needs it once the flush is over.
 
+## stack
+
+```ts
+function stack(node: Node): string[];
+```
+
+The components a node's part lives inside, outermost first —
+`['App', 'OrderPage', 'SaveButton']`. Empty when nothing reactive writes the
+node.
+
+A walk rather than a recording: the owner tree already holds the shape, since
+a component's scope is the parent of everything its setup created. The DOM
+layer contributes only the name.
+
+## timeline
+
+```ts
+function timeline(node?: Node): Update[];
+
+interface Update {
+  /** Milliseconds since the page loaded. */
+  at: number;
+  /** What was written. */
+  source: string;
+  /** What ran, in the order it ran. */
+  ran: string[];
+}
+```
+
+Every update, oldest first: one write and everything that ran because of it.
+With a node, only the updates that ran that node's parts — matched by identity
+rather than by name, because two paragraphs both have a part called `p.text`.
+
+An entry whose `ran` is empty is a write that woke nothing. That is not a gap
+in the recording; it is usually the answer.
+
+The last 100 updates.
+
 ## queries
 
 ```ts
@@ -186,6 +229,7 @@ imports it. Of the package itself, 1.40 kB gzip is the part an import pulls in;
 the panel is a further 1.95 kB, loaded when it is opened.
 
 The one honest exception, measured rather than rounded away: the _calls_ to
-those empty functions cost **14 bytes minified, 5 gzip** across the whole
-runtime, because a bundler cannot prove a call has no effect. The hot path is
-unchanged — `bench:ic` still reports 1.01× for mixed cell shapes.
+those empty functions cost **32 bytes minified, 9 gzip** across the whole
+runtime, because a bundler cannot prove a call has no effect. Nothing else
+moves: `bench:ic` reports mixed cell shapes at 1.01×, and a 2000-component
+mount measures the same as a build with the call sites removed.

@@ -8,10 +8,12 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "development": "./dist/index.dev.js",
       "default": "./dist/index.js"
     },
     "./internal": {
       "types": "./dist/internal.d.ts",
+      "development": "./dist/internal.dev.js",
       "default": "./dist/internal.js"
     }
   },

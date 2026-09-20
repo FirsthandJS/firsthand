@@ -15,3 +15,7 @@ export function devWarnRenderedObject(_value: object): void {
 export function devPart(_node: object, _property: string): void {
   /* stripped in production */
 }
+
+export function devComponent(_owner: object, _name: string): void {
+  /* stripped in production */
+}
