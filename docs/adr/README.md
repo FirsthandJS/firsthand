@@ -25,3 +25,4 @@ performance or semantics are affected.
 | [0015](0015-styling-with-custom-properties.md)                   | A prop change is a custom property, not a new class        | accepted                          |
 | [0016](0016-interop-with-component-libraries.md)                 | Web components first, and a React bridge for the rest      | accepted                          |
 | [0017](0017-foreign-element-types.md)                            | Element types this framework does not own                  | accepted                          |
+| [0018](0018-deep-reactivity-as-its-own-package.md)               | Deep reactivity beside signals, not inside them            | accepted                          |

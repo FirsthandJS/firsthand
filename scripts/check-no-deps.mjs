@@ -16,6 +16,7 @@ const runtimePackages = [
   'core',
   'dom',
   'jsx-runtime',
+  'deep',
   'router',
   'query',
   'styled',

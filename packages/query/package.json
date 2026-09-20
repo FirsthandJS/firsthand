@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/query",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Tag-based data fetching and caching for Firsthand: REST and GraphQL.",
   "license": "MIT",
   "type": "module",
@@ -27,8 +27,8 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@firsthandjs/core": "0.1.1",
-    "@firsthandjs/dom": "0.1.1"
+    "@firsthandjs/core": "0.2.0",
+    "@firsthandjs/dom": "0.2.0"
   },
   "engines": {
     "node": ">=20.11.0"

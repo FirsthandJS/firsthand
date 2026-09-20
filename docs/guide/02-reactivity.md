@@ -140,6 +140,54 @@ context swaps — so "one user action, many derived changes" is already one pass
 The reasoning and what was rejected are in
 [ADR-0006](../adr/0006-synchronous-scheduling.md).
 
+## Deep state
+
+A signal holds **one value** and notices when that value is replaced. Mutating
+inside it is invisible:
+
+```ts
+const user = signal({ name: 'Ada' });
+user.value.name = 'Grace'; // nothing updates: the signal still holds the same object
+user.value = { ...user.value, name: 'Grace' }; // this is what a signal wants
+```
+
+Replacing the object is fine for small state and gets tedious for a form or a
+document. `@firsthandjs/deep` is the other shape — the one Vue calls
+`reactive()`:
+
+```bash
+npm install @firsthandjs/deep
+```
+
+```ts
+import { deepSignal } from '@firsthandjs/deep';
+
+const state = deepSignal({ user: { name: 'Ada' }, todos: [] as string[] });
+
+effect(() => console.log(state.user.name)); // subscribes to that one property
+state.user.name = 'Grace'; // and only that effect re-runs
+state.todos.push('write the docs'); // arrays too, as one update
+```
+
+Every property, at any depth, behaves like a signal — without `.value`
+anywhere, because the proxy is the value. Reads are tracked per property, so an
+effect that read `state.user.name` ignores a change to `state.user.age`, and
+writing a property nobody has read costs nothing at all.
+
+It is 0.72 kB, it does not change `signal`, and both live in the same graph:
+one effect can read a signal and deep state together.
+
+**Only objects and arrays.** A `Map`, a `Date` or a class instance is rejected
+by the type, because those read their own internals through `this` and a proxy
+is not the object. Keep them in a `signal` and replace them on each edit.
+[The reference](../reference/deep.md) has the full rules, including what
+happens to `Object.keys`, `in` and each array mutator.
+
+**Which to reach for.** A value — a count, a flag, an id — is a `signal`. A
+tree you edit in place is `deepSignal`. A signal read is one property read; a
+deep read is a proxy trap plus a cell read, which is the price of not threading
+`.value` through a structure.
+
 ## Reading without subscribing
 
 ```ts

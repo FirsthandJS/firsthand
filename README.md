@@ -231,6 +231,7 @@ Shoelace and styled components on one page) and
 | `@firsthandjs/core`        | 2.31 kB     | Signals, computeds, effects, context, owners    |
 | `@firsthandjs/dom`         | 4.15 kB     | Components, rendering, elements, lists, portals |
 | `@firsthandjs/jsx-runtime` | 0.59 kB     | JSX types, and the runtime fallback             |
+| `@firsthandjs/deep`        | 0.72 kB     | Deep reactivity: every property is a signal     |
 | `@firsthandjs/compiler`    | build only  | The TSX transform and the bundler plugin        |
 | `@firsthandjs/router`      | 3.36 kB     | Routes, links, history, lazy routes             |
 | `@firsthandjs/query`       | 3.23 kB     | The cache, tags, REST, GraphQL, codegen         |
@@ -350,6 +351,7 @@ Optional packages, downloaded only by an application that imports them:
 
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
+| `@firsthandjs/deep` | 1.58 kB | **0.72 kB** | 0.66 kB |
 | `@firsthandjs/router` | 8.36 kB | **3.36 kB** | 3.06 kB |
 | `@firsthandjs/query` | 7.74 kB | **3.23 kB** | 2.95 kB |
 | `@firsthandjs/query (.gql loader path, parser tree-shaken)` | 5.12 kB | **2.14 kB** | 1.98 kB |

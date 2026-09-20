@@ -40,6 +40,13 @@ const targets = [
   // Optional packages: an application that does not route does not download
   // them, so they are measured separately from the core runtime budget.
   {
+    pkg: 'deep',
+    entries: { index: 'src/index.ts' },
+    platform: 'browser',
+    runtime: false,
+    optional: true,
+  },
+  {
     pkg: 'router',
     entries: { index: 'src/index.ts' },
     platform: 'browser',

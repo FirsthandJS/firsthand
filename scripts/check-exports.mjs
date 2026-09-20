@@ -53,6 +53,7 @@ const expectations = [
     names: ['template', 'insert', 'on', 'list', 'createComponent', 'PROTOCOL_VERSION'],
   },
   { pkg: 'jsx-runtime', entry: '.', names: ['jsx', 'jsxs', 'Fragment'] },
+  { pkg: 'deep', entry: '.', names: ['deepSignal', 'raw', 'isDeep'] },
   {
     pkg: 'query',
     entry: '.',

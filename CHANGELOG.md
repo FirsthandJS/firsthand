@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-09-20
+
+### Added
+
+- `@firsthandjs/deep` — deep reactivity, the shape Vue calls `reactive()`.
+  `deepSignal({ user: { name: 'Ada' } })` returns a proxy where every property,
+  at any depth, behaves like a signal: reads are tracked per property, writes
+  notify only what read them, arrays included, no `.value` anywhere.
+
+  **`signal` is unchanged.** The package is built on it — each property that is
+  read gets a version cell, and a write bumps it — so deep reads are ordinary
+  reads to `computed`, `effect`, `untrack` and every DOM binding. 0.72 kB gzip,
+  downloaded only if imported; `@firsthandjs/core` stays at 2.31 kB and the
+  runtime budget is untouched.
+
+  Only objects and arrays are accepted, and the **type** enforces it: a `Map`,
+  `Set`, `Date`, `RegExp`, `Promise`, function or class instance is a compile
+  error, because those reach their own internals through `this` and a proxy is
+  not the object. One held inside deep state still works, simply not reactively.
+  The reasoning, including what a `push` does to a `length` reader, is in
+  [ADR-0018](docs/adr/0018-deep-reactivity-as-its-own-package.md).
+
 ## [0.1.1] - 2026-09-19
 
 ### Changed
@@ -250,5 +272,6 @@ All notable changes to this project are documented here. The format follows
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.2.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.2.0
 [0.1.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.1.1
 [0.1.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.1.0
