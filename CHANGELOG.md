@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-09-20
 
 ### Added
 
@@ -34,6 +34,15 @@ All notable changes to this project are documented here. The format follows
   is read in setup and kept, what it looks like when it happens, and when
   reading once is the point. Getting started, the DOM reference and the
   comparison table lead into it.
+
+### Security
+
+- The Storybook integration's own lockfile still carried the vulnerable
+  `@vitest/mocker` (GHSA-82fw-gwwq-j7x9): it installs outside the workspace on
+  purpose, so the root upgrade never reached it. An override to `^4.1.11`
+  closes it and leaves Storybook where it is — Dependabot's alternatives were
+  deleting the package, which takes Storybook's test infrastructure with it, or
+  a major upgrade of a development-only integration.
 
 ## [0.2.0] - 2026-09-20
 
