@@ -1051,11 +1051,12 @@ function emitChildren(
       const id = reference();
       args.push(t.cloneNode(id));
     }
-    build.statements.push(
-      expressionStatement(
-        located(t.callExpression(runtime(state, 'insert'), args), entry.expression as t.Expression),
-      ),
-    );
+    // The call is deliberately left without a position, and only the thunk
+    // inside it carries one. Both would map to `{value}`, and a debugger takes
+    // the first location on a line — which would be this call, and it runs
+    // once, when the part is created. The thunk runs on every update, which is
+    // where a breakpoint on that expression is expected to stop.
+    build.statements.push(expressionStatement(t.callExpression(runtime(state, 'insert'), args)));
     index++;
   }
 }

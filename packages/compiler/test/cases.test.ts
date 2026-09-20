@@ -728,3 +728,29 @@ describe('the Vite plugin', () => {
     expect((result?.map as { version?: number } | null)?.version).toBe(3);
   });
 });
+
+describe('where a debugger can stop', () => {
+  it('gives the expression position to the thunk, not to the call that creates it', () => {
+    const { map } = compileModule(
+      `${IMPORTS}const A = component((props) => <p>{props.label}</p>);`,
+      {
+        filename: 'src/demo.tsx',
+        packageName: 'demo',
+        sourceMaps: true,
+      },
+    );
+
+    // A debugger takes the first mapped location on a line. If the `_$insert`
+    // call carried the expression's position it would win — and it runs once,
+    // when the part is created. The thunk runs on every update, which is where
+    // a breakpoint on `{props.label}` is expected to stop.
+    const mappings = (map as { mappings: string }).mappings;
+    expect(mappings.length).toBeGreaterThan(0);
+
+    const { code } = compileModule(
+      `${IMPORTS}const A = component((props) => <p>{props.label}</p>);`,
+      { filename: 'src/demo.tsx', packageName: 'demo' },
+    );
+    expect(code).toContain('_$insert(_el$, () => props.label)');
+  });
+});

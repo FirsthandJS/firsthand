@@ -510,3 +510,25 @@ describe('a write with nowhere to point', () => {
     expect(body()).not.toContain('Written from');
   });
 });
+
+describe('where the detail sits', () => {
+  it('keeps the detail out of the scrolling list', () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+    for (let i = 0; i < 30; i++) {
+      count.value = i;
+    }
+
+    open();
+    press('[data-tab="timeline"]');
+    (one('.tick') as HTMLElement).click();
+
+    // The list scrolls; the detail is pinned beside it rather than below
+    // thirty rows, where the call stack could only be reached by scrolling
+    // past the whole log.
+    const detail = one('.detail') as HTMLElement;
+    expect(detail.classList.contains('pinned')).toBe(true);
+    expect(detail.closest('.scroll')).toBeNull();
+    expect(one('.scroll .tick')).not.toBeNull();
+  });
+});

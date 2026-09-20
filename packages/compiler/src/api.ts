@@ -41,7 +41,17 @@ export function compileModule(code: string, options: TransformOptions = {}): Com
   // With `babelrc` and `configFile` disabled there is no ignore configuration,
   // so Babel always returns a result with generated code.
   const result = transformSync(code, {
-    ...(options.filename === undefined ? {} : { filename: options.filename }),
+    ...(options.filename === undefined
+      ? {}
+      : {
+          filename: options.filename,
+          // The full path, not the basename Babel would default to. A map
+          // whose `sources` is `comp.tsx` resolves, relative to a module
+          // served at `/src/comp.tsx`, to that very URL — so a debugger ends
+          // up with two files under one address, shows both, and puts the
+          // breakpoint in the wrong one.
+          sourceFileName: options.filename,
+        }),
     babelrc: false,
     configFile: false,
     sourceMaps: options.sourceMaps === true,

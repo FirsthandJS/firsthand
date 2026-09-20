@@ -37,7 +37,13 @@ button { font: inherit; color: inherit; background: #2a2a30; border: 1px solid #
   border-radius: 5px; padding: 3px 8px; cursor: pointer; }
 button:hover { background: #34343c; }
 button[aria-pressed='true'] { background: #3d5afe; border-color: #3d5afe; color: #fff; }
-.body { overflow: auto; padding: 12px; }
+.body { display: flex; flex-direction: column; overflow: hidden; padding: 12px; min-height: 0; }
+/* The list scrolls; the detail stays where it can be read. Without this the
+   call stack sits below everything and is only reachable by scrolling past
+   the whole log — which is exactly when you least want to. */
+.scroll { overflow: auto; flex: 1 1 auto; min-height: 0; }
+.pinned { flex: 0 0 auto; max-height: 45%; overflow: auto; margin-top: 8px;
+  padding-top: 8px; border-top: 1px solid #3a3a40; }
 .empty { color: #8a8a94; }
 .hint { color: #7c7c88; margin: 14px 0 6px; font-size: 10px; text-transform: uppercase;
   letter-spacing: 0.1em; }
@@ -85,7 +91,6 @@ button[aria-pressed='true'] { background: #3d5afe; border-color: #3d5afe; color:
 .tick .who { color: #9ecbff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tick .bar { height: 8px; border-radius: 4px; background: #3d5afe; min-width: 4px; }
 .tick .bar.none { background: #4a4a54; }
-.detail { margin-top: 8px; border-top: 1px solid #3a3a40; padding-top: 8px; }
 .detail .ran { color: #ffdfa1; }
 .cause { color: #ffcb6b; margin: 10px 0 0; }
 .event { display: grid; grid-template-columns: 84px 1fr; gap: 8px; padding: 2px 0; }
@@ -167,7 +172,10 @@ function drawFlow(part: GraphNode, cause: string | null, into: HTMLElement): voi
   into.append(flow);
 }
 
-function renderGraph(body: HTMLElement): void {
+function renderGraph(host: HTMLElement): void {
+  const body = document.createElement('div');
+  body.className = 'scroll';
+  host.append(body);
   if (selected === null) {
     body.append(
       text('p', 'empty', 'Nothing selected.'),
@@ -242,6 +250,12 @@ function track(updates: Update[]): HTMLElement {
   return list;
 }
 
+/** Keeps a detail in view while the list above it scrolls. */
+function pin(detail: HTMLElement): HTMLElement {
+  detail.classList.add('pinned');
+  return detail;
+}
+
 /** Who wrote it, what it woke, and where the write came from. */
 function detailsOf(update: Update): HTMLElement {
   const detail = document.createElement('div');
@@ -267,12 +281,15 @@ function select(update: Update): void {
   render();
 }
 
-function renderTimeline(body: HTMLElement): void {
+function renderTimeline(host: HTMLElement): void {
   const updates = timeline();
   if (updates.length === 0) {
-    body.append(text('p', 'empty', 'Nothing has changed yet.'));
+    host.append(text('p', 'empty', 'Nothing has changed yet.'));
     return;
   }
+  const body = document.createElement('div');
+  body.className = 'scroll';
+  host.append(body);
   // One chip per source that has written, so a busy page can be narrowed to
   // the one signal being argued about.
   const sources = [...new Set(updates.map((update) => update.source))];
@@ -296,11 +313,14 @@ function renderTimeline(body: HTMLElement): void {
   body.append(text('p', 'hint', `${String(shown.length)} of ${String(updates.length)} updates`));
   body.append(track([...shown].reverse()));
   if (chosen !== null) {
-    body.append(detailsOf(chosen));
+    host.append(pin(detailsOf(chosen)));
   }
 }
 
-function renderQueries(body: HTMLElement): void {
+function renderQueries(host: HTMLElement): void {
+  const body = document.createElement('div');
+  body.className = 'scroll';
+  host.append(body);
   const events = queries();
   if (events.length === 0) {
     body.append(text('p', 'empty', 'The query cache has done nothing yet.'));
