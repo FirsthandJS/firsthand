@@ -70,7 +70,7 @@ the package exists for: the node is on the screen, the value is wrong, and you
 want to know where it came from.
 
 ```
-order.ts:12:19
+status (order.ts:12)
    ↓
 computed(isEditable)
    ↓
@@ -219,16 +219,23 @@ whether the set of keys changed.
 
 ## What the names are
 
-| Source            | Example                     | When                                    |
-| ----------------- | --------------------------- | --------------------------------------- |
-| The DOM write     | `button.disabled`, `p.text` | Any part                                |
-| The property path | `user.address.city`         | Deep state                              |
-| The function      | `isEditable`                | A named `computed` or `effect` body     |
-| The creation site | `order.ts:12:19`            | Everything else, including every signal |
+| Source            | Example                     | When                                  |
+| ----------------- | --------------------------- | ------------------------------------- |
+| The DOM write     | `button.disabled`, `p.text` | Any part                              |
+| The property path | `user.address.city`         | Deep state                            |
+| The function      | `isEditable`                | A named `computed` or `effect` body   |
+| The variable      | `status (order.ts:12)`      | A signal in a module the compiler saw |
+| The creation site | `order.ts:12:19`            | Everything the compiler could not see |
 
-A runtime cannot see that `const count = signal(0)` is called `count` — only a
-compiler can, and that option is not built yet. Until it is, a signal is named
-by where it was written, which is a link your editor can follow.
+A runtime cannot see that `const count = signal(0)` is called `count`; the
+compiler can, and does, under a development server. What it did not see — a
+cell created before `attach()` ran, or outside a compiled module — is named by
+where it was created.
+
+That position is the one the _compiled_ module has, and it is kept whole in the
+data, URL and all, because reading it back to the written line needs the module
+it came from. The panel resolves and shortens it before showing it, the same as
+it does a stack frame.
 
 ## What it costs
 

@@ -195,10 +195,11 @@ function site(): string {
   if (location === null) {
     return caller.trim();
   }
-  // The file name and the position, not the whole absolute URL: a panel has a
-  // column of these, and `order.ts:12:19` is the part that identifies one.
-  const path = location[1] as string;
-  return path.slice(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1);
+  // Kept whole, URL and all. The position is in the *compiled* module, and
+  // reading it back to the line that was written needs the module it came
+  // from — so the URL is the half of it that must not be thrown away. The
+  // panel resolves and shortens it where it is shown.
+  return location[1] as string;
 }
 
 /**

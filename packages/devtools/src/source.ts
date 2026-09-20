@@ -153,6 +153,12 @@ export async function original(frame: string): Promise<string> {
     return frame;
   }
   const [, name, url, line, column] = parts as unknown as [string, string, string, string, string];
+  if (!/^https?:\/\//.test(url)) {
+    // A map is fetched from the page, so only a module the page loaded can be
+    // resolved. Anything else — a file path, an engine-internal name — is left
+    // alone rather than turned into a request that cannot succeed.
+    return frame;
+  }
   const mappings = await mapFor(url);
   if (mappings === null) {
     return frame;

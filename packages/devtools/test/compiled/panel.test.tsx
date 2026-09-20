@@ -511,6 +511,34 @@ describe('a write with nowhere to point', () => {
   });
 });
 
+describe('what a timeline row says', () => {
+  it('names where the write came from, not only what was written', () => {
+    const count = signal(1);
+    render(() => <p>{count.value}</p>, host);
+
+    const RealError = globalThis.Error;
+    const Fake = class extends RealError {
+      constructor() {
+        super();
+        Object.defineProperty(this, 'stack', {
+          value: 'Error\n    at tick (http://localhost:5173/src/app.tsx:31:7)',
+          configurable: true,
+        });
+      }
+    };
+    globalThis.Error = Fake as unknown as ErrorConstructor;
+    count.value = 2;
+    globalThis.Error = RealError;
+
+    open();
+    press('[data-tab="timeline"]');
+
+    // The name beside it answers "what changed"; this answers "from where",
+    // and without it a row only says where the signal was declared.
+    expect(one('.tick .where')?.textContent).toBe('app.tsx:31:7');
+  });
+});
+
 describe('a frame served by a development server', () => {
   it('drops the cache-busting query from the file name', () => {
     const count = signal(1);

@@ -93,7 +93,7 @@ __FIRSTHAND__.chain($0);
 ```
 
 ```
-order.ts:12:19
+status (order.ts:12)
    ↓
 computed(isEditable)
    ↓
@@ -102,7 +102,8 @@ button.disabled
 
 Read it bottom-up: the `disabled` property of that button is written by a part,
 the part reads a computed called `isEditable`, and that computed reads a signal
-created at `order.ts:12:19`. Three links, and the question is answered.
+called `status`, declared on line 12. Three links, and the question is
+answered.
 
 `chain` draws one path — the longest — because a chain is a story. When a part
 reads several sources, [`inspect`](#the-same-answer-as-data) has the rest.
@@ -110,7 +111,7 @@ reads several sources, [`inspect`](#the-same-answer-as-data) has the rest.
 ## Why did that just run?
 
 ```ts
-__FIRSTHAND__.causeOf($0); // 'order.ts:12:19'
+__FIRSTHAND__.causeOf($0); // 'status (order.ts:12)'
 ```
 
 What changed to make the part run. `null` means it has not run since anything
@@ -163,12 +164,15 @@ A frame it cannot resolve is shown as it came, rather than guessed at.
 | `user.address.city`    | A property of [deep state](02-reactivity.md#deep-state)     |
 | `todos.length`         | An array's length, inside deep state                        |
 | `keys`                 | Whether the _set_ of keys changed — `Object.keys`, `for…in` |
-| `order.ts:12:19`       | Created there, and nothing named it                         |
+| `status (order.ts:12)` | A signal, named by the compiler after the variable          |
+| `order.ts:12:19`       | Created where the compiler could not see it                 |
 
-The last row is the common one for signals, and it is worth knowing why: a
-runtime cannot see that `const count = signal(0)` is called `count`. Only a
-compiler can, and that option is not built yet. The creation site is a link
-your editor follows, which is the next best thing.
+The last row is the fallback: a runtime cannot see that `const count =
+signal(0)` is called `count`, so a cell created before `attach()` ran, or
+outside a compiled module, is named by where it was created instead. The panel
+reads that position back through the source map, the same as a stack frame. In
+the data it is kept whole — the served URL and the compiled position — because
+that is what resolving it needs.
 
 Naming a `computed` or an `effect` is therefore worth the keystrokes when you
 expect to be debugging it:
@@ -213,8 +217,8 @@ __FIRSTHAND__.timeline($0); // only the updates that ran this node's part
 ```
 
 ```
-[{ at: 1843, source: 'order.ts:12:19', ran: ['button.disabled', 'p.text'] },
- { at: 2044, source: 'order.ts:31:7',  ran: [] }]
+[{ at: 1843, source: 'status (order.ts:12)', ran: ['button.disabled', 'p.text'] },
+ { at: 2044, source: 'draft (order.ts:31)',  ran: [] }]
 ```
 
 Each entry is one write and everything that ran because of it, in order. The

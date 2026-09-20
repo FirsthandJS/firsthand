@@ -110,6 +110,13 @@ describe('when it cannot be resolved', () => {
     expect(await original('<anonymous>')).toBe('<anonymous>');
   });
 
+  it('hands back a frame that names no module the page loaded', async () => {
+    // A file path rather than a URL: nothing the page could fetch a map from.
+    const frame = 'handleSave (/app/order.ts:12:9)';
+    expect(await original(frame)).toBe(frame);
+    expect(fetched).toEqual([]);
+  });
+
   it('hands back a frame whose module has no map', async () => {
     vi.stubGlobal('fetch', () => Promise.resolve({ text: () => Promise.resolve('const a = 1;') }));
 

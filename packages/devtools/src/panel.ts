@@ -91,12 +91,13 @@ button[aria-pressed='true'] { background: #3d5afe; border-color: #3d5afe; color:
 
 /* The timeline: one row per update, a bar for how much it woke. */
 .track { display: flex; flex-direction: column; gap: 4px; }
-.tick { display: grid; grid-template-columns: 52px 1fr auto; gap: 8px; align-items: center;
-  padding: 3px 4px; border-radius: 5px; cursor: pointer; }
+.tick { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto auto; gap: 8px;
+  align-items: center; padding: 3px 4px; border-radius: 5px; cursor: pointer; }
 .tick:hover { background: #26262c; }
 .tick[aria-selected='true'] { background: #23306b; }
 .tick .when { color: #8a8a94; text-align: right; }
 .tick .who { color: #9ecbff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tick .where { color: #7c7c88; white-space: nowrap; }
 .tick .bar { height: 8px; border-radius: 4px; background: #3d5afe; min-width: 4px; }
 .tick .bar.none { background: #4a4a54; }
 .detail .ran { color: #ffdfa1; }
@@ -152,7 +153,7 @@ function boxFor(node: GraphNode, trigger: boolean): HTMLElement {
   const box = document.createElement('div');
   box.className = `box ${node.kind}${trigger ? ' trigger' : ''}`;
   box.append(text('span', 'tag', node.kind));
-  box.append(text('span', 'label', node.name));
+  box.append(located('span', 'label', node.name));
   const value = node.value;
   // Primitives only: an object's default stringification says nothing and
   // takes the place of something that would.
@@ -249,13 +250,20 @@ function track(updates: Update[]): HTMLElement {
     row.setAttribute('aria-selected', String(update === chosen));
     rows.set(row, update);
     row.append(text('span', 'when', `${String(update.at)}ms`));
-    row.append(text('span', 'who', update.source));
+    row.append(located('span', 'who', update.source));
     const bar = document.createElement('span');
     bar.className = update.ran.length === 0 ? 'bar none' : 'bar';
     // Width by how many parts it woke, so a glance separates the write that
     // rebuilt half the page from the one that woke nothing at all.
     bar.style.width = `${String(Math.round((update.ran.length / most) * 60) + 6)}px`;
     row.append(bar);
+    // Where the write came from, not where the signal was declared: the name
+    // beside it answers "what changed", and this answers "from where", which
+    // is the pair of questions a timeline is opened with.
+    const from = update.stack[0];
+    if (from !== undefined) {
+      row.append(located('span', 'where', from, position));
+    }
     row.addEventListener('click', () => {
       select(update);
     });
@@ -288,20 +296,36 @@ function shorten(frame: string): string {
   return name.trim() === '' ? where : `${name.trim()} (${where})`;
 }
 
+/** Only the position of a frame: `main.tsx:12:11`, without who was running. */
+function position(frame: string): string {
+  const inside = /\(([^()]+)\)\s*$/.exec(frame);
+  return (inside === null ? frame : (inside[1] as string)).trim();
+}
+
 /**
- * One frame, shown at once and corrected when the map has been read.
+ * Anything that carries a position, shown at once and corrected after.
  *
- * The engine's position is in the compiled module, which is not a line anyone
- * wrote. Resolving it needs the module and its map, so it cannot be done while
- * the write is happening — the frame appears immediately and is replaced when
- * the answer arrives.
+ * Two things here name a place: a stack frame, and a cell the compiler did not
+ * name, which is labelled by where it was created. Both come from the engine
+ * and both say where the *compiled* module has it, which is not a line anyone
+ * wrote. Resolving needs the module and its map, so it cannot happen while the
+ * write does — the position appears immediately and is replaced when the
+ * answer arrives.
+ *
+ * A name with no position in it — `h1.text`, or `v (main.tsx:9)`, which the
+ * compiler took from the source in the first place — passes through untouched.
  */
-function frameLine(frame: string): HTMLElement {
-  const line = text('div', '', shorten(frame));
-  void original(frame).then((resolved) => {
-    line.textContent = shorten(resolved);
+function located(
+  tag: string,
+  className: string,
+  name: string,
+  format: (shown: string) => string = (shown) => shown,
+): HTMLElement {
+  const element = text(tag, className, format(shorten(name)));
+  void original(name).then((resolved) => {
+    element.textContent = format(shorten(resolved));
   });
-  return line;
+  return element;
 }
 
 /** Keeps a detail in view while the list above it scrolls. */
@@ -316,7 +340,9 @@ function detailsOf(update: Update): HTMLElement {
   detail.className = 'detail';
   const head = document.createElement('div');
   head.className = 'detail-head';
-  head.append(text('p', 'hint', `${update.source} woke ${String(update.ran.length)}`));
+  head.append(
+    located('p', 'hint', update.source, (shown) => `${shown} woke ${String(update.ran.length)}`),
+  );
   // The update this detail was built for, so closing is the same toggle the
   // row performs — and needs no check for what is open.
   const closer = button('×', () => {
@@ -326,14 +352,14 @@ function detailsOf(update: Update): HTMLElement {
   head.append(closer);
   detail.append(head);
   for (const name of update.ran) {
-    detail.append(text('div', 'ran', name));
+    detail.append(located('div', 'ran', name));
   }
   if (update.stack.length > 0) {
     detail.append(text('p', 'hint', 'Written from'));
     const frames = document.createElement('div');
     frames.className = 'stack';
     for (const frame of update.stack) {
-      frames.append(frameLine(frame));
+      frames.append(located('div', '', frame));
     }
     detail.append(frames);
   }
@@ -379,7 +405,7 @@ function renderTimeline(host: HTMLElement): void {
     const filters = document.createElement('div');
     filters.className = 'filters';
     for (const source of sources) {
-      const chip = text('span', 'chip', source);
+      const chip = located('span', 'chip', source);
       chip.setAttribute('aria-pressed', String(only === source));
       chip.addEventListener('click', () => {
         only = only === source ? null : source;

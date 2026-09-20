@@ -77,6 +77,17 @@ describe('naming when the stack does not help', () => {
     expect(nameFor(cell)).toBe('unknown');
   });
 
+  it('keeps the whole location, so the map can be read back', () => {
+    attach();
+    const cell = { flags: 0, v: 1 };
+    withStack('Error\n    at http://localhost:5173/src/order.ts?v=8f1c:31:7', () => {
+      hook().label(cell, 'signal', '');
+    });
+    // The URL is half the answer: `31:7` is a position in the compiled module,
+    // and reading it back to the written line needs the module it came from.
+    expect(nameFor(cell)).toBe('http://localhost:5173/src/order.ts?v=8f1c:31:7');
+  });
+
   it('keeps a frame that carries no file position', () => {
     attach();
     const cell = { flags: 0, v: 1 };
