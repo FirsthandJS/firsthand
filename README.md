@@ -25,7 +25,7 @@ handler is created once and always reads the current value.
 
 <!-- headline:start -->
 <!-- prettier-ignore-start -->
-The whole runtime is **5.88 kB gzip** with no production dependencies. On the
+The whole runtime is **5.86 kB gzip** with no production dependencies. On the
 render/update set it is **1.56× faster** than React 19.2.0 (geometric mean of 27
 scenarios, 95 % CI 1.25–2.10) — measured in the same browser session with
 byte-identical DOM verified before any timing, and with every scenario published,
@@ -228,7 +228,7 @@ Shoelace and styled components on one page) and
 
 | Package                    | Size (gzip) | What it is                                      |
 | -------------------------- | ----------- | ----------------------------------------------- |
-| `@firsthandjs/core`        | 2.31 kB     | Signals, computeds, effects, context, owners    |
+| `@firsthandjs/core`        | 2.29 kB     | Signals, computeds, effects, context, owners    |
 | `@firsthandjs/dom`         | 4.15 kB     | Components, rendering, elements, lists, portals |
 | `@firsthandjs/jsx-runtime` | 0.59 kB     | JSX types, and the runtime fallback             |
 | `@firsthandjs/deep`        | 0.72 kB     | Deep reactivity: every property is a signal     |
@@ -340,11 +340,11 @@ different sample sizes would quietly weaken the confidence interval.
 
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
-| `@firsthandjs/core` | 6.36 kB | **2.31 kB** | 2.09 kB |
-| `@firsthandjs/dom` | 10.36 kB | **4.15 kB** | 3.70 kB |
-| `@firsthandjs/dom/internal` | 9.79 kB | **4.07 kB** | 3.62 kB |
+| `@firsthandjs/core` | 6.31 kB | **2.29 kB** | 2.07 kB |
+| `@firsthandjs/dom` | 10.32 kB | **4.14 kB** | 3.69 kB |
+| `@firsthandjs/dom/internal` | 9.75 kB | **4.06 kB** | 3.61 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
-| full runtime (core + dom, everything imported) | 15.92 kB | **5.88 kB** | 5.30 kB |
+| full runtime (core + dom, everything imported) | 15.84 kB | **5.86 kB** | 5.28 kB |
 
 
 Optional packages, downloaded only by an application that imports them:
@@ -355,7 +355,7 @@ Optional packages, downloaded only by an application that imports them:
 | `@firsthandjs/router` | 8.36 kB | **3.36 kB** | 3.06 kB |
 | `@firsthandjs/query` | 7.74 kB | **3.23 kB** | 2.95 kB |
 | `@firsthandjs/query (.gql loader path, parser tree-shaken)` | 5.12 kB | **2.14 kB** | 1.98 kB |
-| `@firsthandjs/styled` | 4.15 kB | **1.97 kB** | 1.77 kB |
+| `@firsthandjs/styled` | 4.18 kB | **1.98 kB** | 1.79 kB |
 | `@firsthandjs/react` | 1.19 kB | **0.66 kB** | 0.58 kB |
 | `@firsthandjs/react/auto` | 1.20 kB | **0.66 kB** | 0.58 kB |
 

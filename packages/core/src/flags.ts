@@ -13,12 +13,10 @@ export const WATCHING = 1 << 1;
 export const DIRTY = 1 << 2;
 /** A transitive dependency may have changed. Resolve by checking deps. */
 export const PENDING = 1 << 3;
-/** The node is currently in the flush queue. */
-export const QUEUED = 1 << 4;
 /** The node has been disposed; it must never run again. */
-export const DISPOSED = 1 << 5;
+export const DISPOSED = 1 << 4;
 /** A computed has produced a value at least once. */
-export const HAS_VALUE = 1 << 6;
+export const HAS_VALUE = 1 << 5;
 
 /** `DIRTY | PENDING`: the node is not known to be up to date. */
 export const STALE = DIRTY | PENDING;

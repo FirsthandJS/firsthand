@@ -218,6 +218,18 @@ describe('a block interpolation', () => {
     expect(rules()).toHaveLength(2);
   });
 
+  it('accepts a template that opens with the interpolation itself', () => {
+    // Nothing precedes the block, so there is no literal chunk to flush before
+    // it. The single line is the test: Prettier would otherwise indent the
+    // interpolation and put the whitespace back.
+    // prettier-ignore
+    const Box = styled.div`${() => 'color: red;'} margin: 0;`;
+    const view = mount(() => <Box />);
+    const rule = ruleFor(view.get('div'));
+    expect(rule).toContain('color: red');
+    expect(rule).toContain('margin: 0');
+  });
+
   it('accepts a plain string, a number and nothing', () => {
     const Box = styled.div`
       ${() => 'color: red;'}

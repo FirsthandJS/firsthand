@@ -16,7 +16,7 @@ All notable changes to this project are documented here. The format follows
   **`signal` is unchanged.** The package is built on it — each property that is
   read gets a version cell, and a write bumps it — so deep reads are ordinary
   reads to `computed`, `effect`, `untrack` and every DOM binding. 0.72 kB gzip,
-  downloaded only if imported; `@firsthandjs/core` stays at 2.31 kB and the
+  downloaded only if imported; `@firsthandjs/core` stays at 2.29 kB and the
   runtime budget is untouched.
 
   Only objects and arrays are accepted, and the **type** enforces it: a `Map`,
@@ -25,6 +25,42 @@ All notable changes to this project are documented here. The format follows
   not the object. One held inside deep state still works, simply not reactively.
   The reasoning, including what a `push` does to a `length` reader, is in
   [ADR-0018](docs/adr/0018-deep-reactivity-as-its-own-package.md).
+
+### Changed
+
+- The reactive core lost the `QUEUED` flag and the "already scheduled?" check in
+  `enqueue`. Both callers have just established that the node was not stale, and
+  an effect is queued only while it is stale, so the check guarded a case the
+  graph's own invariants rule out. The custom-element host lost two conditions
+  for the same reason. `@firsthandjs/core` is **2.29 kB** gzip (was 2.31) and the
+  full runtime **5.86 kB** (was 5.88).
+
+### Fixed
+
+- `--expose-gc` reached the test workers again, so the `WeakRef` memory probes
+  (ADR-0011) measure instead of skipping themselves. Vitest 4 moved
+  `poolOptions.forks.execArgv` to a top-level option and ignored the old shape
+  silently rather than rejecting it.
+- Six code paths that no test had ever executed are now covered: a symbol on the
+  left of `in` against deep state, a childless element on the runtime JSX path,
+  clearing a child whose node something else already removed, `clear()` on a
+  query that is still subscribed, a rest element in a setup that already has a
+  block body, and a `map` callback whose block body does not return JSX. They
+  were reported as covered until the coverage tool started remapping through the
+  AST; the behaviour was always right, but nothing held it in place.
+
+### Security
+
+- No advisory affects a published package or anything an application ships —
+  both were development-only dependencies.
+- `qs` is lifted to `^6.16.0` through an override (GHSA-q8mj-m7cp-5q26,
+  GHSA-x5fp-wj9c-mxmx, GHSA-4mjr-xmp4-gh2g). It arrives through
+  `typed-rest-client` under `@stryker-mutator/core`, which pins it exactly, so an
+  override is the only way to move it.
+- Vitest is at 4.1.11 (GHSA-82fw-gwwq-j7x9, path traversal in `@vitest/mocker`).
+  Not 5.0.1: under Vitest 5 the Stryker runner reports every mutant as survived —
+  93.30 % becomes 8.80 % with no change to the tests — and a working mutation
+  gate is worth more than the higher version number.
 
 ## [0.1.1] - 2026-09-19
 

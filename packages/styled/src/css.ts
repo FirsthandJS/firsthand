@@ -144,6 +144,16 @@ export function compile(fragment: CssFragment, id: string, values = true): Compi
   return { chunks, slots, static: slots.length === 0 };
 }
 
+/**
+ * Joins a fragment whose `static` flag has already been checked.
+ *
+ * Such a fragment has no slots, so `join` would need a resolver that can never
+ * run — an arrow no test could reach and no reader could explain.
+ */
+export function joinStatic(compiled: Compiled): string {
+  return compiled.chunks.join('');
+}
+
 /** Joins the compiled chunks, asking for each block slot's text. */
 export function join(compiled: Compiled, resolve: (slot: Slot) => string): string {
   let text = '';
@@ -165,7 +175,7 @@ export function blockText(value: unknown): string {
         'A css`` fragment returned from an interpolation must not contain further functions.',
       );
     }
-    return join(inner, () => '');
+    return joinStatic(inner);
   }
   return staticText(value);
 }

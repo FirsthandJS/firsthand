@@ -63,12 +63,13 @@ export default defineConfig({
   test: {
     // `--expose-gc` in the workers, so the WeakRef memory probes can force a
     // collection instead of being skipped (ADR-0011).
-    // Only the default (forks) pool: passing `--expose-gc` to worker threads is
-    // rejected by Node, and tools that drive vitest with the threads pool —
-    // Stryker, for one — would fail to start.
-    poolOptions: {
-      forks: { execArgv: ['--expose-gc'] },
-    },
+    // Vitest 4 flattened `poolOptions.forks.execArgv` into this top-level
+    // option, which no longer belongs to one pool — and `--expose-gc` is
+    // rejected by Node in a worker thread. Stryker overrides the pool to
+    // `threads` from the outside, so the flag is dropped for its run; the
+    // memory probes skip themselves when `gc()` is absent, and mutation
+    // testing does not target them anyway.
+    execArgv: process.env['STRYKER_MUTATOR_WORKER'] === undefined ? ['--expose-gc'] : [],
     projects: [
       {
         extends: true,

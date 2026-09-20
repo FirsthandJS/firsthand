@@ -31,7 +31,7 @@ One page per package, listing every export with its signature.
 
 | Package                                                | Size (gzip) | What it is                                         |
 | ------------------------------------------------------ | ----------- | -------------------------------------------------- |
-| [`@firsthandjs/core`](reference/core.md)               | 2.31 kB     | Signals, computeds, effects, context, owners       |
+| [`@firsthandjs/core`](reference/core.md)               | 2.29 kB     | Signals, computeds, effects, context, owners       |
 | [`@firsthandjs/dom`](reference/dom.md)                 | 4.15 kB     | Components, rendering, elements, lists, portals    |
 | [`@firsthandjs/jsx-runtime`](reference/jsx-runtime.md) | 0.59 kB     | JSX types, and the runtime fallback                |
 | [`@firsthandjs/compiler`](reference/compiler.md)       | build only  | The TSX transform and the bundler plugin           |

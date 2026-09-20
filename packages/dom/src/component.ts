@@ -258,13 +258,13 @@ function elementClass(target: Component<unknown>): CustomElementConstructor {
       if (this.$owner !== null) {
         return;
       }
-      if (this.$props === null) {
-        // Upgraded from markup rather than created by Firsthand: the element owns
-        // its own scope and disposes itself when it leaves the document.
-        this.$standalone = true;
-        this.$attrs = {};
-        this.$props = attributeProps(this, codecs, this.$attrs);
-      }
+      // Getting this far means the element was upgraded from markup: a host
+      // Firsthand created is mounted at creation and already has an owner, so
+      // it returned above. This one owns its own scope instead, and disposes
+      // itself when it leaves the document.
+      this.$standalone = true;
+      this.$attrs = {};
+      this.$props = attributeProps(this, codecs, this.$attrs);
       mountHost(this, target, shadow);
     }
 
@@ -336,10 +336,10 @@ function mountHost(element: FirsthandElement, target: Component<unknown>, shadow
 function createHost<P>(target: Component<P>, props: P): HTMLElement {
   const element = document.createElement(target.tag as string) as FirsthandElement;
   element.$props = props as unknown as Record<string, unknown>;
-  if (element.$owner === null) {
-    // Upgrade already happened (the definition exists), but `connectedCallback`
-    // only fires on insertion. Mount now so the caller receives a filled node.
-    mountHost(element, target as unknown as Component<unknown>, target.options?.shadow === true);
-  }
+  // `tag` is only ever set by `defineElement`, which defines the element in the
+  // same breath, so the upgrade has run and the constructor has left `$owner`
+  // null. `connectedCallback` fires on insertion, which has not happened yet —
+  // so mount here, because the caller expects a filled node back.
+  mountHost(element, target as unknown as Component<unknown>, target.options?.shadow === true);
   return element;
 }

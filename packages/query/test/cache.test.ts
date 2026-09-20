@@ -280,6 +280,22 @@ describe('the cache', () => {
     expect(client.size).toBe(0);
   });
 
+  it('clears an entry that is still subscribed, with no collection timer to cancel', () => {
+    const client = createQueryClient({ cacheTime: 1000 });
+    const query: QueryDefinition<string> = {
+      tags: [tag('thing')],
+      fetch: () => Promise.resolve('value'),
+    };
+    void client.load(query);
+    // Left subscribed on purpose: an entry someone is still watching has no
+    // pending collection, so `clear` has nothing to cancel before dropping it.
+    void client.subscribe(client.entry(query));
+
+    client.clear();
+
+    expect(client.size).toBe(0);
+  });
+
   it('honours a per-query staleTime over the client default', async () => {
     const client = createQueryClient({ staleTime: 0 });
     const fetcher = vi.fn(() => Promise.resolve('value'));
