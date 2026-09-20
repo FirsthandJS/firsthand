@@ -16,7 +16,7 @@ expect(view.text()).toBe('1'); // no await, no flush, no act()
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository tests itself the way it documents here: 757 unit and
+This repository tests itself the way it documents here: 759 unit and
 compiler tests under Vitest, and 87 runs under Playwright across
 Chromium, Firefox and WebKit, covering the framework, the router, the query
 cache and all seven example applications.

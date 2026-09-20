@@ -15,6 +15,29 @@ export interface TransformOptions extends FirsthandPluginOptions {
   sourceMaps?: boolean;
 }
 
+/**
+ * A source map, in the shape every bundler expects one.
+ *
+ * Spelled out rather than typed as `object`, which is what it was: a bundler
+ * plugin's `transform` has to return something assignable to Rollup's
+ * `SourceMapInput`, and `object` is not. The mistake type-checks everywhere
+ * inside this repository and fails in the first application that puts the
+ * plugin into `vite.config.ts` — which is the one place it matters.
+ */
+export interface SourceMap {
+  version: number;
+  mappings: string;
+  names: string[];
+  sources: string[];
+  // `string[]`, not `(string | null)[]`, although the format allows a null:
+  // this type exists to be assignable to a bundler's, and Rollup spells it
+  // this way. A map this compiler produces has the source text for its one
+  // source, so the looser element type would buy nothing and cost the fit.
+  sourcesContent?: string[];
+  sourceRoot?: string;
+  file?: string;
+}
+
 /** A compiled module, and the map back to what was written. */
 export interface Compiled {
   code: string;
@@ -26,7 +49,7 @@ export interface Compiled {
    * is the difference between a framework you can step through and one you
    * cannot, so the Vite plugin always asks.
    */
-  map: object | null;
+  map: SourceMap | null;
 }
 
 /**
@@ -56,7 +79,7 @@ export function compileModule(code: string, options: TransformOptions = {}): Com
     configFile: false,
     sourceMaps: options.sourceMaps === true,
     plugins: buildPlugins(options),
-  }) as { code: string; map: object | null };
+  }) as { code: string; map: SourceMap | null };
   return { code: result.code, map: result.map };
 }
 

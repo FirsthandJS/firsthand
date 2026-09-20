@@ -1,4 +1,4 @@
-import { compileModule } from './api.js';
+import { compileModule, type SourceMap } from './api.js';
 import type { FirsthandPluginOptions } from './transform.js';
 
 /** Minimal shape of the Vite plugin contract, so the package needs no Vite dependency. */
@@ -6,7 +6,7 @@ export interface VitePluginLike {
   name: string;
   enforce: 'pre';
   configResolved(config: { command: string }): void;
-  transform(code: string, id: string): { code: string; map: object | null } | null;
+  transform(code: string, id: string): { code: string; map: SourceMap | null } | null;
 }
 
 /**

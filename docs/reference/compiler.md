@@ -119,6 +119,10 @@ import { compileModule } from '@firsthandjs/compiler';
 const { code, map } = compileModule(source, { filename, sourceMaps: true });
 ```
 
+`map` is a `SourceMap` — the shape a bundler expects, so the plugin's
+`transform` result is assignable to Rollup's `SourceMapInput` without a cast.
+It is `null` when no map was asked for.
+
 `transform` remains the string-returning form, and asks for no map.
 
 ## The Babel plugin
