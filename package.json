@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Firsthand â€” a fine-grained reactive framework for the web platform",
+  "description": "Firsthand \u2014 a fine-grained reactive framework for the web platform",
   "license": "MIT",
   "engines": {
     "node": ">=20.11.0"
@@ -15,7 +15,7 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
-    "coverage": "vitest run --coverage",
+    "coverage": "vitest run --coverage --reporter=default --reporter=json --outputFile=reports/tests.json",
     "build": "node scripts/build.mjs",
     "lint": "eslint .",
     "format:check": "prettier --check .",
@@ -23,7 +23,7 @@
     "check:versions": "node scripts/check-versions.mjs",
     "test:browser": "playwright test",
     "bench": "node benchmarks/run.mjs",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run coverage && npm run test:types && npm run build && npm run test:exports && npm run check:versions && npm run check:readme && npm run check:benchmark-shared && npm run check:no-deps && npm run check:workflows",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run coverage && npm run test:types && npm run build && npm run test:exports && npm run check:versions && npm run check:readme && npm run check:tests && npm run check:benchmark-shared && npm run check:no-deps && npm run check:workflows",
     "test:memory": "node --expose-gc ./node_modules/vitest/vitest.mjs run --project dom packages/dom/test/memory.test.ts",
     "bench:readme": "node scripts/update-readme-benchmarks.mjs",
     "check:readme": "node scripts/update-readme-benchmarks.mjs --check",
@@ -36,7 +36,9 @@
     "check:workflows": "node scripts/check-workflows.mjs",
     "bench:compare": "node benchmarks/compare.mjs",
     "check:no-deps": "node scripts/check-no-deps.mjs",
-    "bench:ic": "node benchmarks/ic.mjs"
+    "bench:ic": "node benchmarks/ic.mjs",
+    "tests:readme": "node scripts/update-readme-tests.mjs",
+    "check:tests": "node scripts/update-readme-tests.mjs --check"
   },
   "overrides": {
     "qs": "^6.16.0"

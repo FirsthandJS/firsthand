@@ -447,9 +447,15 @@ and `tick` for asynchronous application code.
 
 It works with **Vitest** (node, happy-dom, jsdom or browser mode) and
 **Playwright** without an adapter — Playwright drives a Firsthand page like any
-other page. This repository is the demonstration: 561 tests under Vitest and 87
+other page.
+
+<!-- tests:start -->
+<!-- prettier-ignore-start -->
+This repository is the demonstration: 635 tests under Vitest and 87
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all seven examples.
+<!-- prettier-ignore-end -->
+<!-- tests:end -->
 
 **Storybook** works through the stock HTML renderer plus fifteen lines of glue
 — there is no `@firsthandjs/storybook` and there does not need to be one, because

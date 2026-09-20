@@ -65,6 +65,9 @@ jobs:
 
       - name: README performance tables match the committed results
         run: npm run check:readme
+      # After the coverage step, which writes the report this reads.
+      - name: README test counts match the suites
+        run: npm run check:tests
 
       - name: Both benchmarks measure the same implementation
         run: npm run check:benchmark-shared
