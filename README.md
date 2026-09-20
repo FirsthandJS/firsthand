@@ -25,7 +25,7 @@ handler is created once and always reads the current value.
 
 <!-- headline:start -->
 <!-- prettier-ignore-start -->
-The whole runtime is **5.86 kB gzip** with no production dependencies. On the
+The whole runtime is **5.87 kB gzip** with no production dependencies. On the
 render/update set it is **1.56× faster** than React 19.2.0 (geometric mean of 27
 scenarios, 95 % CI 1.25–2.10) — measured in the same browser session with
 byte-identical DOM verified before any timing, and with every scenario published,
@@ -228,7 +228,7 @@ Shoelace and styled components on one page) and
 
 | Package                    | Size (gzip) | What it is                                      |
 | -------------------------- | ----------- | ----------------------------------------------- |
-| `@firsthandjs/core`        | 2.29 kB     | Signals, computeds, effects, context, owners    |
+| `@firsthandjs/core`        | 2.36 kB     | Signals, computeds, effects, context, owners    |
 | `@firsthandjs/dom`         | 4.15 kB     | Components, rendering, elements, lists, portals |
 | `@firsthandjs/jsx-runtime` | 0.59 kB     | JSX types, and the runtime fallback             |
 | `@firsthandjs/deep`        | 0.72 kB     | Deep reactivity: every property is a signal     |
@@ -340,11 +340,11 @@ different sample sizes would quietly weaken the confidence interval.
 
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
-| `@firsthandjs/core` | 6.31 kB | **2.29 kB** | 2.07 kB |
-| `@firsthandjs/dom` | 10.32 kB | **4.14 kB** | 3.69 kB |
-| `@firsthandjs/dom/internal` | 9.75 kB | **4.06 kB** | 3.61 kB |
+| `@firsthandjs/core` | 6.48 kB | **2.36 kB** | 2.14 kB |
+| `@firsthandjs/dom` | 10.39 kB | **4.17 kB** | 3.73 kB |
+| `@firsthandjs/dom/internal` | 9.83 kB | **4.09 kB** | 3.64 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
-| full runtime (core + dom, everything imported) | 15.84 kB | **5.86 kB** | 5.28 kB |
+| full runtime (core + dom, everything imported) | 15.85 kB | **5.87 kB** | 5.29 kB |
 
 
 Optional packages, downloaded only by an application that imports them:

@@ -244,6 +244,102 @@ describe('fragments and children', () => {
   });
 });
 
+describe('strict reactivity', () => {
+  const strict = (code: string): string =>
+    transform(code, { filename: 'src/demo.tsx', packageName: 'demo', strictReactivity: true });
+
+  it('refuses a prop read that is kept', () => {
+    expect(() =>
+      strict(
+        `${IMPORTS}const A = component((props) => { const id = props.id; return <p>{id}</p>; });`,
+      ),
+    ).toThrow(/`id` is read once/);
+  });
+
+  it('refuses a signal read that is kept, arithmetic and all', () => {
+    expect(() =>
+      strict(
+        `${IMPORTS}import { signal } from '@firsthandjs/core';
+const c = signal(1);
+const A = component(() => { const total = c.value * 2; return <p>{total}</p>; });`,
+      ),
+    ).toThrow(/`total` is read once/);
+  });
+
+  it('points at snapshot() rather than only naming the problem', () => {
+    expect(() =>
+      strict(
+        `${IMPORTS}const A = component((props) => { const id = props.id; return <p>{id}</p>; });`,
+      ),
+    ).toThrow(/snapshot\(\(\) => …\)/);
+  });
+
+  it('sees a read through a template literal, an operator or a condition', () => {
+    const cases = [
+      'const label = `${props.name}!`;',
+      'const off = !props.on;',
+      'const cls = props.on ? "a" : "b";',
+      'const first = props.items[0];',
+    ];
+    for (const line of cases) {
+      expect(() =>
+        strict(`${IMPORTS}const A = component((props) => { ${line} return <p>x</p>; });`),
+      ).toThrow(/is read once/);
+    }
+  });
+
+  it('names the declaration even when it is a pattern', () => {
+    expect(() =>
+      strict(
+        `${IMPORTS}const A = component((props) => { const { x } = props.config; return <p>{x}</p>; });`,
+      ),
+    ).toThrow(/This value is read once/);
+  });
+
+  it('leaves a read that is passed to a call alone', () => {
+    // `signal(props.initial)` is a starting value, which is the honest case.
+    const out = strict(
+      `${IMPORTS}import { signal } from '@firsthandjs/core';
+const A = component((props) => { const draft = signal(props.initial); return <p>{draft.value}</p>; });`,
+    );
+    expect(out).toContain('signal(props.initial)');
+  });
+
+  it('leaves peek() and snapshot() alone', () => {
+    const out = strict(
+      `${IMPORTS}import { snapshot } from '@firsthandjs/core';
+const A = component((props) => { const once = snapshot(() => props.id); return <p>{once}</p>; });`,
+    );
+    expect(out).toContain('snapshot(');
+  });
+
+  it('leaves a read inside a nested function alone', () => {
+    const out = strict(
+      `${IMPORTS}const A = component((props) => { const show = () => props.id; return <button onClick={show}>x</button>; });`,
+    );
+    expect(out).toContain('props.id');
+  });
+
+  it('leaves an expression-bodied setup alone', () => {
+    const out = strict(`${IMPORTS}const A = component((props) => <p>{props.id}</p>);`);
+    expect(out).toContain('props.id');
+  });
+
+  it('leaves a declaration that reads nothing reactive alone', () => {
+    const out = strict(
+      `${IMPORTS}const A = component(() => { const label = 'x' + 1; return <p>{label}</p>; });`,
+    );
+    expect(out).toContain("'x' + 1");
+  });
+
+  it('says nothing at all while it is off', () => {
+    const out = compile(
+      `${IMPORTS}const A = component((props) => { const id = props.id; return <p>{id}</p>; });`,
+    );
+    expect(out).toContain('const id = props.id');
+  });
+});
+
 describe('keyed maps', () => {
   const rowSource = (body: string): string =>
     `${IMPORTS}const A = component((props) => <ul>${body}</ul>);`;

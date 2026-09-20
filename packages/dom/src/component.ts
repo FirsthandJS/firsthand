@@ -1,6 +1,8 @@
 import {
   signal,
   createOwner,
+  devEnterSetup,
+  devExitSetup,
   disposeOwner,
   getOwner,
   handleError,
@@ -172,10 +174,13 @@ export function createComponent<P>(target: Component<P>, props: P): View {
     // The cast is the whole point of `ReadonlyProps`: the caller hands over a
     // mutable value, the component sees a readonly view of the same object.
     // Nothing is copied, so there is nothing to keep in sync.
+    devEnterSetup(target.id);
     const result = untrack(() => target.setup(props as ReadonlyProps<P>));
+    devExitSetup();
     setOwner(previous);
     return result;
   } catch (error) {
+    devExitSetup();
     setOwner(previous);
     handleError(error, owner);
     return null;
@@ -323,10 +328,15 @@ function mountHost(element: FirsthandElement, target: Component<unknown>, shadow
   element.$owner = owner;
   const previous = setOwner(owner);
   try {
+    // First in the block, so that the matching exit in `catch` is always
+    // balanced no matter which statement below throws.
+    devEnterSetup(target.id);
     const root = shadow ? element.attachShadow({ mode: 'open' }) : element;
     const result = untrack(() => target.setup(element.$props as Record<string, unknown>));
+    devExitSetup();
     applyChild(root, null, null, result);
   } catch (error) {
+    devExitSetup();
     handleError(error, owner);
   } finally {
     setOwner(previous);

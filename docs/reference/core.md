@@ -1,6 +1,6 @@
 # @firsthandjs/core
 
-[Reference index](../README.md#reference) · 2.29 kB gzip · no dependencies
+[Reference index](../README.md#reference) · 2.36 kB gzip · no dependencies
 
 The reactive graph, the owner tree and context. It imports nothing from the
 DOM and loads unchanged in a worker or on a server.
@@ -63,6 +63,58 @@ function untrack<T>(fn: () => T): T;
 
 `batch` defers the flush to the end of the outermost call. `untrack` reads
 without subscribing.
+
+## snapshot
+
+```ts
+function snapshot<T>(read: () => T): T;
+```
+
+A read that is meant to happen once. It untracks, exactly as `untrack` does,
+and it says why — which is the difference that matters when someone reads the
+code a month later, and the difference
+[strict reactivity](#setstrictreactivity) looks for.
+
+```ts
+const Field = component<{ initial: string }>((props) => {
+  // The starting value of something editable. It must *not* follow the prop:
+  // that would overwrite what the person is typing.
+  const draft = signal(snapshot(() => props.initial));
+  return <input value={draft.value} onInput={(e) => (draft.value = e.currentTarget.value)} />;
+});
+```
+
+## setStrictReactivity
+
+```ts
+function setStrictReactivity(on: boolean): void;
+```
+
+Development-only. Reports a signal or prop read inside a component setup with
+nothing subscribing — a value read once and then kept, which produces a number
+that is right at first and never moves again. See
+[Setup runs once](../guide/03-components.md#setup-runs-once-so-a-value-you-read-is-a-value-you-keep).
+
+```ts
+if (import.meta.env.DEV) {
+  setStrictReactivity(true);
+}
+```
+
+**Off by default**, because reading once is often deliberate — the starting
+value of a field, or a decision about what to build. Turning it on unasked
+would report those too, and a warning that is usually wrong is a warning people
+learn to skip.
+
+It reports **once per read**, not once per instance: a list of a thousand rows
+prints one line. It says nothing about a read inside `snapshot()`, `peek()`,
+`untrack()`, an `effect`, a `computed`, a part or an event handler — none of
+those is a frozen value.
+
+**It costs nothing in production.** The check lives in the module the build
+replaces with an empty stub, so a production bundle contains neither the check
+nor its message, and the read path keeps the single branch it has today. This
+function is still there and still callable; it simply does nothing.
 
 ## Lifecycle
 

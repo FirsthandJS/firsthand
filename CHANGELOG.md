@@ -4,6 +4,37 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `snapshot(read)` — a read that is meant to happen once, such as the starting
+  value of an editable field. It untracks, like `untrack`, and says why.
+- `strictReactivity` on the compiler plugin — refuses to compile a declaration
+  in a component setup whose initialiser is nothing but a read, naming the
+  declaration and both ways out. Narrow on purpose: anything containing a call
+  is left alone, which covers `signal(props.initial)`, `peek()`, `computed` and
+  every handler without special-casing them by name
+  ([ADR-0019](docs/adr/0019-strict-reactivity.md)).
+- `setStrictReactivity(true)` — a development-only report for the mistake the
+  single-run setup invites: a signal or prop read in a component body with
+  nothing subscribing, so the value is read once and then kept. Off by default,
+  because reading once is often deliberate. Reported once per read rather than
+  once per instance, and silent inside `snapshot()` or `peek()`.
+
+  It costs nothing in production: the diagnostics live in the module the build
+  aliases to an empty stub, so the shipped bundle contains neither the check
+  nor its message. `@firsthandjs/core` goes from 2.29 kB to 2.36 kB gzip for
+  the new public function and the exported no-op, and the full runtime from
+  5.86 kB to 5.87 kB.
+
+### Documentation
+
+- The components guide has a section of its own for what happens when a value
+  is read in setup and kept, what it looks like when it happens, and when
+  reading once is the point. Getting started, the DOM reference and the
+  comparison table lead into it.
+
 ## [0.2.0] - 2026-09-20
 
 ### Added

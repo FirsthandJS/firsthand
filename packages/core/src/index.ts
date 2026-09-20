@@ -8,7 +8,8 @@
 export { signal } from './signal.js';
 export { computed } from './computed.js';
 export { effect } from './effect.js';
-export { batch, untrack } from './core.js';
+export { batch, snapshot, untrack } from './core.js';
+export { setStrictReactivity } from './dev.js';
 export { onCleanup, createRoot, catchError, runWithOwner, getOwner } from './lifecycle.js';
 export { createContext, provide, useContext } from './context.js';
 export type { Context } from './context.js';
@@ -25,6 +26,7 @@ export type { Owner } from './core.js';
 
 /** Internal surface used by `@firsthandjs/dom`; not part of the public contract. */
 export { createEffect, bind } from './effect.js';
+export { devEnterSetup, devExitSetup } from './dev.js';
 export {
   Cell,
   createOwner,

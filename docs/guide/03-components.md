@@ -37,13 +37,102 @@ same reference, no serialisation, no cloning. A prop may be a class instance, a
 `Map`, a DOM node, a function.
 
 **Reading a prop outside a reactive position takes a snapshot**, because that
-is what reading a value does:
+is what reading a value does. The next section is about that, because it is the
+one place where the model surprises people.
+
+## Setup runs once, so a value you read is a value you keep
+
+The setup function runs exactly once per instance. It decides what to build and
+wires up the parts that change; nothing re-runs it. Everything good about the
+model follows from that — and so does the one mistake worth knowing in advance,
+because it produces a wrong value rather than an error.
+
+In a framework that re-renders, reading a value and using it are the same act:
+the function runs again, so what you read is fresh again. Here they are two
+different acts. Reading is a moment; staying current means reading _in a place
+the framework will read again_.
 
 ```tsx
 const Widget = component<{ items: Item[] }>((props) => {
-  const first = props.items[0]; // read once, at setup — probably not what you want
-  return <p>{props.items.length}</p>; // read in a part — updates
+  const count = props.items.length; // read once, at setup
+  return <p>{count} items</p>; // and so this number never changes
 });
+```
+
+```tsx
+const Widget = component<{ items: Item[] }>((props) => (
+  <p>{props.items.length} items</p> // read where it is shown: always current
+));
+```
+
+Signals behave the same way, for the same reason — `.value` is a read:
+
+```tsx
+const doubled = count.value * 2; // a number, worked out once
+const doubled = computed(() => count.value * 2); // a cell, always current
+<p>{count.value * 2}</p>; // inside a part: always current
+```
+
+The whole rule in one line: **in setup you choose what to build; in a part, an
+event handler, an `effect` or a `computed` you choose what to read.**
+
+### What it looks like when it happens
+
+Nothing throws, which is exactly why it is worth recognising:
+
+- a number or a label that is right at first and then stops moving
+- a handler that acts on the row the list held when it was built
+- a class or a style stuck at its first value while the state behind it changes
+- a `console.log` in setup that prints once and convinces you the data is wrong
+  when it is only old
+
+The fix is always the same shape: move the read inside the thing that should
+re-read it.
+
+```tsx
+const Row = component<{ todo: Todo }>((props) => {
+  const done = props.todo.done; // frozen
+  return <li class={done ? 'done' : ''}>{props.todo.title}</li>;
+});
+
+const Row = component<{ todo: Todo }>((props) => (
+  // the class is a part now, so it is re-read when `done` changes
+  <li class={() => (props.todo.done ? 'done' : '')}>{props.todo.title}</li>
+));
+```
+
+### When a snapshot is the point
+
+Reading once is not a mistake in itself — sometimes it is exactly what you
+mean, and then setup is the right place for it:
+
+```tsx
+const Form = component<{ initial: string }>((props) => {
+  // The starting value of an editable field. It should *not* follow the prop:
+  // that would overwrite what the person is typing.
+  const draft = signal(snapshot(() => props.initial));
+
+  return <input value={draft.value} onInput={(e) => (draft.value = e.currentTarget.value)} />;
+});
+```
+
+Both readings are legitimate. The difference is whether you meant it, and
+[`snapshot`](../reference/core.md#snapshot) is how you say so — to the next
+reader, and to the check below.
+
+### Having the machine say it
+
+Since reading once is legal, nothing can reject it outright. What
+[`setStrictReactivity(true)`](../reference/core.md#setstrictreactivity) does is
+report it during development: a signal or prop read in a component body with
+nothing subscribing gets one line on the console, naming the fix. It is off by
+default, it says nothing inside `snapshot()` or `peek()`, and it costs nothing
+in a production build — the whole check is replaced by an empty function there.
+
+```ts
+if (import.meta.env.DEV) {
+  setStrictReactivity(true);
+}
 ```
 
 ## Destructuring works
@@ -185,6 +274,15 @@ explicitly.
 | `useRef` for a mutable box         | A plain `let`, or a `signal` if the view reads it    |
 | `useRef` for an element            | `ref={(element) => …}`                               |
 | Key-based remounting               | `key` on a list row, or a version signal — see above |
+
+One row has no entry, and it is the one that costs people time: there is no
+equivalent of "the body runs again". In a re-rendering framework the body is
+where you read current values, because it is re-entered. Here the body is where
+you decide the shape, and the parts are where values are read. A habit that was
+correct — read at the top, use below — is what produces a frozen value here, so
+it is worth re-reading
+[Setup runs once](#setup-runs-once-so-a-value-you-read-is-a-value-you-keep)
+after your first component rather than before it.
 
 ## A worked example
 

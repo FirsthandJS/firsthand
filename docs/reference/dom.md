@@ -34,6 +34,12 @@ interface ComponentOptions {
 A `Component<P>` is callable: `Counter({ initial: 1 })` is what
 `<Counter initial={1} />` compiles to.
 
+**`setup` runs exactly once per instance.** It is not re-run when a prop or a
+signal changes — the parts it returned are. A value read in its body is
+therefore read once and kept: `const id = props.id` is a snapshot, while
+`props.id` inside a part, a handler, an `effect` or a `computed` is a live read.
+See [Setup runs once](../guide/03-components.md#setup-runs-once-so-a-value-you-read-is-a-value-you-keep).
+
 ```ts
 type View = Node | string | number | boolean | null | undefined | DynamicChild | readonly View[];
 ```
