@@ -76,3 +76,18 @@ export function devPart(node: object, property: string): void {
 export function devComponent(owner: object, name: string): void {
   hook()?.component(owner, name);
 }
+
+/**
+ * Names a cell, from a label the compiler wrote.
+ *
+ * The value is returned so the call can wrap the expression it names, which
+ * keeps `signal` unchanged and leaves a cell created any other way simply
+ * unnamed. In a production build this is an empty function and the compiler
+ * emits no call to it at all.
+ */
+export function label<T>(value: T, kind: string, name: string): T {
+  if (typeof value === 'object' && value !== null) {
+    hook()?.label(value, kind, name);
+  }
+  return value;
+}

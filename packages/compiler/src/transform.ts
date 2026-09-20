@@ -63,6 +63,18 @@ export interface FirsthandPluginOptions {
    * `snapshot()` — see `checkKeptReads` (ADR-0019).
    */
   strictReactivity?: boolean;
+  /**
+   * Name the cells a module creates, for devtools.
+   *
+   * A runtime cannot see that `const count = signal(0)` is called `count`, and
+   * `new Error().stack` reports a position in the *compiled* module — the
+   * browser does not apply source maps to `error.stack`, so the line it names
+   * is not the line that was written. The compiler knows both, so it says so.
+   *
+   * Off by default and turned on by the Vite plugin while serving: a
+   * production build emits nothing.
+   */
+  devtools?: boolean;
 }
 
 export default function firsthandPlugin(
@@ -113,6 +125,12 @@ export default function firsthandPlugin(
 
       CallExpression(path: NodePath<t.CallExpression>, state: State) {
         annotateComponent(path, state, options);
+      },
+
+      VariableDeclarator(path: NodePath<t.VariableDeclarator>, state: State) {
+        if (options.devtools === true) {
+          nameCell(path, state);
+        }
       },
     },
   };
@@ -268,6 +286,50 @@ function readsOnly(node: t.Node, propsName: string | null): boolean {
     return false;
   };
   return walk(node) && read;
+}
+
+/** The factories whose result is worth naming after the variable holding it. */
+const NAMED = new Map([
+  ['signal', 'signal'],
+  ['computed', 'computed'],
+  ['deepSignal', 'signal'],
+]);
+
+/**
+ * Labels `const count = signal(0)` with `count` and where it was written.
+ *
+ * Emitted only under the `devtools` option, so a production build is
+ * byte-identical to one compiled without it. The label is wrapped around the
+ * call rather than passed into it: `signal` keeps its signature, and a cell
+ * created any other way is simply unnamed rather than special.
+ */
+function nameCell(path: NodePath<t.VariableDeclarator>, state: State): void {
+  const init = path.node.init;
+  const target = path.node.id;
+  if (!t.isCallExpression(init) || !t.isIdentifier(target) || !t.isIdentifier(init.callee)) {
+    return;
+  }
+  const kind = NAMED.get(init.callee.name);
+  if (kind === undefined) {
+    return;
+  }
+  const binding = path.scope.getBinding(init.callee.name);
+  if (binding === undefined || !isFirsthandImport(binding)) {
+    return;
+  }
+  // Both are present for anything parsed from a file, which is the only way
+  // this visitor is reached: Babel fills `loc` from the source, and the plugin
+  // is always given a filename by the bundler and by the tests.
+  const line = (init.loc as t.SourceLocation).start.line;
+  const source = state.filename as string;
+  const cut = Math.max(source.lastIndexOf('/'), source.lastIndexOf(String.fromCharCode(92)));
+  const where = `${source.slice(cut + 1)}:${String(line)}`;
+  const call = t.callExpression(runtime(state, 'label'), [
+    init,
+    t.stringLiteral(kind),
+    t.stringLiteral(`${target.name} (${where})`),
+  ]);
+  path.node.init = call;
 }
 
 function isFirsthandImport(binding: { path: NodePath }): boolean {

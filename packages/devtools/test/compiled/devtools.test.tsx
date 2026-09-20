@@ -9,6 +9,7 @@ import { computed, effect, signal } from '@firsthandjs/core';
 import { deepSignal } from '@firsthandjs/deep';
 import { component } from '@firsthandjs/dom';
 import { render } from '@firsthandjs/dom';
+import { label } from '@firsthandjs/dom/internal';
 import {
   attach,
   causeOf,
@@ -272,5 +273,26 @@ describe('the timeline', () => {
   it('has nothing to say about a node no part writes', () => {
     render(() => <p>static</p>, host);
     expect(timeline(host.querySelector('p') as Node)).toEqual([]);
+  });
+});
+
+describe('names the compiler supplied', () => {
+  it('uses the variable name and the line that was written', () => {
+    // `label` is what the compiler emits under its `devtools` option. The
+    // position matters: `error.stack` reports the compiled line, not this one.
+    const count = signal(0);
+    label(count, 'signal', 'count (order.ts:12)');
+    render(() => <p>{count.value}</p>, host);
+
+    expect(inspect(host.querySelector('p') as Node)[0]?.dependencies[0]?.name).toBe(
+      'count (order.ts:12)',
+    );
+  });
+
+  it('hands back what it was given, and ignores a primitive', () => {
+    const cell = signal(1);
+    expect(label(cell, 'signal', 'x')).toBe(cell);
+    expect(label(42, 'signal', 'x')).toBe(42);
+    expect(label(null, 'signal', 'x')).toBeNull();
   });
 });

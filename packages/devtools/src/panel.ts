@@ -11,47 +11,78 @@
  */
 import {
   causeOf,
-  chain,
   inspect,
+  path,
   queries,
   stack,
   timeline,
   watch,
   type GraphNode,
+  type Update,
 } from './index.js';
 
 const STYLE = `
 :host { all: initial; }
 .panel {
   position: fixed; right: 16px; bottom: 16px; z-index: 2147483647;
-  width: 420px; max-height: 70vh; display: flex; flex-direction: column;
+  width: 460px; max-height: 78vh; display: flex; flex-direction: column;
   font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
   color: #e6e6e6; background: #1c1c1f; border: 1px solid #3a3a40;
-  border-radius: 8px; box-shadow: 0 8px 32px rgb(0 0 0 / 0.4);
+  border-radius: 10px; box-shadow: 0 10px 40px rgb(0 0 0 / 0.45);
 }
-header { display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+header { display: flex; align-items: center; gap: 6px; padding: 8px 10px;
   border-bottom: 1px solid #3a3a40; }
 header strong { font-weight: 600; letter-spacing: 0.02em; flex: 1; }
 button { font: inherit; color: inherit; background: #2a2a30; border: 1px solid #45454d;
   border-radius: 5px; padding: 3px 8px; cursor: pointer; }
 button:hover { background: #34343c; }
 button[aria-pressed='true'] { background: #3d5afe; border-color: #3d5afe; color: #fff; }
-.body { overflow: auto; padding: 10px; }
+.body { overflow: auto; padding: 12px; }
 .empty { color: #8a8a94; }
-.chain { margin: 0 0 10px; white-space: pre; }
-.chain .arrow { color: #8a8a94; }
-.node { padding-left: 14px; border-left: 1px solid #3a3a40; margin-left: 4px; }
-.name { color: #9ecbff; }
-.kind { color: #8a8a94; }
-.value { color: #c3e88d; }
-.cause { color: #ffcb6b; }
-.event { display: flex; gap: 6px; }
+.hint { color: #8a8a94; margin: 10px 0 4px; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.08em; }
+
+/* The path, as boxes and arrows rather than as three lines of text. */
+.flow { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+.box { border: 1px solid #45454d; border-radius: 7px; padding: 6px 9px; background: #232329;
+  display: flex; align-items: baseline; gap: 8px; }
+.box .tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em;
+  padding: 1px 5px; border-radius: 4px; background: #34343c; color: #b9b9c4; }
+.box .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.box .val { color: #c3e88d; }
+.box.signal { border-color: #3d5afe; }
+.box.signal .tag { background: #23306b; color: #b6c4ff; }
+.box.computed { border-color: #c792ea; }
+.box.computed .tag { background: #3a2b47; color: #e6c8ff; }
+.box.part { border-color: #ffcb6b; }
+.box.part .tag { background: #4a3a1c; color: #ffdfa1; }
+.box.trigger { box-shadow: 0 0 0 2px #3d5afe66; }
+.arrow { align-self: center; color: #6a6a76; font-size: 14px; line-height: 1; padding: 3px 0; }
+
+/* The component stack, as crumbs. */
+.crumbs { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 10px; }
+.crumb { background: #2a2a30; border: 1px solid #45454d; border-radius: 999px;
+  padding: 1px 8px; color: #c792ea; }
+.crumb + .crumb::before { content: '›'; color: #8a8a94; margin-right: 6px; margin-left: -4px; }
+
+/* The timeline: one row per update, a bar for how much it woke. */
+.track { display: flex; flex-direction: column; gap: 4px; }
+.tick { display: grid; grid-template-columns: 52px 1fr auto; gap: 8px; align-items: center;
+  padding: 3px 4px; border-radius: 5px; cursor: pointer; }
+.tick:hover { background: #26262c; }
+.tick[aria-selected='true'] { background: #23306b; }
+.tick .when { color: #8a8a94; text-align: right; }
+.tick .who { color: #9ecbff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tick .bar { height: 8px; border-radius: 4px; background: #3d5afe; min-width: 4px; }
+.tick .bar.none { background: #4a4a54; }
+.detail { margin-top: 8px; border-top: 1px solid #3a3a40; padding-top: 8px; }
+.detail .ran { color: #ffdfa1; }
+.cause { color: #ffcb6b; margin: 10px 0 0; }
+.event { display: grid; grid-template-columns: 84px 1fr; gap: 8px; padding: 2px 0; }
 .event .created { color: #c3e88d; }
 .event .invalidated { color: #ffcb6b; }
 .event .dropped { color: #f07178; }
-.hint { color: #8a8a94; margin: 8px 0 2px; }
-.stack { color: #c792ea; margin: 0 0 8px; }
-.update { color: #e6e6e6; }
+.event .tags { color: #9ecbff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 `;
 
 /** The element the picker is over, highlighted without touching its styles. */
@@ -71,6 +102,8 @@ let picking = false;
 let tab: 'graph' | 'queries' | 'timeline' = 'graph';
 /** A pending redraw, so a burst of updates costs one frame rather than many. */
 let frame: number | null = null;
+/** The update the timeline is showing in detail. */
+let chosen: Update | null = null;
 
 function button(label: string, onClick: () => void): HTMLButtonElement {
   const element = document.createElement('button');
@@ -87,73 +120,111 @@ function text(tag: string, className: string, content: string): HTMLElement {
   return element;
 }
 
-/** One node and its dependencies, indented. */
-function draw(node: GraphNode, into: HTMLElement, depth: number): void {
-  const line = document.createElement('div');
-  line.append(text('span', 'name', node.name));
-  line.append(text('span', 'kind', ` ${node.kind}`));
+/** One node of the path, as a box that says what it is and what it holds. */
+function boxFor(node: GraphNode, trigger: boolean): HTMLElement {
+  const box = document.createElement('div');
+  box.className = `box ${node.kind}${trigger ? ' trigger' : ''}`;
+  box.append(text('span', 'tag', node.kind));
+  box.append(text('span', 'label', node.name));
   const value = node.value;
-  // Primitives only. An object's default stringification is `[object Object]`,
-  // which tells a reader nothing and takes the place of something that would.
+  // Primitives only: an object's default stringification says nothing and
+  // takes the place of something that would.
   if (value !== undefined && (typeof value !== 'object' || value === null)) {
-    line.append(text('span', 'value', ` = ${JSON.stringify(value)}`));
+    box.append(text('span', 'val', JSON.stringify(value)));
   }
-  into.append(line);
-  if (depth > 6 || node.dependencies.length === 0) {
-    return;
+  return box;
+}
+
+/**
+ * Draws the path from the sources down to the node, as boxes and arrows.
+ *
+ * Top to bottom, because that is the direction the value travels. The source
+ * is marked when it is the one that caused the last run, which is the whole
+ * question "what triggers this" asked in one glance.
+ */
+function drawFlow(part: GraphNode, cause: string | null, into: HTMLElement): void {
+  const flowPath = path(part);
+  const flow = document.createElement('div');
+  flow.className = 'flow';
+  for (const [at, node] of flowPath.entries()) {
+    flow.append(boxFor(node, node.name === cause));
+    if (at < flowPath.length - 1) {
+      flow.append(text('div', 'arrow', '↓'));
+    }
   }
-  const nested = document.createElement('div');
-  nested.className = 'node';
-  for (const dependency of node.dependencies) {
-    draw(dependency, nested, depth + 1);
-  }
-  into.append(nested);
+  into.append(flow);
 }
 
 function renderGraph(body: HTMLElement): void {
   if (selected === null) {
     body.append(
       text('p', 'empty', 'Nothing selected.'),
-      text('p', 'hint', 'Press “Pick” and click an element, or right-click → Inspect.'),
+      text('p', 'hint', 'Press “Pick” and click an element.'),
     );
     return;
   }
+
   const where = stack(selected);
   if (where.length > 0) {
-    body.append(text('p', 'stack', where.join(' › ')));
-  }
-  const drawn = chain(selected);
-  const lines = drawn.split('\n');
-  const block = document.createElement('pre');
-  block.className = 'chain';
-  for (const [at, line] of lines.entries()) {
-    block.append(text('span', line.trim() === '↓' ? 'arrow' : 'name', line));
-    if (at < lines.length - 1) {
-      block.append(document.createTextNode('\n'));
+    const crumbs = document.createElement('div');
+    crumbs.className = 'crumbs';
+    for (const name of where) {
+      crumbs.append(text('span', 'crumb', name));
     }
+    body.append(crumbs);
   }
-  body.append(block);
+
+  const parts = inspect(selected);
+  if (parts.length === 0) {
+    body.append(text('p', 'empty', 'Nothing reactive writes this node.'));
+    return;
+  }
 
   const why = causeOf(selected);
+  for (const part of parts) {
+    drawFlow(part, why, body);
+  }
+
   body.append(
     text(
       'p',
       'cause',
-      why === null ? 'Has not run since anything changed.' : `Last ran because: ${why}`,
+      why === null ? 'Has not run since anything changed.' : `Triggered by ${why}`,
     ),
   );
 
-  for (const part of inspect(selected)) {
-    draw(part, body, 0);
-  }
-
-  const recent = timeline(selected).slice(-5).reverse();
+  const recent = timeline(selected).slice(-6).reverse();
   if (recent.length > 0) {
     body.append(text('p', 'hint', 'Last updates of this node'));
-    for (const update of recent) {
-      body.append(text('div', 'update', `${String(update.at)}ms  ${update.source}`));
-    }
+    body.append(track(recent, null));
   }
+}
+
+/** The updates as rows: when, what was written, and how much it woke. */
+function track(updates: Update[], onPick: ((update: Update) => void) | null): HTMLElement {
+  const most = Math.max(1, ...updates.map((update) => update.ran.length));
+  const list = document.createElement('div');
+  list.className = 'track';
+  for (const update of updates) {
+    const row = document.createElement('div');
+    row.className = 'tick';
+    row.setAttribute('aria-selected', String(update === chosen));
+    row.append(text('span', 'when', `${String(update.at)}ms`));
+    row.append(text('span', 'who', update.source));
+    const bar = document.createElement('span');
+    bar.className = update.ran.length === 0 ? 'bar none' : 'bar';
+    // Width by how many parts it woke, so a glance separates the write that
+    // rebuilt half the page from the one that woke nothing at all.
+    bar.style.width = `${String(Math.round((update.ran.length / most) * 60) + 6)}px`;
+    row.append(bar);
+    if (onPick !== null) {
+      row.addEventListener('click', () => {
+        onPick(update);
+      });
+    }
+    list.append(row);
+  }
+  return list;
 }
 
 function renderTimeline(body: HTMLElement): void {
@@ -162,21 +233,20 @@ function renderTimeline(body: HTMLElement): void {
     body.append(text('p', 'empty', 'Nothing has changed yet.'));
     return;
   }
-  for (const update of [...updates].reverse()) {
-    const row = document.createElement('div');
-    row.className = 'update';
-    row.append(text('span', 'kind', `${String(update.at)}ms`));
-    row.append(text('span', 'cause', ` ${update.source}`));
-    row.append(text('span', 'kind', ` → ${String(update.ran.length)}`));
-    body.append(row);
-    if (update.ran.length > 0) {
-      const ran = document.createElement('div');
-      ran.className = 'node';
-      for (const name of update.ran) {
-        ran.append(text('div', 'name', name));
-      }
-      body.append(ran);
+  body.append(
+    track([...updates].reverse(), (update) => {
+      chosen = update;
+      render();
+    }),
+  );
+  if (chosen !== null) {
+    const detail = document.createElement('div');
+    detail.className = 'detail';
+    detail.append(text('p', 'hint', `${chosen.source} woke ${String(chosen.ran.length)}`));
+    for (const name of chosen.ran) {
+      detail.append(text('div', 'ran', name));
     }
+    body.append(detail);
   }
 }
 
@@ -190,7 +260,7 @@ function renderQueries(body: HTMLElement): void {
     const row = document.createElement('div');
     row.className = 'event';
     row.append(text('span', event.event, event.event));
-    row.append(text('span', 'name', event.tags.join(', ')));
+    row.append(text('span', 'tags', event.tags.join(', ')));
     body.append(row);
   }
 }
@@ -330,6 +400,7 @@ export function close(): void {
   host?.remove();
   host = null;
   parts = null;
+  chosen = null;
   picking = false;
   selected = null;
   tab = 'graph';

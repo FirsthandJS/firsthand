@@ -36,9 +36,18 @@ __FIRSTHAND__.panel();
 ```
 
 A panel opens in the corner of the page. Press **Pick**, click the element that
-is wrong, and the answer is on the screen: what writes it, what that reads, why
-it last ran, and the values along the way. A second tab shows what the query
-cache has been doing.
+is wrong, and the answer is drawn:
+
+- the **components** it lives in, as crumbs — `App › OrderPage › SaveButton`;
+- the **path**, as boxes from the sources down to the DOM write, colour-coded
+  by kind, each with the value it currently holds;
+- the box that **triggered** the last run, outlined, so "what changes this" is
+  a glance rather than a reading;
+- the **recent updates** of that node underneath, each with a bar for how much
+  it woke.
+
+Two more tabs: **Timeline**, every update in the page with a bar for its reach —
+click one to see what it woke — and **Queries**, what the cache has been doing.
 
 It draws itself in a shadow root with `all: initial`, so the page's stylesheet
 cannot reach it and its own cannot reach the page — an inspector that changes
@@ -119,6 +128,18 @@ _that_, as far as you ask (`inspect(node, 12)`). Both directions are there:
 `cells()` is the same shape for everything currently alive, walked from the
 roots through the owner tree.
 
+## Why the names are what they are
+
+Under a development server the compiler labels each cell with the variable that
+holds it and the line it was written on — `v (main.tsx:9)`. That is not
+cosmetic. A runtime cannot see the name at all, and `new Error().stack` reports
+a position in the **compiled** module, because browsers do not apply source
+maps to `error.stack`. The compiler knows both, so it says both, and a
+production build emits none of it.
+
+The compiler also produces a source map now, so a debugger shows the JSX that
+was written rather than the templates and protocol calls it became.
+
 ## What the names mean
 
 | You see                | It is                                                       |
@@ -144,6 +165,18 @@ const isEditable = computed(function isEditable() {
   return order.status.value === 'draft';
 });
 ```
+
+## Reading the panel
+
+| What you see                 | What it means                        |
+| ---------------------------- | ------------------------------------ |
+| A blue **SIGNAL** box        | A source: someone writes it          |
+| A purple **COMPUTED** box    | Derived, and memoised                |
+| An amber **PART** box        | The DOM write at the end of the path |
+| An outlined box              | This is what triggered the last run  |
+| A grey bar in a timeline row | That write woke nothing at all       |
+
+The path runs top to bottom, because that is the direction the value travels.
 
 ## Which components is it in?
 

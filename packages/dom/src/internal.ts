@@ -28,5 +28,8 @@ export {
 export { on, off } from './events.js';
 export { applyProp, spread, mergeProps, rest } from './props.js';
 export { bind } from '@firsthandjs/core';
+// Emitted by the compiler's `devtools` option only, which a production build
+// never turns on; the production copy of this module returns its argument.
+export { label } from './dev.js';
 export { list } from './list.js';
 export { createComponent, isComponent, COMPONENT } from './component.js';

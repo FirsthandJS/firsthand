@@ -35,6 +35,10 @@ const root = (): ShadowRoot => {
 };
 
 const body = (): string => root().querySelector('.body')?.textContent ?? '';
+/** The drawn panel, queried the way a person would look at it. */
+const all = (selector: string): string[] =>
+  [...root().querySelectorAll(selector)].map((element) => element.textContent ?? '');
+const one = (selector: string): Element | null => root().querySelector(selector);
 const press = (selector: string): void => {
   (root().querySelector(selector) as HTMLElement).click();
 };
@@ -117,13 +121,19 @@ describe('showing a node', () => {
 
     show(host.querySelector('p') as Node);
 
-    expect(body()).toContain('p.text');
+    // A box per node of the path, the part at the end of it.
+    expect(all('.box .label')).toContain('p.text');
+    expect(one('.box.part')).not.toBeNull();
+    expect(one('.box.signal')).not.toBeNull();
     expect(body()).toContain('Has not run since anything changed');
 
     label.value = 'sent';
     refresh();
 
-    expect(body()).toContain('Last ran because');
+    expect(body()).toContain('Triggered by');
+    // The source that caused it is marked, which is the "what triggers this"
+    // question answered without reading anything.
+    expect(one('.box.trigger')).not.toBeNull();
   });
 
   it('shows null as null, rather than hiding it as an object', () => {
@@ -134,7 +144,7 @@ describe('showing a node', () => {
 
     // `typeof null === 'object'`, and an object is not shown because its
     // stringification says nothing. `null` says something.
-    expect(body()).toContain('null');
+    expect(all('.box .val')).toContain('null');
   });
 
   it('shows a value beside the name, when there is one worth showing', () => {
@@ -143,7 +153,7 @@ describe('showing a node', () => {
 
     show(host.querySelector('p') as Node);
 
-    expect(body()).toContain('41');
+    expect(all('.box .val')).toContain('41');
   });
 });
 
@@ -254,14 +264,14 @@ describe('staying current', () => {
     const count = signal(1);
     render(() => <p>{count.value}</p>, host);
     show(host.querySelector('p') as Node);
-    expect(body()).toContain('= 1');
+    expect(all('.box .val')).toContain('1');
 
     count.value = 2;
     // One frame, however many effects ran.
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
-    expect(body()).toContain('= 2');
+    expect(all('.box .val')).toContain('2');
   });
 
   it('coalesces a burst into one redraw, and drops it if closed first', async () => {
@@ -303,7 +313,7 @@ describe('the component stack, on the screen', () => {
 
     show(host.querySelector('p') as Node);
 
-    expect(body()).toContain('Outer › Leaf');
+    expect(all('.crumb')).toEqual(['Outer', 'Leaf']);
   });
 
   it('shows the recent updates of the node it is showing', () => {
@@ -346,10 +356,13 @@ describe('the timeline tab', () => {
     open();
     press('[data-tab="timeline"]');
 
-    expect(body()).toContain('ms');
-    expect(body()).toContain('p.text');
-    // Newest first, so the second write is above the first.
-    expect(body().split('p.text').length - 1).toBeGreaterThanOrEqual(2);
+    // A row per update, newest first, each with a bar for how much it woke.
+    expect(all('.tick .when').length).toBeGreaterThanOrEqual(2);
+    expect(all('.tick .who').some((who) => who.includes('panel.test'))).toBe(true);
+
+    // Clicking one shows what it woke.
+    (one('.tick') as HTMLElement).click();
+    expect(all('.detail .ran')).toContain('p.text');
   });
 
   it('shows a write that nothing reacted to, which is often the answer', () => {
@@ -359,9 +372,9 @@ describe('the timeline tab', () => {
     open();
     press('[data-tab="timeline"]');
 
-    // The entry is there with nothing under it: the write happened, and it
-    // woke no part. "Why did nothing update?" — because nothing was reading.
-    expect(body()).toContain('→ 0');
+    // The row is there with a grey bar: the write happened and woke no part.
+    // "Why did nothing update?" — because nothing was reading.
+    expect(one('.tick .bar.none')).not.toBeNull();
   });
 
   it('goes back to the graph from the timeline', () => {

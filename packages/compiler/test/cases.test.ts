@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { transform } from '../src/api.js';
+import { compileModule, transform } from '../src/api.js';
 import { stableId } from '../src/ids.js';
 import { firsthand } from '../src/vite.js';
 import { escapeAttribute, escapeText, eventName } from '../src/html.js';
@@ -624,5 +624,107 @@ describe('supporting pieces', () => {
     expect(() => compile(`${IMPORTS}const A = component(() => <p title=<b /> />);`)).toThrow(
       /not a valid attribute value/,
     );
+  });
+});
+
+describe('source maps', () => {
+  it('maps the output back to the file that was written', () => {
+    const { code, map } = compileModule(
+      `${IMPORTS}const A = component((props) => <p title="x">{props.label}</p>);`,
+      { filename: 'src/demo.tsx', packageName: 'demo', sourceMaps: true },
+    );
+
+    expect(code).toContain('_$template');
+    const mapping = map as { version: number; mappings: string; sources: string[] };
+    expect(mapping.version).toBe(3);
+    expect(mapping.mappings.length).toBeGreaterThan(0);
+    expect(mapping.sources.some((source) => source.includes('demo.tsx'))).toBe(true);
+  });
+
+  it('does not pay for one unless it is asked for', () => {
+    const { map } = compileModule(`${IMPORTS}const A = component(() => <p>x</p>);`, {
+      filename: 'src/demo.tsx',
+      packageName: 'demo',
+    });
+    expect(map).toBeNull();
+  });
+});
+
+describe('naming cells for devtools', () => {
+  const named = (source: string): string =>
+    transform(source, { filename: 'src/main.tsx', packageName: 'app', devtools: true });
+
+  it('names a signal after the variable, with the line it was written on', () => {
+    const out = named(
+      `${IMPORTS}import { signal } from '@firsthandjs/core';\nconst A = component(() => {\n  const count = signal(0);\n  return <p>{count.value}</p>;\n});`,
+    );
+    // A runtime cannot see the name, and `error.stack` reports the compiled
+    // position rather than this one, so the compiler says both.
+    expect(out).toContain('_$label(signal(0), "signal", "count (main.tsx:4)")');
+  });
+
+  it('names a computed and a deep signal too', () => {
+    const out = named(
+      `${IMPORTS}import { computed } from '@firsthandjs/core';\nimport { deepSignal } from '@firsthandjs/deep';\nconst A = component(() => {\n  const state = deepSignal({ a: 1 });\n  const twice = computed(() => state.a * 2);\n  return <p>{twice.value}</p>;\n});`,
+    );
+    expect(out).toContain('"signal", "state (main.tsx:5)"');
+    expect(out).toContain('"computed", "twice (main.tsx:6)"');
+  });
+
+  it('leaves alone what it cannot name', () => {
+    const out = named(
+      `${IMPORTS}import { signal } from '@firsthandjs/core';\nconst make = () => signal(0);\nconst A = component(() => {\n  const [first] = [signal(1)];\n  const other = make();\n  return <p>{first.value}</p>;\n});`,
+    );
+    // Not a plain identifier, and not a framework factory: neither is wrapped.
+    expect(out).not.toContain('"first');
+    expect(out).not.toContain('"other');
+  });
+
+  it('emits nothing at all when the option is off', () => {
+    const out = transform(
+      `${IMPORTS}import { signal } from '@firsthandjs/core';\nconst A = component(() => {\n  const count = signal(0);\n  return <p>{count.value}</p>;\n});`,
+      { filename: 'src/main.tsx', packageName: 'app' },
+    );
+    expect(out).not.toContain('_$label');
+  });
+});
+
+describe('what naming leaves alone', () => {
+  const named = (source: string): string =>
+    transform(source, { filename: 'src/main.tsx', packageName: 'app', devtools: true });
+
+  it('ignores a `signal` that is not the framework’s', () => {
+    const out = named(
+      `${IMPORTS}const signal = (n) => ({ value: n });\nconst A = component(() => {\n  const count = signal(0);\n  return <p>{count.value}</p>;\n});`,
+    );
+    expect(out).not.toContain('_$label');
+  });
+
+  it('ignores a `signal` that is not imported at all', () => {
+    const out = named(
+      `${IMPORTS}const A = component(() => {\n  const count = signal(0);\n  return <p>{count.value}</p>;\n});`,
+    );
+    expect(out).not.toContain('_$label');
+  });
+});
+
+describe('the Vite plugin', () => {
+  it('names cells while serving, and not while building', () => {
+    const source = `${IMPORTS}import { signal } from '@firsthandjs/core';\nconst A = component(() => {\n  const count = signal(0);\n  return <p>{count.value}</p>;\n});`;
+
+    const serving = firsthand({ packageName: 'app' });
+    serving.configResolved({ command: 'serve' });
+    expect(serving.transform(source, '/src/main.tsx')?.code).toContain('_$label');
+
+    const building = firsthand({ packageName: 'app' });
+    building.configResolved({ command: 'build' });
+    expect(building.transform(source, '/src/main.tsx')?.code).not.toContain('_$label');
+  });
+
+  it('returns a map, so a debugger shows the JSX', () => {
+    const plugin = firsthand({ packageName: 'app' });
+    plugin.configResolved({ command: 'build' });
+    const result = plugin.transform(`${IMPORTS}const A = component(() => <p>x</p>);`, '/src/a.tsx');
+    expect((result?.map as { version?: number } | null)?.version).toBe(3);
   });
 });

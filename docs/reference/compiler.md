@@ -82,6 +82,45 @@ ignore it.
 Neither costs anything in production: this one runs at build time, and the other
 lives in a module the production build replaces with empty functions.
 
+## devtools
+
+```ts
+firsthand({ packageName: 'my-app', devtools: true });
+```
+
+Labels each cell with the variable that holds it and the line it was written
+on, for [devtools](devtools.md). **The Vite plugin turns this on while serving
+and off while building**, so a production build emits nothing; the option
+overrides that either way.
+
+```tsx
+const count = signal(0);
+// becomes, in development only:
+const count = _$label(signal(0), 'signal', 'count (main.tsx:9)');
+```
+
+It exists because neither half is available at runtime. A runtime cannot see
+that the variable is called `count`, and `new Error().stack` reports a position
+in the _compiled_ module — browsers do not apply source maps to `error.stack`,
+so the line it names is not the line that was written. The compiler knows both.
+
+Only `signal`, `computed` and `deepSignal` assigned to a plain identifier are
+labelled. Anything else is left alone and simply unnamed.
+
+## Source maps
+
+The Vite plugin returns one, so a debugger shows the JSX rather than the
+hoisted templates and protocol calls it compiles to. `compileModule` is the
+entry point that produces it:
+
+```ts
+import { compileModule } from '@firsthandjs/compiler';
+
+const { code, map } = compileModule(source, { filename, sourceMaps: true });
+```
+
+`transform` remains the string-returning form, and asks for no map.
+
 ## The Babel plugin
 
 ```ts

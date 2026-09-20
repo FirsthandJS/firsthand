@@ -64,6 +64,7 @@ const expectations = [
       'inspect',
       'chain',
       'causeOf',
+      'path',
       'stack',
       'timeline',
       'queries',
@@ -114,7 +115,11 @@ const expectations = [
     entry: '.',
     names: ['mount', 'cleanup', 'autoCleanup', 'withRoot', 'subscriberCount', 'tick'],
   },
-  { pkg: 'compiler', entry: '.', names: ['transform', 'firsthandPlugin', 'stableId'] },
+  {
+    pkg: 'compiler',
+    entry: '.',
+    names: ['transform', 'compileModule', 'firsthandPlugin', 'stableId'],
+  },
   { pkg: 'compiler', entry: './vite', names: ['firsthand'] },
 ];
 

@@ -19,3 +19,7 @@ export function devPart(_node: object, _property: string): void {
 export function devComponent(_owner: object, _name: string): void {
   /* stripped in production */
 }
+
+export function label<T>(value: T, _kind: string, _name: string): T {
+  return value;
+}

@@ -417,16 +417,22 @@ export function chain(node: Node): string {
   if (found.length === 0) {
     return 'Nothing reactive writes this node.';
   }
-  return found.map((root) => draw(deepest(root)).join('\n   ↓\n')).join('\n\n');
+  return found.map((root) => draw(path(root)).join('\n   ↓\n')).join('\n\n');
 }
 
-/** The longest path through a node's dependencies, sources first. */
-function deepest(node: GraphNode): GraphNode[] {
+/**
+ * The longest path through a node's dependencies, sources first.
+ *
+ * One path rather than the whole tree, because a chain is a story: it is what
+ * `chain` prints and what the panel draws as boxes. `inspect` has the shape
+ * for anything that wants all of it.
+ */
+export function path(node: GraphNode): GraphNode[] {
   let longest: GraphNode[] = [];
   for (const dependency of node.dependencies) {
-    const path = deepest(dependency);
-    if (path.length > longest.length) {
-      longest = path;
+    const deeper = path(dependency);
+    if (deeper.length > longest.length) {
+      longest = deeper;
     }
   }
   return [...longest, node];
