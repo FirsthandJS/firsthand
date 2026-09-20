@@ -256,6 +256,9 @@ function track(updates: Update[]): HTMLElement {
     // Width by how many parts it woke, so a glance separates the write that
     // rebuilt half the page from the one that woke nothing at all.
     bar.style.width = `${String(Math.round((update.ran.length / most) * 60) + 6)}px`;
+    // A bar with no scale beside it is a shape, not a number. Said outright,
+    // so the width does not have to be guessed at.
+    bar.title = `woke ${String(update.ran.length)} of ${String(most)}`;
     row.append(bar);
     // Where the write came from, not where the signal was declared: the name
     // beside it answers "what changed", and this answers "from where", which

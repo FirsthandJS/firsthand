@@ -512,6 +512,26 @@ describe('a write with nowhere to point', () => {
 });
 
 describe('what a timeline row says', () => {
+  it('says what the bar is drawn against', () => {
+    const count = signal(1);
+    render(
+      () => (
+        <>
+          <p>{count.value}</p>
+          <p>{count.value}</p>
+        </>
+      ),
+      host,
+    );
+    count.value = 2;
+
+    open();
+    press('[data-tab="timeline"]');
+
+    // A bar with no scale beside it is a shape, not a number.
+    expect(one('.tick .bar')?.getAttribute('title')).toBe('woke 2 of 2');
+  });
+
   it('names where the write came from, not only what was written', () => {
     const count = signal(1);
     render(() => <p>{count.value}</p>, host);
@@ -521,7 +541,7 @@ describe('what a timeline row says', () => {
       constructor() {
         super();
         Object.defineProperty(this, 'stack', {
-          value: 'Error\n    at tick (http://localhost:5173/src/app.tsx:31:7)',
+          value: 'Error\n    at tick (/src/app.tsx:31:7)',
           configurable: true,
         });
       }
@@ -551,7 +571,7 @@ describe('a frame served by a development server', () => {
       constructor() {
         super();
         Object.defineProperty(this, 'stack', {
-          value: 'Error\n    at trigger (http://localhost:5173/src/app.tsx?v=8f1c2d:31:7)',
+          value: 'Error\n    at trigger (/src/app.tsx?v=8f1c2d:31:7)',
           configurable: true,
         });
       }

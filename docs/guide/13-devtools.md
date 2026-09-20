@@ -191,9 +191,17 @@ const isEditable = computed(function isEditable() {
 | A purple **COMPUTED** box    | Derived, and memoised                |
 | An amber **PART** box        | The DOM write at the end of the path |
 | An outlined box              | This is what triggered the last run  |
+| A blue bar in a timeline row | How much that write woke             |
 | A grey bar in a timeline row | That write woke nothing at all       |
+| A dim position after the bar | Where the write came from            |
 
 The path runs top to bottom, because that is the direction the value travels.
+
+The bar is how many parts the write woke, drawn against the busiest update in
+view — so it compares writes to each other rather than to an absolute, and a
+filtered timeline redraws to its own scale. Hovering says the two numbers
+outright. It is there to separate, at a glance, the write that rebuilt half
+the page from the one that woke nothing.
 
 ## Which components is it in?
 
@@ -227,7 +235,7 @@ which is the question when something updated and nobody expected it to — or
 when nothing did.
 
 That second entry is the case worth knowing: a write with an empty `ran` woke
-nothing at all. In the panel it reads `→ 0`, and it is very often the answer to
+nothing at all. In the panel its bar is grey, and it is very often the answer to
 "why is the screen not changing?" — because nothing was reading that signal.
 
 The last 100 updates, so a page left open overnight is still a debugging tool
