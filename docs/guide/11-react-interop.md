@@ -79,7 +79,7 @@ client, an i18n provider, a router of React's own. They belong in the wrapper.
 ## What it costs
 
 A bridge brings React and react-dom with it — **about 45 kB gzip**, against
-5.86 kB for this runtime — and below the bridge the React model applies: its
+5.87 kB for this runtime — and below the bridge the React model applies: its
 reconciler, its re-renders, its synthetic events. That is not a flaw; it is
 what you are asking for when you use a React component, and it works exactly as
 it does in a React application. The bridge is fine-grained on the Firsthand side

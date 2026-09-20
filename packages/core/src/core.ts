@@ -19,7 +19,7 @@
 
 import { DIRTY, DISPOSED, HAS_VALUE, MUTABLE, PENDING, STALE, WATCHING } from './flags.js';
 import { FirsthandCycleError, FirsthandReadonlyError } from './errors.js';
-import { reportUncaught } from './dev.js';
+import { devCheckSetupRead, devEnterSnapshot, devExitSnapshot, reportUncaught } from './dev.js';
 
 // ---------------------------------------------------------------------------
 // Structures
@@ -98,6 +98,12 @@ export class Cell {
     }
     if (activeSub !== undefined) {
       link(this, activeSub);
+    } else {
+      // Nothing is subscribing. Ordinary outside a component — an event
+      // handler reading current state — and the whole of the single-run
+      // mistake inside one, which is what strict reactivity reports. Empty in
+      // a production build, so the hot path keeps its single branch.
+      devCheckSetupRead();
     }
     return this.v;
   }
@@ -698,6 +704,27 @@ export function batch<T>(fn: () => T): T {
     if (--batchDepth === 0) {
       flush();
     }
+  }
+}
+
+/**
+ * Reads once, on purpose.
+ *
+ * The starting value of an editable field, or a decision about what to build:
+ * both are reads that should not follow their source. `snapshot` says so, which
+ * is what keeps strict reactivity from reporting them — and what tells a reader
+ * that the frozen value is the intent rather than an oversight.
+ *
+ * ```ts
+ * const draft = signal(snapshot(() => props.initial));
+ * ```
+ */
+export function snapshot<T>(read: () => T): T {
+  devEnterSnapshot();
+  try {
+    return untrack(read);
+  } finally {
+    devExitSnapshot();
   }
 }
 

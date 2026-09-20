@@ -26,3 +26,4 @@ performance or semantics are affected.
 | [0016](0016-interop-with-component-libraries.md)                 | Web components first, and a React bridge for the rest      | accepted                          |
 | [0017](0017-foreign-element-types.md)                            | Element types this framework does not own                  | accepted                          |
 | [0018](0018-deep-reactivity-as-its-own-package.md)               | Deep reactivity beside signals, not inside them            | accepted                          |
+| [0019](0019-strict-reactivity.md)                                | Strict reactivity, paid for at build time                  | accepted                          |

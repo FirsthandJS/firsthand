@@ -33,6 +33,9 @@ function buildPlugins(options: TransformOptions): PluginItem[] {
     plugins.push([typescriptSyntax, { isTSX: true }]);
   }
   plugins.push(jsxSyntax);
-  plugins.push([firsthandPlugin, { packageName: options.packageName }]);
+  plugins.push([
+    firsthandPlugin,
+    { packageName: options.packageName, strictReactivity: options.strictReactivity },
+  ]);
   return plugins;
 }

@@ -90,6 +90,12 @@ body that runs once has nothing to memoise anyway.
 **Order does not matter.** There are no hook slots, so a signal created inside
 an `if` is fine.
 
+**And the flip side**: because the body runs once, a value you read in it is a
+value you keep. `const count = props.items.length` is a number from the moment
+you read it, and it will not move again. Nothing throws — the number is simply
+old. [Components](03-components.md#setup-runs-once-so-a-value-you-read-is-a-value-you-keep)
+covers what that looks like and where to put the read instead.
+
 ## Where to render
 
 ```tsx

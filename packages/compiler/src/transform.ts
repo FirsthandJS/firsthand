@@ -53,6 +53,14 @@ interface Build {
 export interface FirsthandPluginOptions {
   /** Package name used when hashing stable component ids (ADR-0004). */
   packageName?: string;
+  /**
+   * Refuse to compile a value that is read once in a setup and then kept.
+   *
+   * Off by default: reading once is legal and often deliberate. On, it is a
+   * build error rather than a warning, because the cases it can see are the
+   * unambiguous ones — see `checkKeptReads` (ADR-0019).
+   */
+  strictReactivity?: boolean;
 }
 
 export default function firsthandPlugin(
@@ -102,7 +110,7 @@ export default function firsthandPlugin(
       },
 
       CallExpression(path: NodePath<t.CallExpression>, state: State) {
-        annotateComponent(path, state);
+        annotateComponent(path, state, options);
       },
     },
   };
@@ -142,7 +150,11 @@ function runtime(state: State, name: string, source = RUNTIME): t.Identifier {
  * Gives every `component(...)` call a stable build id and a display name, and
  * rejects props destructuring.
  */
-function annotateComponent(path: NodePath<t.CallExpression>, state: State): void {
+function annotateComponent(
+  path: NodePath<t.CallExpression>,
+  state: State,
+  options: FirsthandPluginOptions,
+): void {
   const callee = path.node.callee;
   if (!t.isIdentifier(callee, { name: 'component' }) || path.node.arguments.length > 2) {
     return;
@@ -157,12 +169,103 @@ function annotateComponent(path: NodePath<t.CallExpression>, state: State): void
   }
   const name = declaredName(path);
   rewritePropsDestructuring(path, name, state);
+  if (options.strictReactivity === true) {
+    checkKeptReads(path.get('arguments.0') as NodePath<t.Function>, name);
+  }
   path.node.arguments = [
     setup,
     path.node.arguments[1] ?? t.identifier('undefined'),
     t.stringLiteral(`${state.firsthand.moduleId}/${name}`),
     t.stringLiteral(name),
   ];
+}
+
+/**
+ * Rejects a value that is read once in a setup and then kept (ADR-0019).
+ *
+ * The setup runs one time per instance, so `const total = props.total` is a
+ * number from the moment it is read and will not move again. Nothing throws at
+ * runtime — the number is simply old — which is why this exists.
+ *
+ * Deliberately narrow, because a false positive here stops a build. Only a
+ * declaration whose initialiser is *nothing but* a read is reported:
+ * identifiers, member accesses, literals and the operators between them. A
+ * call is never reported, which leaves `signal(props.initial)`, `peek()`,
+ * `computed(...)` and every handler alone — including `snapshot(...)`, the way
+ * to say that reading once is the point.
+ */
+function checkKeptReads(setup: NodePath<t.Function>, name: string): void {
+  const parameter = setup.node.params[0];
+  const propsName = t.isIdentifier(parameter) ? parameter.name : null;
+  const body = setup.get('body');
+  if (!body.isBlockStatement()) {
+    // An expression body declares nothing, so there is nothing to keep.
+    return;
+  }
+  body.traverse({
+    Function(nested: NodePath<t.Function>) {
+      // A handler, an effect, a computed: those bodies run again, so a read
+      // inside one is a live read rather than a kept value.
+      nested.skip();
+    },
+    VariableDeclarator(declarator: NodePath<t.VariableDeclarator>) {
+      const init = declarator.node.init;
+      if (init === null || init === undefined || !readsOnly(init, propsName)) {
+        return;
+      }
+      const target = declarator.node.id;
+      const label = t.isIdentifier(target) ? `\`${target.name}\`` : 'This value';
+      throw declarator.buildCodeFrameError(
+        `${name}: ${label} is read once, here, and then kept. A setup runs one time ` +
+          'per instance, so this value will not change again.\n\n' +
+          'Move the read into the part, handler, effect or computed that should ' +
+          're-read it — or wrap it in snapshot(() => …) if reading once is what ' +
+          'you meant.',
+      );
+    },
+  });
+}
+
+/**
+ * Whether an expression is a read and nothing else.
+ *
+ * Returns false for anything containing a call, which is what keeps the rule
+ * from reporting the many legitimate uses of a value read at setup.
+ */
+function readsOnly(node: t.Node, propsName: string | null): boolean {
+  let read = false;
+  const walk = (current: t.Node): boolean => {
+    if (t.isIdentifier(current) || t.isLiteral(current)) {
+      // A template literal carries expressions of its own.
+      if (t.isTemplateLiteral(current)) {
+        return current.expressions.every((part) => walk(part));
+      }
+      return true;
+    }
+    if (t.isMemberExpression(current)) {
+      const property = current.property;
+      if (!current.computed && t.isIdentifier(property, { name: 'value' })) {
+        read = true;
+      }
+      if (propsName !== null && t.isIdentifier(current.object, { name: propsName })) {
+        read = true;
+      }
+      return walk(current.object) && (!current.computed || walk(property));
+    }
+    if (t.isUnaryExpression(current)) {
+      return walk(current.argument);
+    }
+    if (t.isBinaryExpression(current) || t.isLogicalExpression(current)) {
+      // A private name on the left of `in` is not an expression, and falls
+      // through to the refusal below rather than needing a guard here.
+      return walk(current.left) && walk(current.right);
+    }
+    if (t.isConditionalExpression(current)) {
+      return walk(current.test) && walk(current.consequent) && walk(current.alternate);
+    }
+    return false;
+  };
+  return walk(node) && read;
 }
 
 function isFirsthandImport(binding: { path: NodePath }): boolean {

@@ -25,6 +25,8 @@ function firsthand(options?: FirsthandPluginOptions): VitePluginLike;
 interface FirsthandPluginOptions {
   /** Used when hashing stable component ids. */
   packageName?: string;
+  /** Refuse to compile a value read once in a setup and then kept. */
+  strictReactivity?: boolean;
 }
 ```
 
@@ -36,6 +38,45 @@ changes nothing and is a type error on Vite 8.
 it plus the module path, which is what makes an id survive a rebuild
 ([ADR-0004](../adr/0004-component-identity-without-name-strings.md)). Two packages that both used
 the default `app` and shipped in one bundle would collide.
+
+## strictReactivity
+
+```ts
+firsthand({ packageName: 'my-app', strictReactivity: true });
+```
+
+Refuses to compile a declaration whose value is read once in a component setup
+and then kept — the mistake the single-run setup invites
+([ADR-0019](../adr/0019-strict-reactivity.md)):
+
+```tsx
+const Widget = component((props) => {
+  const count = props.items.length; // build error under strictReactivity
+  return <p>{count} items</p>;
+});
+```
+
+The error names the declaration, says why the value will not change again, and
+points at the two ways out: move the read into the part, handler, `effect` or
+`computed` that should re-read it, or wrap it in
+[`snapshot`](core.md#snapshot) if reading once is what you meant.
+
+**It is deliberately narrow, because a false positive stops a build.** Only a
+declaration whose initialiser is _nothing but_ a read is reported — identifiers,
+member accesses, literals and the operators between them. Anything containing a
+call is left alone, which covers `signal(props.initial)`, `peek()`, `computed`,
+every handler, and `snapshot()` itself. A read inside a nested function is left
+alone too: those bodies run again.
+
+What it therefore cannot see is a read that leaves the module — `doSomething(props)`
+with the read in another file. That is what the runtime half is for:
+[`setStrictReactivity(true)`](core.md#setstrictreactivity) reports the same
+mistake during development, including the cases no compiler can follow. The two
+are separate switches on purpose, because one is a build setting and the other
+is something your application turns on where it configures development.
+
+Neither costs anything in production: this one runs at build time, and the other
+lives in a module the production build replaces with empty functions.
 
 ## The Babel plugin
 

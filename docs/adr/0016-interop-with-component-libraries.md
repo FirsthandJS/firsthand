@@ -46,7 +46,7 @@ not one), and events call back out.
 
 It works — `integrations/interop` drives MUI's Button, Chip and Slider in
 Chromium. It also brings React itself, about 45 kB gzip against this
-framework's 5.86 kB, and everything below the bridge updates the React way.
+framework's 5.87 kB, and everything below the bridge updates the React way.
 Both facts are in the docs rather than buried, and the table there suggests an
 element or a web component where one would do, because the bridge is worth its
 size for a date picker and not for a button.

@@ -9,3 +9,27 @@ export function reportUncaught(error: unknown): void {
     throw error;
   });
 }
+
+export function setStrictReactivity(_on: boolean): void {
+  /* stripped in production */
+}
+
+export function devEnterSetup(_id: string): void {
+  /* stripped in production */
+}
+
+export function devExitSetup(): void {
+  /* stripped in production */
+}
+
+export function devEnterSnapshot(): void {
+  /* stripped in production */
+}
+
+export function devExitSnapshot(): void {
+  /* stripped in production */
+}
+
+export function devCheckSetupRead(): void {
+  /* stripped in production */
+}
