@@ -167,6 +167,7 @@ interface TransportOptions {
   readonly url: string;
   /** Static, or read per request — which is where an auth token belongs. */
   readonly headers?: Record<string, string> | (() => Record<string, string>);
+  /** Wraps the request: the seam for a rejected token, a retry, a log. */
   readonly fetch?: typeof fetch;
 }
 
@@ -183,6 +184,12 @@ class FirsthandGraphQLError extends Error {
 
 Named `FirsthandGraphQLError` because `graphql-js` already exports `GraphQLError`,
 and an application using both has to be able to tell them apart.
+
+`headers` is called once per request, so a token read from a signal is always
+the current one — and reading it there does not make it a dependency of the
+queries going out. `fetch` wraps the request, which is where a 401 ends a
+session. Both, with a worked example:
+[Authentication](../guide/09-data.md#authentication).
 
 ```ts
 function useGraphQL<TData, TVariables extends Variables>(
@@ -205,6 +212,36 @@ be called with the document alone.
 Tags come from the document's `@tag` directives bound against the variables of
 the call; `useGraphQLMutation` invalidates its `@invalidates` directives unless
 `invalidates` is given.
+
+## createGraphQLApi
+
+```ts
+function createGraphQLApi(transport: GraphQLTransport): GraphQLApi;
+
+interface GraphQLApi {
+  useQuery<TData, TVariables extends Variables>(
+    document: GraphQLDocument<TData, TVariables>,
+    ...rest: QueryArguments<TVariables>
+  ): QueryResult<TData>;
+  useMutation<TData, TVariables extends Variables>(
+    document: GraphQLDocument<TData, TVariables>,
+    options?: MutationArguments<TData, TVariables>,
+  ): MutationResult<TVariables, TData>;
+}
+```
+
+The same two hooks, bound to a transport instead of to `GraphQLContext`. For
+an application with a second GraphQL server — and for the case a context
+cannot serve, one component reading from both.
+
+```ts
+export const billing = createGraphQLApi(createGraphQLTransport({ url: '/billing/graphql' }));
+export const catalog = createGraphQLApi(createGraphQLTransport({ url: '/catalog/graphql' }));
+```
+
+One cache serves every API, so tags share a namespace: give two servers that
+both have a `user` distinct tag names.
+[More than one API](../guide/09-data.md#more-than-one-api).
 
 ## Documents
 

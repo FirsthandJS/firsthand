@@ -4,6 +4,49 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-09-20
+
+### Fixed
+
+- **A signal a fetcher reads is no longer a dependency of the query.**
+  `useQuery` calls `client.load` from inside its effect, so anything a fetcher
+  read before its first `await` was being tracked. The one everybody hits is
+  an auth token read to build a header: writing it re-fetched **every** watched
+  query, including on the way out of a sign-out, where they all went again
+  without a token.
+
+  The fetcher now runs untracked. What a query depends on is what its `define`
+  thunk reads, which is evaluated inside a computed for exactly that purpose;
+  a fetcher is imperative I/O and its reads are incidental. Measured before
+  fixing: with an `authorization` header built from a token signal, changing
+  that token produced a second request. It now produces none, and the next
+  request carries the new token.
+
+### Added
+
+- **`createGraphQLApi(transport)`** — the same two GraphQL hooks bound to a
+  transport instead of to `GraphQLContext`. A context holds one value per
+  subtree, which cannot serve the case that turns up in real applications: one
+  component reading from two servers.
+
+  ```ts
+  export const billing = createGraphQLApi(createGraphQLTransport({ url: '/billing/graphql' }));
+  export const catalog = createGraphQLApi(createGraphQLTransport({ url: '/catalog/graphql' }));
+  ```
+
+  One cache still serves both, so tags share a namespace — two servers that
+  both have a `user` want distinct tag names.
+
+### Documentation
+
+- **Authentication has a section**, which it did not. What existed was a
+  five-line snippet at the end of the GraphQL chapter, findable by nobody
+  searching for "auth" and showing the call that caused the bug above. The
+  chapter now covers the transport URL, per-request headers, the `fetch` seam,
+  the 401 a server has to answer for a rejected token to end a session, and
+  clearing the cache when it does. Linked from the reference and the package
+  README.
+
 ## [0.4.0] - 2026-09-20
 
 ### Changed

@@ -225,6 +225,32 @@ Per query, `staleTime` can be overridden, and `key` separates two queries that
 genuinely share tags — a list and its count, say. Tags still decide
 invalidation; the key only decides which entry the data lands in.
 
+## Authentication
+
+Two options, both functions, and no plugin system. `headers` is called once
+per request, so a token read from a signal is always the current one:
+
+```tsx
+createGraphQLTransport({
+  url: '/graphql',
+  headers: () => (token.value === null ? {} : { authorization: `Bearer ${token.value}` }),
+  // Wraps the request: where a rejected token ends the session.
+  fetch: async (input, init) => {
+    const response = await fetch(input, init);
+    if (response.status === 401) {
+      token.value = null;
+      client.clear();
+    }
+    return response;
+  },
+});
+```
+
+Reading a signal in `headers` does not make it a dependency of the queries
+going out, so writing the token does not re-fetch every watched query. The
+worked version, including what the server has to answer:
+[Authentication](https://github.com/firsthandjs/firsthand/blob/main/docs/guide/09-data.md#authentication).
+
 ## What it does for you
 
 - **Deduplicates**: ten components asking at once make one request.

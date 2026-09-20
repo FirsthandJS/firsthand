@@ -190,8 +190,21 @@ export function createQueryClient(options: QueryClientOptions = {}): QueryClient
       }
     });
 
-    const request = entry
-      .fetcher({ signal: controller.signal, variables: entry.variables })
+    // Untracked, and this matters more than it looks.
+    //
+    // `load` is called from inside the effect `useQuery` runs, so whatever the
+    // fetcher reads before its first `await` would become a dependency of that
+    // effect. A fetcher is imperative I/O, not a derivation: the signals it
+    // touches on the way — an auth token read to build a header is the one
+    // everybody hits — are incidental, and subscribing to them means every
+    // watched query re-fetches when the token changes, including on the way
+    // out of a sign-out.
+    //
+    // What a query depends on is what its `define` thunk reads, which is
+    // evaluated inside a computed for exactly that purpose.
+    const request = untrack(() =>
+      entry.fetcher({ signal: controller.signal, variables: entry.variables }),
+    )
       .then((value): T | undefined => {
         if (controller.signal.aborted) {
           return undefined;
