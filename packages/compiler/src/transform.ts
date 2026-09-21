@@ -513,6 +513,9 @@ function checkRepeatedMarkup(run: NodePath<t.Function>, name: string): void {
     'ForStatement|ForOfStatement|ForInStatement|WhileStatement|DoWhileStatement'(loop: NodePath) {
       loop.traverse({
         JSXElement(element: NodePath<t.JSXElement>) {
+          // Only what the loop produces, not what that markup is made of: a
+          // row needs a key, and what is inside the row is the row.
+          element.skip();
           if (!hasKey(element.node)) {
             report(element);
           }
@@ -533,6 +536,7 @@ function checkRepeatedMarkup(run: NodePath<t.Function>, name: string): void {
       }
       call.traverse({
         JSXElement(element: NodePath<t.JSXElement>) {
+          element.skip();
           if (!hasKey(element.node)) {
             report(element);
           }

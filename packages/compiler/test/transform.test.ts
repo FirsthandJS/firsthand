@@ -618,3 +618,42 @@ export const Panel = component(() => {
     expect(attach).toBeGreaterThan(once);
   });
 });
+
+describe('a key is asked of the row, not of what the row is made of', () => {
+  it('accepts a keyed row whose own markup has none', () => {
+    expect(() =>
+      compile(`
+import { component } from '@firsthandjs/dom';
+export const Panel = component(() => {
+  return () => {
+    const n = state.value;
+    return (
+      <div>
+        {[0, 1, 2].map((row) => (
+          <section key={row}>
+            <span />
+            <span>{n}</span>
+          </section>
+        ))}
+      </div>
+    );
+  };
+});
+`),
+    ).not.toThrow();
+  });
+
+  it('still refuses the row itself', () => {
+    expect(() =>
+      compile(`
+import { component } from '@firsthandjs/dom';
+export const Panel = component(() => {
+  return () => {
+    const n = state.value;
+    return <div>{[0, 1, 2].map((row) => <section><span>{n}</span></section>)}</div>;
+  };
+});
+`),
+    ).toThrow(/appears many times/);
+  });
+});
