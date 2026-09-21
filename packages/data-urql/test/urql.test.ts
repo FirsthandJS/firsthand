@@ -21,6 +21,13 @@ const ask = (force = false): DataRequest => ({
   force,
 });
 
+/** What an action hands a client: it changes something. */
+const change = (): DataRequest => ({
+  signal: new AbortController().signal,
+  force: true,
+  mutating: true,
+});
+
 /** A request that records what the client said it was about. */
 function asking(force = false): { request: DataRequest; declared: Tag[] } {
   const declared: Tag[] = [];
@@ -243,6 +250,17 @@ describe('createUrqlClient', () => {
     await api.query(parseGraphQL('query Ok { ok }'))(ask());
 
     expect(api.cache).toBeUndefined();
+    expect(seen).toHaveLength(2);
+  });
+
+  it('keeps a query an action sends out of the cache', async () => {
+    const { seen, client } = stub();
+    const api = createUrqlClient(client, { cache: { ttl: 10_000 } });
+    const document = parseGraphQL('query Me { me { id } }');
+
+    await api.query(document)(change());
+    await api.query(document)(ask());
+
     expect(seen).toHaveLength(2);
   });
 

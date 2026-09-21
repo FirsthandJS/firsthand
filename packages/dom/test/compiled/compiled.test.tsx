@@ -294,3 +294,40 @@ describe('global attributes a custom element cares about', () => {
     expect(host.querySelector('span')?.getAttribute('slot')).toBe('start');
   });
 });
+
+describe('events the platform has and a library would not add', () => {
+  it('wires a drag and a drop, which is what a board needs and nothing else', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const seen: string[] = [];
+
+    // Dragging is the platform's: `draggable`, four handlers, no library. The
+    // types have to allow that, which they did not until this test existed.
+    render(
+      () => (
+        <div
+          draggable
+          onDragStart={() => seen.push('start')}
+          onDragOver={(event) => {
+            // Without this the browser refuses the drop.
+            event.preventDefault();
+            seen.push('over');
+          }}
+          onDrop={() => seen.push('drop')}
+          onBlur={() => seen.push('blur')}
+        >
+          card
+        </div>
+      ),
+      host,
+    );
+
+    const card = host.querySelector('div') as HTMLElement;
+    card.dispatchEvent(new Event('dragstart', { bubbles: true }));
+    card.dispatchEvent(new Event('dragover', { bubbles: true, cancelable: true }));
+    card.dispatchEvent(new Event('drop', { bubbles: true }));
+    card.dispatchEvent(new Event('blur'));
+
+    expect(seen).toEqual(['start', 'over', 'drop', 'blur']);
+  });
+});

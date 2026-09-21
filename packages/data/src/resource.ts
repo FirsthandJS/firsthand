@@ -230,12 +230,17 @@ export function useAction<I, R>(
           run(input, {
             signal: current.signal,
             invalidates,
-            // An action changes something, so nothing it sends may be answered
-            // out of a cache: `force` is not a choice here. `tags` is the
-            // store's invalidation, so a client that knows what a mutation
-            // changed — a document with `@invalidates` — reports it without
-            // the call site repeating it.
-            request: { signal: current.signal, force: true, tags: invalidates },
+            // An action changes something, so nothing it sends may be
+            // answered out of a cache (`force`) or kept in one (`mutating`).
+            // `tags` is the store's invalidation, so a client that knows what
+            // a mutation changed — a document with `@invalidates` — reports it
+            // without the call site repeating it.
+            request: {
+              signal: current.signal,
+              force: true,
+              mutating: true,
+              tags: invalidates,
+            },
           }),
         );
         if (current.signal.aborted || entry.disposed) {

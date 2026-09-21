@@ -184,9 +184,15 @@ resolves with `undefined`. An `onClick` that forgets to `await` cannot produce
 an unhandled rejection.
 
 An action's body is **untracked** — it runs from an event handler, and what it
-reads on the way is nobody's dependency. Its request always carries
-`force: true`: an action changes something, so nothing it sends may be answered
-out of a cache. It exposes `data`, `error`, `status` and `running`.
+reads on the way is nobody's dependency. It exposes `data`, `error`, `status`
+and `running`.
+
+**Nothing an action sends touches the cache.** Its request carries `force`, so
+it is never answered from memory, and `mutating`, so its answer is never _put_
+there — not even when the call has a `cacheKey`, and not even when it is a
+`GET`. A cache holds representations; what an action gets back is the answer to
+_doing_ something. Two identical writes are two writes, as well: an action is
+never shared with another in flight.
 
 ## Tags
 
@@ -325,6 +331,9 @@ function signOut(): void {
 
 The difference is that forgetting to is now a memory question rather than a
 correctness one.
+
+Actions are outside all of this: they neither read from the cache nor write to
+it, whatever key they carry.
 
 > **A key you write yourself must carry everything that varies.** `cacheKey:
 'search'` for a POST whose body is the query means every search shares one

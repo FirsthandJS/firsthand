@@ -67,6 +67,10 @@ components asking at once make one request, which is waste removed rather than
 staleness introduced. `force` drops the entry, which is how an invalidation
 reaches all the way down.
 
+**An action never touches it** — not read from, not written to, whatever its
+method or key. A cache holds representations, and what an action gets back is
+the answer to doing something.
+
 A key is an **identity** and a **request**: `GET /api/me` is the same URL for
 everybody, so the identity — the `authorization` header by default, or a
 `scope` function you give — is what stops one account being served the answer

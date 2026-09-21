@@ -180,7 +180,9 @@ export function createUrqlClient(client: UrqlLike, options: UrqlClientOptions = 
       request.tags?.(
         ...resolveTags(kind === 'mutation' ? document.invalidates : document.tags, variables),
       );
-      if (cache === undefined || kind === 'mutation') {
+      // A mutation is never cached, and neither is a query an action sends:
+      // what an action gets back is the answer to doing something.
+      if (cache === undefined || kind === 'mutation' || request.mutating === true) {
         return await send<T>(kind, document.source, variables, request);
       }
       // Stable whatever order the variables were written in, and carrying the

@@ -137,6 +137,15 @@ URL — so two pages of one list were one entry. Keys now include `params`,
 through an exported `stableKey` that is order-independent, and a caller writing
 their own `cacheKey` is told to use it.
 
+**An action is not cacheable, at all.** Also 0.6.2's review. `force` kept an
+action from being _answered_ out of the cache, but nothing kept its answer from
+being _written_ there: a `GET` that recalculates something — plenty of real
+APIs are shaped that way — left its result under that URL, and the next read
+was served it. The request therefore says `mutating`, and every client and the
+cache treat that as "run this and remember nothing", whatever the method and
+whatever key the call carries. Two identical writes are two writes, so they are
+not shared either.
+
 ## Non-goals
 
 Interceptors, retries, backoff, token refresh, XSRF, request queues,

@@ -34,6 +34,8 @@
  *   is the point where the store's invalidation and the transport's memory
  *   meet, and without it an invalidation would be answered out of the cache it
  *   was meant to defeat.
+ * - **Stays out of an action's way.** A `mutating` request is run and nothing
+ *   else: not served from here, not shared with anybody, and not kept.
  * - **Forgets.** `forget(key)`, `forget()` for all of it, and the oldest entry
  *   goes when `max` is reached.
  */
@@ -185,6 +187,12 @@ export function createCacheClient(options: CacheOptions = {}): CacheClient {
     read:
       <T>(key: string, produce: Loader<T>): Loader<T> =>
       async (request: DataRequest): Promise<T> => {
+        if (request.mutating === true) {
+          // An action. It is not answered from here and it does not end up
+          // here: a write is not a representation, and two writes are two
+          // writes rather than one to share.
+          return await produce(request);
+        }
         const held = entries.get(key);
         if (request.force) {
           // The invalidation reaches through: whatever is here is the answer

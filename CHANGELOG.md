@@ -4,6 +4,47 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3] - 2026-09-21
+
+### Fixed
+
+- **Drag and drop, blur and focus are typeable in TSX.** `FirsthandAttributes`
+  listed fourteen `on…` handlers and none of the drag ones, so the ordinary way
+  to move a card between columns — `draggable` plus `onDragStart`, `onDragOver`
+  and `onDrop` — was a type error, as were `onBlur`, `onFocus`,
+  `onContextMenu`, `onWheel`, `onScroll`, the clipboard events and the pointer
+  events beyond down and up. All of them are declared now.
+
+  Found the same way `slot` was in 0.6.1: by building a kanban board with the
+  published packages.
+
+- **An action's answer no longer lands in the cache.** `force` kept an action
+  from being _answered_ out of the cache; nothing kept its answer from being
+  _written_ into one. So a `GET` that changes something — a
+  `/reports/recalculate` endpoint, which is how plenty of real APIs are shaped
+  — left its result under that URL, and the next resource asking for it was
+  served the answer to somebody's button press. A `cacheKey` on a write did
+  the same thing.
+
+  A request now says whether it is `mutating`, and an action's is. Every
+  client and the cache treat that as _run this and remember nothing_: not
+  served from the cache, not written to it, and not shared with another
+  identical write in flight, whatever the method and whatever key the call
+  carries.
+
+  ```ts
+  // Both of these go to the server, every time, and neither is kept.
+  useAction((id: string, { request }) => api.get(`/orders/${id}/recalculate`)(request));
+  useAction((body: Draft, { request }) =>
+    api.post('/send', { json: body, cacheKey: 'send' })(request),
+  );
+  ```
+
+  A cache holds representations. What an action gets back is the answer to
+  _doing_ something, and the two are not the same thing —
+  [ADR-0023](docs/adr/0023-one-cache-at-the-transport-edge.md) now says so
+  where it can be found.
+
 ## [0.6.2] - 2026-09-21
 
 ### Fixed
@@ -810,6 +851,7 @@ strictReactivity: false })` restores the previous behaviour.
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.6.3]: https://github.com/firsthandjs/firsthand/releases/tag/v0.6.3
 [0.6.2]: https://github.com/firsthandjs/firsthand/releases/tag/v0.6.2
 [0.6.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.6.1
 [0.6.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.6.0
