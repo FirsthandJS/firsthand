@@ -70,6 +70,11 @@ export interface JsonRequest extends Omit<RequestInit, 'body'> {
    * nowhere.
    *
    * A key is for when the URL is not the identity — a POST that reads, say.
+   * It must then carry **everything that varies**, the body included:
+   * `` cacheKey: `search:${stableKey(body)}` `` rather than `'search'`, or
+   * two different searches share one answer. The client's identity scope is added
+   * for you either way.
+   *
    * `false` is for the read that must never be served from memory. The
    * platform's own `cache` option is untouched and still passed to `fetch`,
    * because that one is the HTTP cache and a different thing entirely.
@@ -98,6 +103,24 @@ export interface FetchClientOptions {
   readonly cache?: false | CacheOptions | CacheClient;
   /** Applied to every request: `credentials`, `mode`, `referrerPolicy`, … */
   readonly init?: RequestInit;
+  /**
+   * Who the cached answers belong to.
+   *
+   * A cache keyed by URL alone is a cache that can serve one account's answer
+   * to the next one, because `GET /api/me` is the same URL for everybody. So
+   * the key carries an identity, and by default that identity is the
+   * `authorization` header this request would be sent with — which means the
+   * dangerous case is handled without anybody opting in.
+   *
+   * Set this when the identity is somewhere else: a cookie session, a tenant
+   * header, an account picker. It is read per request and untracked, like
+   * `headers`. Returning `''` says every caller shares one cache.
+   *
+   * Clearing the cache on sign-out (`client.cache?.forget()`) is still worth
+   * doing — it frees the memory, and it is what `store.clear()` is beside —
+   * but forgetting to is no longer a correctness bug.
+   */
+  readonly scope?: () => string;
   /**
    * The seam. Wrap `fetch` to log, to retry, or to end a session on a 401 —
    * and keep that in one place rather than in a plugin system.
@@ -188,15 +211,25 @@ export function createFetchClient(options: FetchClientOptions = {}): FetchClient
       async (request: DataRequest): Promise<T> => {
         const [target, merged] = resolve(options, url, init);
         const method = (merged.method ?? 'GET').toUpperCase();
+        // Who this answer belongs to. The default is the authorization header
+        // the request carries, so two accounts in one session cannot read
+        // each other's answers out of one URL-shaped key.
+        const scope =
+          options.scope === undefined
+            ? ((merged.headers as Headers).get('authorization') ?? '')
+            : untrack(options.scope);
         // Only a read is cacheable, and only by its URL: a POST is not
         // identified by where it was sent, and a body may be a stream nobody
         // can key on. `cache: 'key'` is how a reading POST says otherwise.
-        const key =
+        const named =
           typeof init.cacheKey === 'string'
             ? init.cacheKey
             : method === 'GET' || method === 'HEAD'
               ? `${method} ${target}`
               : undefined;
+        // Two parts, separated by a character a URL cannot contain: an
+        // identity and a request. Neither can be mistaken for the other.
+        const key = named === undefined ? undefined : `${scope}\u0000${named}`;
         if (cache === undefined || init.cacheKey === false || key === undefined) {
           return await send<T>(options, target, merged, request);
         }

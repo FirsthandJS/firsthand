@@ -6,7 +6,7 @@ Apollo Client as a client for [`@firsthandjs/data`](https://www.npmjs.com/packag
 npm install @firsthandjs/data-apollo
 ```
 
-0.61 kB gzip. It has **no dependency on Apollo** and no peer dependency either —
+0.65 kB gzip. It has **no dependency on Apollo** and no peer dependency either —
 the three methods it uses are declared structurally. That also keeps your copy
 of `graphql` the only copy, which is a category of afternoon worth avoiding.
 
@@ -63,8 +63,12 @@ together, and only two:
   const user = fromObservable(...billing.watch(UserDocument, { id: props.id }));
   ```
 
-What is not on the list is both at once, with the same data living in two
-places under two invalidation rules. See
+If you do give this client a cache, its keys carry the operation, the variables
+(in any order they were written) and an identity — the `authorization` header
+by default, or a `scope` you give.
+
+What is not on the list is both caches at once, with the same data living in
+two places under two invalidation rules. See
 [ADR-0022](https://github.com/firsthandjs/firsthand/blob/main/docs/adr/0022-resources-not-a-cache.md).
 
 ## Tags come out of the document

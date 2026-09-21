@@ -287,6 +287,51 @@ from a socket, a first page rendered on the server), `peek(key)` to look
 without running anything, `forget(key)` and `forget()` — which is what a
 sign-out calls, along with `store.clear()`.
 
+### Whose answer is it?
+
+A cache keyed by URL alone can serve one account's answer to the next one:
+`GET /api/me` is the same URL for everybody. So the key carries an **identity**
+as well as a request, and by default that identity is the `authorization`
+header the request would be sent with.
+
+```ts
+const api = createFetchClient({
+  headers: () => ({ authorization: `Bearer ${session.token.peek()}` }),
+  cache: { ttl: 30_000 },
+});
+// Sign in as somebody else and the key changes with the header. The previous
+// account's answers are still in memory, but unreachable.
+```
+
+When the identity is somewhere else — a cookie session, a tenant header, an
+account picker — say so:
+
+```ts
+const api = createFetchClient({
+  init: { credentials: 'include' },
+  scope: () => session.account.value?.id ?? 'anonymous',
+  cache: { ttl: 30_000 },
+});
+```
+
+Clearing on sign-out is still worth doing, because it frees the memory:
+
+```ts
+function signOut(): void {
+  session.end();
+  api.cache?.forget(); // and `store.clear()` for anything persisted
+}
+```
+
+The difference is that forgetting to is now a memory question rather than a
+correctness one.
+
+> **A key you write yourself must carry everything that varies.** `cacheKey:
+'search'` for a POST whose body is the query means every search shares one
+> answer. `` cacheKey: `search:${stableKey(body)}` `` is the version that does
+> not — `stableKey` is exported for exactly this, and gives the same string
+> whatever order an object was written in.
+
 ## Keeping a value between visits
 
 The cache is memory for this page view. A value that should survive a reload is

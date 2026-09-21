@@ -240,10 +240,10 @@ Shoelace and styled components on one page) and
 | `@firsthandjs/devtools`    | 6.29 kB     | **Experimental.** What updates what, and why    |
 | `@firsthandjs/compiler`    | build only  | The TSX transform and the bundler plugin        |
 | `@firsthandjs/router`      | 3.36 kB     | Routes, links, history, lazy routes             |
-| `@firsthandjs/data`        | 3.65 kB     | Resources, actions, tags, the cache, fetch      |
-| `@firsthandjs/data-axios`  | 0.47 kB     | Axios, as a client                              |
-| `@firsthandjs/data-urql`   | 0.53 kB     | urql, as a client                               |
-| `@firsthandjs/data-apollo` | 0.61 kB     | Apollo, as a client, and its observables        |
+| `@firsthandjs/data`        | 3.84 kB     | Resources, actions, tags, the cache, fetch      |
+| `@firsthandjs/data-axios`  | 0.58 kB     | Axios, as a client                              |
+| `@firsthandjs/data-urql`   | 0.58 kB     | urql, as a client                               |
+| `@firsthandjs/data-apollo` | 0.65 kB     | Apollo, as a client, and its observables        |
 | `@firsthandjs/styled`      | 1.98 kB     | CSS-in-JS with custom properties                |
 | `@firsthandjs/react`       | 0.66 kB     | React components inside Firsthand               |
 | `@firsthandjs/i18n`        | 0.37 kB     | i18next and friends, made reactive              |
@@ -365,11 +365,11 @@ Optional packages, downloaded only by an application that imports them:
 | `@firsthandjs/devtools` | 16.90 kB | **6.29 kB** | 5.53 kB |
 | `@firsthandjs/i18n` | 0.63 kB | **0.37 kB** | 0.32 kB |
 | `@firsthandjs/router` | 8.36 kB | **3.36 kB** | 3.06 kB |
-| `@firsthandjs/data` | 8.89 kB | **3.65 kB** | 3.32 kB |
-| `@firsthandjs/data (.gql loader path, parser tree-shaken)` | 6.26 kB | **2.56 kB** | 2.35 kB |
-| `@firsthandjs/data-axios` | 0.98 kB | **0.49 kB** | 0.41 kB |
-| `@firsthandjs/data-urql` | 0.92 kB | **0.53 kB** | 0.46 kB |
-| `@firsthandjs/data-apollo` | 1.16 kB | **0.61 kB** | 0.52 kB |
+| `@firsthandjs/data` | 9.28 kB | **3.84 kB** | 3.49 kB |
+| `@firsthandjs/data (.gql loader path, parser tree-shaken)` | 6.36 kB | **2.61 kB** | 2.39 kB |
+| `@firsthandjs/data-axios` | 1.21 kB | **0.58 kB** | 0.50 kB |
+| `@firsthandjs/data-urql` | 1.08 kB | **0.58 kB** | 0.50 kB |
+| `@firsthandjs/data-apollo` | 1.32 kB | **0.65 kB** | 0.57 kB |
 | `@firsthandjs/styled` | 4.18 kB | **1.98 kB** | 1.79 kB |
 | `@firsthandjs/react` | 1.19 kB | **0.66 kB** | 0.58 kB |
 | `@firsthandjs/react/auto` | 1.20 kB | **0.66 kB** | 0.58 kB |
@@ -466,7 +466,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 830 tests under Vitest and 90
+This repository is the demonstration: 844 tests under Vitest and 90
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all seven examples.
 <!-- prettier-ignore-end -->

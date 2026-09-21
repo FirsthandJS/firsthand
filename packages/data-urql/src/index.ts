@@ -32,6 +32,7 @@
 import {
   createCacheClient,
   resolveTags,
+  stableKey,
   type CacheClient,
   type CacheOptions,
   type DataRequest,
@@ -76,6 +77,13 @@ export interface UrqlClientOptions {
    * only, keyed by operation and variables.
    */
   readonly cache?: false | CacheOptions | CacheClient;
+  /**
+   * Who the cached answers belong to. Defaults to the `authorization` header
+   * this request would carry, so two accounts in one session cannot read each
+   * other's answers out of one operation-shaped key. Read per request,
+   * untracked.
+   */
+  readonly scope?: () => string;
   /** Merged into urql's operation context for every request. */
   readonly context?: Record<string, unknown>;
 }
@@ -110,6 +118,16 @@ export function createUrqlClient(client: UrqlLike, options: UrqlClientOptions = 
       : 'read' in options.cache
         ? options.cache
         : createCacheClient(options.cache);
+
+  /** What the cached answers belong to: the caller's scope, or the token. */
+  const identity = (): string => {
+    if (options.scope !== undefined) {
+      return untrack(options.scope);
+    }
+    const headers =
+      typeof options.headers === 'function' ? untrack(options.headers) : (options.headers ?? {});
+    return headers['authorization'] ?? headers['Authorization'] ?? '';
+  };
 
   const send = async <T>(
     kind: 'query' | 'mutation',
@@ -165,7 +183,9 @@ export function createUrqlClient(client: UrqlLike, options: UrqlClientOptions = 
       if (cache === undefined || kind === 'mutation') {
         return await send<T>(kind, document.source, variables, request);
       }
-      const key = `${document.operation}(${JSON.stringify(variables)})`;
+      // Stable whatever order the variables were written in, and carrying the
+      // identity the answer belongs to.
+      const key = `${identity()}\u0000${document.operation}(${stableKey(variables)})`;
       return await cache.read<T>(key, (shared) =>
         send<T>(kind, document.source, variables, shared),
       )(request);

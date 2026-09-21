@@ -28,7 +28,7 @@ export type {
  * own: the same `read`, the same lifetimes, and the same `force` reaching
  * through when a resource is invalidated (ADR-0023).
  */
-export { createCacheClient } from './cache.js';
+export { createCacheClient, stableKey } from './cache.js';
 export type { CacheClient, CacheOptions } from './cache.js';
 
 export { tag, tagMatches, anyTagMatches } from './tags.js';

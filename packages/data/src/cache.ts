@@ -39,6 +39,36 @@
  */
 import type { DataRequest, Loader } from './store.js';
 
+/**
+ * A key for a value, stable however the value was written.
+ *
+ * `{ a: 1, b: 2 }` and `{ b: 2, a: 1 }` are the same request, so they must be
+ * the same key — which `JSON.stringify` alone does not give you, because it
+ * keeps insertion order. Exported because a caller building a `cacheKey` of
+ * their own needs the same guarantee, and getting it wrong means one answer
+ * served for two different requests.
+ */
+export function stableKey(value: unknown): string {
+  if (value === undefined) {
+    return 'undefined';
+  }
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(stableKey).join(',')}]`;
+  }
+  if (value instanceof Date) {
+    // Named, because an object branch would read every `Date` as `{}` and make
+    // two different days one key.
+    return value.toISOString();
+  }
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, held]) => held !== undefined)
+    .sort(([one], [other]) => (one < other ? -1 : 1));
+  return `{${entries.map(([name, held]) => `${name}:${stableKey(held)}`).join(',')}}`;
+}
+
 export interface CacheOptions {
   /**
    * How long an answer is served again without running the producer, in ms.

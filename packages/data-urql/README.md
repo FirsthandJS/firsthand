@@ -6,7 +6,7 @@ urql as a client for [`@firsthandjs/data`](https://www.npmjs.com/package/@firsth
 npm install @firsthandjs/data-urql
 ```
 
-0.53 kB gzip. It has **no dependency on urql** and no peer dependency either —
+0.58 kB gzip. It has **no dependency on urql** and no peer dependency either —
 the two methods it uses are declared structurally. It was checked against
 `@urql/core` 6, which has no React dependency of its own.
 
@@ -72,7 +72,12 @@ invalidation, so neither call site writes a tag at all.
   from a helper. `force` is passed on as `requestPolicy: 'network-only'`, so an
   invalidation reaches past it.
 
-What you should not have is both, because two caches over one piece of data
+If you do give this client a cache, its keys carry the operation, the variables
+(in any order they were written) and an identity — the `authorization` header
+by default, or a `scope` you give — so two accounts in one session cannot read
+each other's answers.
+
+What you should not have is two caches over one piece of data, because they
 disagree. If urql's cache should be the source of truth for an entity shown in
 many places, subscribe to it with `fromObservable` instead.
 

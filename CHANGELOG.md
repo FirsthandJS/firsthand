@@ -4,6 +4,62 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-09-21
+
+### Fixed
+
+- **A cache key is an identity and a request.** `GET /api/me` is the same URL
+  for every account, so a key made of method and URL alone could serve one
+  account's answer to the next one in the same session — the worst failure a
+  cache has, because nothing looks wrong on the way to it.
+
+  Every client now prefixes its keys with the identity the answer belongs to,
+  defaulting to the `authorization` header the request would carry. Signing in
+  as somebody else changes the header, so it changes the key:
+
+  ```ts
+  const api = createFetchClient({
+    headers: () => ({ authorization: `Bearer ${session.token.peek()}` }),
+    cache: { ttl: 30_000 },
+  });
+  ```
+
+  For a session that is not a header — a cookie, a tenant, an account picker —
+  `scope` says what it is instead:
+
+  ```ts
+  createFetchClient({ init: { credentials: 'include' }, scope: () => account.value.id, … });
+  ```
+
+  `client.cache?.forget()` on sign-out is still worth doing, because it frees
+  the memory. The difference is that forgetting to is no longer a correctness
+  bug.
+
+- **The Axios client keyed reads by URL alone**, and Axios keeps the query
+  string in `params` rather than in the URL — so page 1 and page 2 of a list
+  were one entry, and the second read was answered with the first one's rows.
+  Keys now include `params`.
+
+### Added
+
+- **`stableKey(value)`** — a key for a value that does not depend on the order
+  its properties were written in. It is what the clients build their keys with,
+  and it is exported because a `cacheKey` written by hand needs the same
+  property: it must carry everything that varies, the body included.
+
+  ```ts
+  api.post('/search', { json: body, cacheKey: `search:${stableKey(body)}` });
+  ```
+
+### Documentation
+
+- The [data guide](docs/guide/09-data.md) has a section on whose answer a
+  cached one is, and [ADR-0023](docs/adr/0023-one-cache-at-the-transport-edge.md)
+  records the decision and the collision that prompted it.
+- The risk register said props destructuring was a build error. It has been
+  rewritten into live reads since ADR-0005 was reversed; R8 now says what the
+  compiler actually does, and which patterns are still errors.
+
 ## [0.6.1] - 2026-09-21
 
 ### Fixed
@@ -754,6 +810,7 @@ strictReactivity: false })` restores the previous behaviour.
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.6.2]: https://github.com/firsthandjs/firsthand/releases/tag/v0.6.2
 [0.6.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.6.1
 [0.6.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.6.0
 [0.5.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.5.0

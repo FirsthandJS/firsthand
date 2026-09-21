@@ -6,7 +6,7 @@
  * one with nothing else in the way.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createCacheClient, type DataRequest } from '@firsthandjs/data';
+import { createCacheClient, stableKey, type DataRequest } from '@firsthandjs/data';
 
 const ask = (force = false): DataRequest => ({
   signal: new AbortController().signal,
@@ -196,6 +196,21 @@ describe('createCacheClient', () => {
     now = 1100;
     expect(cache.peek('k')).toBeUndefined();
     expect(cache.peek('never-written')).toBeUndefined();
+  });
+
+  it('builds a key that does not depend on how the value was written', () => {
+    // The whole point: two objects that mean the same request must key the
+    // same, and two that do not must not.
+    expect(stableKey({ a: 1, b: [2, 'x'] })).toBe(stableKey({ b: [2, 'x'], a: 1 }));
+    expect(stableKey({ page: 1 })).not.toBe(stableKey({ page: 2 }));
+    // `undefined` and absent are the same thing to a server.
+    expect(stableKey({ a: 1, b: undefined })).toBe(stableKey({ a: 1 }));
+    // A date is a date, not `{}` — the object branch would make every one of
+    // them one key.
+    expect(stableKey(new Date('2026-01-01'))).not.toBe(stableKey(new Date('2026-02-01')));
+    expect(stableKey(undefined)).toBe('undefined');
+    expect(stableKey(null)).toBe('null');
+    expect(stableKey('x')).toBe('"x"');
   });
 
   it('aborts what is in flight when the entry is forgotten', async () => {

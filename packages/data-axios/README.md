@@ -6,7 +6,7 @@ Axios as a client for [`@firsthandjs/data`](https://www.npmjs.com/package/@first
 npm install @firsthandjs/data-axios
 ```
 
-0.47 kB gzip. It has **no dependency on Axios** and no peer dependency either —
+0.58 kB gzip. It has **no dependency on Axios** and no peer dependency either —
 the one method it uses is declared structurally, so it has no opinion about
 which version you run, and nothing to follow when that version changes.
 
@@ -46,7 +46,7 @@ api.get<Profile>('/profiles/7');
 api.post<Profile>('/profiles', { name: 'Ada' });
 api.request<Row[]>({ url: '/rows', method: 'report' });
 api.with({ config: { timeout: 1000 } }); // a variation; the cache is shared
-api.cache?.forget(); // what a sign-out calls
+api.cache?.forget(); // a sign-out: frees the memory, not a correctness fix
 ```
 
 ## It takes your instance; it never configures it
@@ -60,8 +60,11 @@ Axios has no way of knowing about:
 - **headers read per request**, so a token that changes is the current one, and
   untracked, so a resource never depends on it;
 - the **cache**, shared with the rest of the application if you pass one in —
-  reads only, keyed by base URL and path, and `force` drops the entry, which is
-  how an invalidation reaches through.
+  reads only, and `force` drops the entry, which is how an invalidation reaches
+  through. A key carries the base URL, the path **and the `params`**, because
+  that is where Axios keeps the query string, plus an identity — the
+  `authorization` header by default, or a `scope` you give — so that two
+  accounts in one session cannot read each other's answers.
 
 Two APIs are two instances and two clients, and one component may read from
 both.

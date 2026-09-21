@@ -9,7 +9,7 @@ what is loaded, what state that is in, and when it has to be loaded again.
 npm install @firsthandjs/data
 ```
 
-3.65 kB gzip. It depends on `@firsthandjs/core` and `@firsthandjs/dom`.
+3.84 kB gzip. It depends on `@firsthandjs/core` and `@firsthandjs/dom`.
 
 ```tsx
 const api = createFetchClient({ baseUrl: '/api' });
@@ -66,6 +66,11 @@ One cache, both jobs. With no `ttl` it still shares what is in flight — ten
 components asking at once make one request, which is waste removed rather than
 staleness introduced. `force` drops the entry, which is how an invalidation
 reaches all the way down.
+
+A key is an **identity** and a **request**: `GET /api/me` is the same URL for
+everybody, so the identity — the `authorization` header by default, or a
+`scope` function you give — is what stops one account being served the answer
+cached for another.
 
 ## Tags are for invalidation
 

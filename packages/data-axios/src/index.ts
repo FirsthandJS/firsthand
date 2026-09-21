@@ -32,6 +32,7 @@
  */
 import {
   createCacheClient,
+  stableKey,
   type CacheClient,
   type CacheOptions,
   type DataRequest,
@@ -60,6 +61,12 @@ export interface AxiosClientOptions {
    * application. Only `GET` and `HEAD` are cached, by URL.
    */
   readonly cache?: false | CacheOptions | CacheClient;
+  /**
+   * Who the cached answers belong to. Defaults to the `authorization` header
+   * this request would carry, so two accounts in one session cannot read each
+   * other's answers out of one URL-shaped key. Read per request, untracked.
+   */
+  readonly scope?: () => string;
   /** Merged into every request: `responseType`, `timeout`, `withCredentials`, … */
   readonly config?: AxiosRequest;
 }
@@ -100,6 +107,16 @@ export function createAxiosClient(
         ? options.cache
         : createCacheClient(options.cache);
 
+  /** What the cached answers belong to: the caller's scope, or the token. */
+  const identity = (): string => {
+    if (options.scope !== undefined) {
+      return untrack(options.scope);
+    }
+    const headers =
+      typeof options.headers === 'function' ? untrack(options.headers) : (options.headers ?? {});
+    return headers['authorization'] ?? headers['Authorization'] ?? '';
+  };
+
   const send = async <T>(config: AxiosRequest, request: DataRequest): Promise<T> => {
     const headers = {
       // Untracked: a header function reads a token, and a token is not
@@ -127,7 +144,13 @@ export function createAxiosClient(
         if (cache === undefined || (method !== 'GET' && method !== 'HEAD')) {
           return await send<T>(config, request);
         }
-        const key = `${method} ${text(config['baseURL'], '')}${text(config['url'], '')}`;
+        // `params` is part of the URL once Axios has sent it, so it is part of
+        // the key: leaving it out makes page 1 and page 2 of a list one entry,
+        // which is the collision this line exists to prevent.
+        const where = `${method} ${text(config['baseURL'], '')}${text(config['url'], '')}`;
+        const query = config['params'] === undefined ? '' : `?${stableKey(config['params'])}`;
+        // And an identity, separated by a character a URL cannot contain.
+        const key = `${identity()}\u0000${where}${query}`;
         return await cache.read<T>(key, (shared) => send<T>(config, shared))(request);
       },
     get: <T>(url: string, config: AxiosRequest = {}): Loader<T> =>
