@@ -4,6 +4,84 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-09-21
+
+### Fixed
+
+- **An invalidation now reaches the resource that did not exist yet.** A board
+  list is on screen and loads; you open a board and move a card, which
+  invalidates `boards` — and nothing is watching the list, so it reaches
+  nobody; you walk back, which _creates_ a resource rather than reloading one,
+  and the cache hands it the answer from before the move. Every layer did what
+  it was told and the counts were wrong.
+
+  The store now remembers what it invalidated for a minute. A run whose tags
+  match an invalidation it never saw is forced, which is what makes it reach
+  past a cache — once. As soon as a run with those tags succeeds, the memory
+  is dropped, so one invalidation cannot force every resource created in the
+  next minute.
+
+  ```ts
+  createData({ remember: 60_000 }); // the default; 0 restores 0.6.x exactly
+  ```
+
+  Nothing changes at a call site, and no client needed a new hook: they
+  already declare a document's tags before they read their cache.
+  [ADR-0024](docs/adr/0024-an-invalidation-outlives-its-reader.md) has the
+  alternatives, including the one that would have put tags in the transport.
+
+  `DataRequest.force` is a **getter** now rather than a field, because
+  declaring tags can raise it. Anything that read it still reads it; anything
+  that copied it into a variable before the loader declared its tags should
+  read it later instead.
+
+### Added
+
+- **An invalidation can empty the cache, not just outrun it.** The half above
+  makes the _next_ reader pay for a stale entry; this drops it where it stands:
+
+  ```ts
+  const cache = createCacheClient({ ttl: 30_000 });
+  const store = createData({ caches: [cache] });
+  ```
+
+  A cache entry now keeps what its request said it was about, and
+  `store.invalidate` calls `forgetTagged` on the caches it was handed. The tags
+  are **metadata on the entry, never the key** — identity is still the scope
+  and the request, which is the distinction
+  [ADR-0022](docs/adr/0022-resources-not-a-cache.md) exists to protect and
+  [ADR-0025](docs/adr/0025-tags-as-cache-metadata.md) spends its length
+  defending.
+
+  A cache that is not passed is not touched, which is the right default for a
+  transport's own: Apollo's and urql's caches are theirs, and `force` stays the
+  only contact with them.
+
+- **The compiler refuses a view that is chosen once.** This compiled, ran, and
+  looked like a broken button:
+
+  ```tsx
+  const Panel = component(() => {
+    const open = signal(false);
+    return open.value ? <Form /> : <Button />; // decided at setup, for ever
+  });
+  ```
+
+  A setup runs one time per instance, so the branch that was true then is the
+  only one that will ever appear. In a child position the same expression is a
+  part:
+
+  ```tsx
+  return <>{open.value ? <Form /> : <Button />}</>;
+  ```
+
+  `strictReactivity` now reports the first form — for a signal read, a prop
+  read, `&&` as well as `? :`, and the short `component(() => cond ? a : b)`
+  form. A branch on something that does _not_ change is left alone, as is a
+  return with no markup in it. It was written after making this exact mistake
+  three times in one afternoon while building the kanban showcase; the third
+  one took twenty minutes to find.
+
 ## [0.6.3] - 2026-09-21
 
 ### Fixed
@@ -851,6 +929,7 @@ strictReactivity: false })` restores the previous behaviour.
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.7.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.7.0
 [0.6.3]: https://github.com/firsthandjs/firsthand/releases/tag/v0.6.3
 [0.6.2]: https://github.com/firsthandjs/firsthand/releases/tag/v0.6.2
 [0.6.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.6.1

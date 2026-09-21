@@ -13,6 +13,7 @@ export type {
   ActionContext,
   DataOptions,
   DataRequest,
+  Forgetful,
   DataStore,
   LoadContext,
   Loader,

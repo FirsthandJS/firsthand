@@ -135,6 +135,47 @@ if (import.meta.env.DEV) {
 }
 ```
 
+## A view is chosen in the markup, not before it
+
+A setup runs **once**, which makes this wrong in a way that compiles:
+
+```tsx
+const Panel = component(() => {
+  const open = signal(false);
+  return open.value ? <Form /> : <Button />; // decided now, and never again
+});
+```
+
+Whichever branch was true while the component was being built is the only one
+that will ever be on screen. The same thing spelled with a keyword is the same mistake, and it is the one
+that turns up in a route guard:
+
+```tsx
+const Guarded = component(() => {
+  if (token.value === null) {
+    return <Navigate to="/sign-in" />; // never runs again; a sign-out leaves
+  } // the page it was hiding on screen
+  return <Page />;
+});
+```
+
+Put the choice where it can run again — in a child
+position, where it is a part:
+
+```tsx
+return <>{open.value ? <Form /> : <Button />}</>;
+```
+
+The compiler reports the first form as a build error (`strictReactivity`),
+because nothing throws at runtime: the button simply stops working, later, and
+it takes twenty minutes to find.
+
+It reports a **signal** read and not a prop read. A signal exists in order to
+change; a prop may be fixed for the life of an instance — a recursive
+`component((props) => (props.depth === 0 ? <Leaf /> : <Nested />))` decides its
+shape once and is right to — and the compiler cannot tell the two apart. Where
+a prop does change, the same rule applies and nobody will warn you.
+
 ## Destructuring works
 
 ```tsx
