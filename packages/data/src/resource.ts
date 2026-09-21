@@ -92,10 +92,20 @@ export function useResource<T>(
       entry.status.value = 'loading';
     }
 
+    /** Raised when the run turns out to be about something recently invalidated. */
+    let forced = force;
+
     const declare = (...next: Tag[]): void => {
       // Replaces. A run says what it is about; it does not accumulate what
       // it used to be about.
       entry.tags = next;
+      // And the case a resource cannot see for itself: an invalidation that
+      // happened while nothing was watching this. The tags are only known now,
+      // which is why `force` is read rather than copied — a client asks for it
+      // after it has declared them and before it asks its cache.
+      if (!forced && store.missed(entry, next)) {
+        forced = true;
+      }
       // And the race this closes: an invalidation that arrived while this
       // run was in flight could not match tags that did not exist yet.
       if (entry.pending.length > 0 && anyTagMatches(entry.pending, next)) {
@@ -103,9 +113,23 @@ export function useResource<T>(
       }
     };
     // The request a client is handed: what to abort with, why it is running,
-    // and where to report what it turned out to be about.
-    const request: DataRequest = { signal: controller.signal, force, tags: declare };
-    const context: LoadContext = { ...request, request, tags: declare };
+    // and where to report what it turned out to be about. `force` is a getter
+    // because declaring the tags can raise it — see `declare` above.
+    const request: DataRequest = {
+      signal: controller.signal,
+      get force(): boolean {
+        return forced;
+      },
+      tags: declare,
+    };
+    const context: LoadContext = {
+      signal: controller.signal,
+      get force(): boolean {
+        return forced;
+      },
+      request,
+      tags: declare,
+    };
 
     return load(context)
       .then(async (value): Promise<T | undefined> => {
@@ -114,6 +138,9 @@ export function useResource<T>(
         }
         entry.controller = null;
         succeed(entry, value);
+        // A run with these tags has answered: an invalidation about them has
+        // been acted on, and is not owed to the next resource that appears.
+        store.settled(entry.tags);
         if (options.persist !== undefined) {
           try {
             store.storage?.write?.(options.persist, value);

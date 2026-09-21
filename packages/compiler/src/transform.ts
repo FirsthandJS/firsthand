@@ -190,7 +190,9 @@ function annotateComponent(
   const name = declaredName(path);
   rewritePropsDestructuring(path, name, state);
   if (options.strictReactivity !== false) {
-    checkKeptReads(path.get('arguments.0') as NodePath<t.Function>, name);
+    const setupPath = path.get('arguments.0') as NodePath<t.Function>;
+    checkKeptReads(setupPath, name);
+    checkDecidedOnce(setupPath, name);
   }
   path.node.arguments = [
     setup,
@@ -244,6 +246,130 @@ function checkKeptReads(setup: NodePath<t.Function>, name: string): void {
       );
     },
   });
+}
+
+/**
+ * Rejects a view chosen once, in the setup, from something that changes.
+ *
+ * ```tsx
+ * // Decided while the component was built, and never again:
+ * return open.value ? <Form /> : <Button />;
+ *
+ * // A part, re-evaluated when `open` changes:
+ * return <>{open.value ? <Form /> : <Button />}</>;
+ * ```
+ *
+ * The two look the same and behave completely differently, because a setup
+ * runs once per instance: the first form freezes whichever branch was true at
+ * setup, and nothing throws — the screen is simply wrong, later, in a way that
+ * reads as a broken button.
+ *
+ * Only the **returned expression** is examined, and only when a reactive read
+ * decides which view it produces. A read *inside* JSX is a part and is left
+ * alone; so is a return with no JSX in it at all, which is somebody's helper
+ * rather than a view.
+ */
+function checkDecidedOnce(setup: NodePath<t.Function>, name: string): void {
+  const parameter = setup.node.params[0];
+  const propsName = t.isIdentifier(parameter) ? parameter.name : null;
+
+  const report = (at: NodePath): never => {
+    throw at.buildCodeFrameError(
+      `${name}: this view is chosen once, here, from a value that changes. A setup ` +
+        'runs one time per instance, so the other branch will never appear.' +
+        '\n\nPut the choice inside the markup, where it is a part that can run ' +
+        'again:\n\n  return <>{open.value ? <A /> : <B />}</>;',
+    );
+  };
+
+  /** A returned expression that decides between views from a live read. */
+  const check = (returned: t.Node, at: NodePath): void => {
+    if (t.isConditionalExpression(returned)) {
+      if (!hasView(returned.consequent) && !hasView(returned.alternate)) {
+        return;
+      }
+      if (readsSomething(returned.test, propsName)) {
+        report(at);
+      }
+      return;
+    }
+    if (t.isLogicalExpression(returned) && returned.operator !== '??') {
+      if (!hasView(returned.right) && !hasView(returned.left)) {
+        return;
+      }
+      if (readsSomething(returned.left, propsName)) {
+        report(at);
+      }
+    }
+  };
+
+  const body = setup.get('body');
+  if (!body.isBlockStatement()) {
+    check(setup.node.body, body);
+    return;
+  }
+  body.traverse({
+    Function(nested: NodePath<t.Function>) {
+      // A handler or a nested component: its body runs on its own terms.
+      nested.skip();
+    },
+    ReturnStatement(statement: NodePath<t.ReturnStatement>) {
+      const returned = statement.node.argument;
+      if (returned !== null && returned !== undefined) {
+        check(returned, statement);
+      }
+    },
+  });
+}
+
+/**
+ * Whether an expression produces markup.
+ *
+ * A nested conditional counts, because `a ? (b ? <A /> : <B />) : null` is the
+ * same mistake with one more branch — and it is enough to look at one side of
+ * it, since a choice between two things is markup as soon as either is.
+ */
+function hasView(node: t.Node): boolean {
+  if (t.isConditionalExpression(node)) {
+    return hasView(node.consequent) || hasView(node.alternate);
+  }
+  return t.isJSXElement(node) || t.isJSXFragment(node);
+}
+
+/** Whether an expression reads a signal or a prop anywhere inside it. */
+function readsSomething(node: t.Node, propsName: string | null): boolean {
+  let found = false;
+  const walk = (current: t.Node | null | undefined): void => {
+    if (current === null || current === undefined || found) {
+      return;
+    }
+    if (t.isMemberExpression(current)) {
+      if (!current.computed && t.isIdentifier(current.property, { name: 'value' })) {
+        found = true;
+        return;
+      }
+      if (propsName !== null && t.isIdentifier(current.object, { name: propsName })) {
+        found = true;
+        return;
+      }
+      walk(current.object);
+      return;
+    }
+    if (t.isUnaryExpression(current)) {
+      walk(current.argument);
+      return;
+    }
+    if (t.isBinaryExpression(current) || t.isLogicalExpression(current)) {
+      walk(current.left);
+      walk(current.right);
+      return;
+    }
+    if (t.isConditionalExpression(current)) {
+      walk(current.test);
+    }
+  };
+  walk(node);
+  return found;
 }
 
 /**

@@ -132,6 +132,29 @@ export interface Storage {
 export interface DataOptions {
   /** Where named resources are kept between visits. */
   readonly storage?: Storage;
+  /**
+   * How long an invalidation is remembered for resources that did not exist
+   * when it happened, in ms. Default 60 000; `0` switches it off.
+   *
+   * An invalidation reaches every resource that is **alive**. Nothing is
+   * watching a list while you are two pages away from it, so a mutation there
+   * reaches nothing — and walking back creates a *new* resource, which asks
+   * the transport, which may still be holding the answer from before.
+   *
+   * So the store remembers what was invalidated and when. A resource whose
+   * first run declares a tag that was invalidated since it was created runs
+   * with `force`, which is what makes it reach past a cache exactly once. The
+   * window exists because the memory is about a cache's contents, and a cache
+   * entry does not live for ever; a minute is longer than any sensible `ttl`
+   * and short enough to be forgotten.
+   */
+  readonly remember?: number;
+}
+
+/** What was invalidated, and when. See {@link DataOptions.remember}. */
+interface Recent {
+  readonly patterns: readonly Tag[];
+  readonly at: number;
 }
 
 interface Held<T = unknown> {
@@ -148,6 +171,8 @@ interface Held<T = unknown> {
   superseded: boolean;
   disposed: boolean;
   name: string | undefined;
+  /** When this resource last carried an answer. 0 until it has one. */
+  answeredAt: number;
   run: (force: boolean) => Promise<T | undefined>;
 }
 
@@ -160,21 +185,64 @@ export interface DataStore {
   readonly size: number;
   /** Internal: a resource registers itself here. */
   hold(held: Held): () => void;
+  /**
+   * Internal: whether an invalidation that this resource missed applies to the
+   * tags it has just declared.
+   */
+  missed(entry: Held, tags: readonly Tag[]): boolean;
+  /**
+   * Internal: a run carrying these tags has answered, so an invalidation about
+   * them has been acted on and is no longer owed to anybody.
+   */
+  settled(tags: readonly Tag[]): void;
   /** Internal: the storage this store was given. */
   readonly storage: Storage | undefined;
 }
 
 export function createData(options: DataOptions = {}): DataStore {
   const held = new Set<Held>();
+  const remember = options.remember ?? 60_000;
+  /** Invalidations young enough to matter to a resource that did not see them. */
+  let recent: Recent[] = [];
+
+  const now = (): number => Date.now();
 
   return {
     storage: options.storage,
+    missed: (entry, tags) => {
+      if (remember === 0 || recent.length === 0) {
+        return false;
+      }
+      const since = now() - remember;
+      recent = recent.filter((one) => one.at >= since);
+      return recent.some(
+        // Younger than this resource's last answer, and about what it has just
+        // said it is about. A resource that has answered *since* the
+        // invalidation has already taken it into account.
+        (one) => one.at > entry.answeredAt && anyTagMatches(one.patterns, tags),
+      );
+    },
+    settled: (tags) => {
+      if (recent.length === 0) {
+        return;
+      }
+      // Somebody has been to the server about this. Whatever a transport is
+      // holding for those tags is that answer, so the debt is paid — and
+      // keeping it would force every resource created in the next minute.
+      recent = recent.filter((one) => !anyTagMatches(one.patterns, tags));
+    },
     hold: (entry) => {
       held.add(entry);
       return () => held.delete(entry);
     },
     invalidate: async (...patterns: Tag[]): Promise<void> => {
       const waiting: Promise<unknown>[] = [];
+      if (remember > 0) {
+        // Kept for the resources that are not here yet: a list two pages away
+        // is nobody's subscriber, and it is created — not reloaded — when you
+        // walk back to it.
+        recent.push({ patterns, at: now() });
+      }
       for (const entry of [...held]) {
         if (entry.controller !== null) {
           // In flight, and its tags may not be known yet: a loader is allowed
@@ -195,6 +263,7 @@ export function createData(options: DataOptions = {}): DataStore {
       await Promise.all(waiting);
     },
     clear: () => {
+      recent = [];
       for (const entry of [...held]) {
         entry.controller?.abort();
         held.delete(entry);
@@ -230,6 +299,7 @@ export function createHeld<T>(store: DataStore, name: string | undefined): Held<
     pending: [],
     superseded: false,
     disposed: false,
+    answeredAt: 0,
     name,
   } as unknown as Held<T>;
   return entry;
@@ -237,6 +307,9 @@ export function createHeld<T>(store: DataStore, name: string | undefined): Held<
 
 /** Settles a successful run. Exported for the bridges, which have no loader. */
 export function succeed<T>(entry: Held<T>, value: T): void {
+  // When it last carried an answer, which is what decides whether an
+  // invalidation it never saw still applies to it.
+  entry.answeredAt = Date.now();
   batch(() => {
     entry.data.value = value;
     entry.error.value = undefined;

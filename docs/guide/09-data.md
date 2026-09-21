@@ -245,6 +245,15 @@ Everything carrying a matching tag runs again, with `force`. A component that
 has never heard of the action shows the new value, because the only thing
 connecting the two is the tag.
 
+**And the ones that are not there yet.** A list two pages away is nobody's
+subscriber: an invalidation reaches nothing, and walking back to it _creates_ a
+resource rather than reloading one — which would then be handed whatever the
+transport kept from before the change. So the store remembers what it
+invalidated for a minute, and a first run whose tags match is forced. Once: the
+memory is dropped as soon as a run carrying those tags succeeds, so one
+invalidation cannot make the cache useless for the next sixty seconds.
+`createData({ remember: 0 })` switches it off.
+
 ## The cache
 
 One cache, at the transport edge, for two jobs: what a client fetched, and what

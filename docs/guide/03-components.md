@@ -135,6 +135,29 @@ if (import.meta.env.DEV) {
 }
 ```
 
+## A view is chosen in the markup, not before it
+
+A setup runs **once**, which makes this wrong in a way that compiles:
+
+```tsx
+const Panel = component(() => {
+  const open = signal(false);
+  return open.value ? <Form /> : <Button />; // decided now, and never again
+});
+```
+
+Whichever branch was true while the component was being built is the only one
+that will ever be on screen. Put the choice where it can run again — in a child
+position, where it is a part:
+
+```tsx
+return <>{open.value ? <Form /> : <Button />}</>;
+```
+
+The compiler reports the first form as a build error (`strictReactivity`),
+because nothing throws at runtime: the button simply stops working, later, and
+it takes twenty minutes to find.
+
 ## Destructuring works
 
 ```tsx

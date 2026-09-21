@@ -19,6 +19,11 @@ function createData(options?: DataOptions): DataStore;
 interface DataOptions {
   /** Where named resources are kept between visits. */
   readonly storage?: Storage;
+  /**
+   * How long an invalidation is remembered for resources that did not exist
+   * when it happened, in ms. Default 60 000; `0` switches it off.
+   */
+  readonly remember?: number;
 }
 
 interface DataStore {
@@ -45,6 +50,14 @@ function useInvalidate(): (...patterns: Tag[]) => Promise<void>;
 `invalidate` resolves once the runs it triggered have settled. A storage that
 throws is a storage that has nothing: it can never break a resource.
 
+An invalidation reaches every resource that is **alive** — and is remembered
+for `remember` milliseconds for the ones that are not. A list two pages away
+is nobody's subscriber; walking back to it creates a resource rather than
+reloading one, and that resource would otherwise be handed a cached answer
+from before the change. Its first run is forced instead, once: the memory is
+dropped as soon as a run carrying those tags succeeds
+([ADR-0024](../adr/0024-an-invalidation-outlives-its-reader.md)).
+
 There is no `staleTime` and no `cacheTime`, because there is no cache. A
 request cache belongs to the transport, where it can be the only one.
 
@@ -54,7 +67,11 @@ request cache belongs to the transport, where it can be the only one.
 interface DataRequest {
   /** Aborted when this run is superseded, or the resource goes away. */
   readonly signal: AbortSignal;
-  /** True when this run was caused by an invalidation or by `reload()`. */
+  /**
+   * True when this run was caused by an invalidation or by `reload()` — or by
+   * one the resource never saw, which declaring its tags can reveal. A getter
+   * for that reason: read it when you need it rather than copying it early.
+   */
   readonly force: boolean;
   /**
    * True when this request is part of an action. Nothing it sends is answered
