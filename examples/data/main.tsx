@@ -11,12 +11,30 @@
  *    a dependency.
  * 3. During a reload the old value stays on screen with a mark, rather than
  *    flashing empty.
- * 4. The request log at the bottom shows every call. There is no cache here;
- *    a request cache belongs to the transport, and this page has none.
+ * 4. The request log at the bottom shows every call that reached the "server".
+ *    Going back to a user already loaded adds nothing to it: the cache sits at
+ *    the transport, in front of the pretend API, and the resources know
+ *    nothing about it. Renaming does add to it, because an invalidation
+ *    reaches through the cache — which is the whole point of `force`.
  */
 import { component, provide, render, signal } from '@firsthandjs/dom';
-import { DataContext, createData, tag, useAction, useResource } from '@firsthandjs/data';
+import {
+  DataContext,
+  createCacheClient,
+  createData,
+  tag,
+  useAction,
+  useResource,
+} from '@firsthandjs/data';
 import { calls, listUsers, readUser, renameUser } from './api';
+
+/**
+ * The transport's memory — ours, and the only one.
+ *
+ * `createCacheClient` is the same cache `createFetchClient` keeps its answers
+ * in. Here it is in front of a function, which is the other thing it is for.
+ */
+const cache = createCacheClient({ ttl: 30_000 });
 
 const selected = signal(1);
 const log = signal<string[]>([]);
@@ -25,9 +43,9 @@ const record = (): void => {
 };
 
 const UserList = component(() => {
-  const users = useResource(({ signal, tags }) => {
+  const users = useResource(({ request, tags }) => {
     tags(tag('users'));
-    return listUsers(signal).finally(record);
+    return cache.read('users', ({ signal }) => listUsers(signal).finally(record))(request);
   });
 
   return (
@@ -51,11 +69,13 @@ const UserList = component(() => {
 });
 
 const UserDetail = component(() => {
-  const user = useResource(({ signal, tags }) => {
+  const user = useResource(({ request, tags }) => {
     // Read here, so it is a dependency: selecting another user runs this again.
     const id = selected.value;
     tags(tag('user', { id }));
-    return readUser(id, signal).finally(record);
+    return cache.read(`user:${String(id)}`, ({ signal }) => readUser(id, signal).finally(record))(
+      request,
+    );
   });
 
   const rename = useAction(async (name: string, { signal, invalidates }) => {

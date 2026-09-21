@@ -231,23 +231,23 @@ Shoelace and styled components on one page) and
 
 ## The packages
 
-| Package                    | Size (gzip) | What it is                                       |
-| -------------------------- | ----------- | ------------------------------------------------ |
-| `@firsthandjs/core`        | 2.36 kB     | Signals, computeds, effects, context, owners     |
-| `@firsthandjs/dom`         | 4.20 kB     | Components, rendering, elements, lists, portals  |
-| `@firsthandjs/jsx-runtime` | 0.59 kB     | JSX types, and the runtime fallback              |
-| `@firsthandjs/deep`        | 0.72 kB     | Deep reactivity: every property is a signal      |
-| `@firsthandjs/devtools`    | 6.30 kB     | **Experimental.** What updates what, and why     |
-| `@firsthandjs/compiler`    | build only  | The TSX transform and the bundler plugin         |
-| `@firsthandjs/router`      | 3.36 kB     | Routes, links, history, lazy routes              |
-| `@firsthandjs/data`        | 2.81 kB     | Resources, actions, tags, GraphQL documents      |
-| `@firsthandjs/data-axios`  | 0.11 kB     | Axios requests as loaders                        |
-| `@firsthandjs/data-urql`   | 0.30 kB     | urql documents as loaders                        |
-| `@firsthandjs/data-apollo` | 0.37 kB     | Apollo documents as loaders, and its observables |
-| `@firsthandjs/styled`      | 1.98 kB     | CSS-in-JS with custom properties                 |
-| `@firsthandjs/react`       | 0.66 kB     | React components inside Firsthand                |
-| `@firsthandjs/i18n`        | 0.37 kB     | i18next and friends, made reactive               |
-| `@firsthandjs/testing`     | dev only    | `mount`, `cleanup`, leak probes                  |
+| Package                    | Size (gzip) | What it is                                      |
+| -------------------------- | ----------- | ----------------------------------------------- |
+| `@firsthandjs/core`        | 2.36 kB     | Signals, computeds, effects, context, owners    |
+| `@firsthandjs/dom`         | 4.20 kB     | Components, rendering, elements, lists, portals |
+| `@firsthandjs/jsx-runtime` | 0.59 kB     | JSX types, and the runtime fallback             |
+| `@firsthandjs/deep`        | 0.72 kB     | Deep reactivity: every property is a signal     |
+| `@firsthandjs/devtools`    | 6.29 kB     | **Experimental.** What updates what, and why    |
+| `@firsthandjs/compiler`    | build only  | The TSX transform and the bundler plugin        |
+| `@firsthandjs/router`      | 3.36 kB     | Routes, links, history, lazy routes             |
+| `@firsthandjs/data`        | 3.65 kB     | Resources, actions, tags, the cache, fetch      |
+| `@firsthandjs/data-axios`  | 0.47 kB     | Axios, as a client                              |
+| `@firsthandjs/data-urql`   | 0.53 kB     | urql, as a client                               |
+| `@firsthandjs/data-apollo` | 0.61 kB     | Apollo, as a client, and its observables        |
+| `@firsthandjs/styled`      | 1.98 kB     | CSS-in-JS with custom properties                |
+| `@firsthandjs/react`       | 0.66 kB     | React components inside Firsthand               |
+| `@firsthandjs/i18n`        | 0.37 kB     | i18next and friends, made reactive              |
+| `@firsthandjs/testing`     | dev only    | `mount`, `cleanup`, leak probes                 |
 
 Every package is independent: installing `@firsthandjs/dom` pulls in the core and
 nothing else.
@@ -365,11 +365,11 @@ Optional packages, downloaded only by an application that imports them:
 | `@firsthandjs/devtools` | 16.90 kB | **6.29 kB** | 5.53 kB |
 | `@firsthandjs/i18n` | 0.63 kB | **0.37 kB** | 0.32 kB |
 | `@firsthandjs/router` | 8.36 kB | **3.36 kB** | 3.06 kB |
-| `@firsthandjs/data` | 6.71 kB | **2.81 kB** | 2.56 kB |
-| `@firsthandjs/data (.gql loader path, parser tree-shaken)` | 4.09 kB | **1.70 kB** | 1.56 kB |
-| `@firsthandjs/data-axios` | 0.11 kB | **0.11 kB** | 0.09 kB |
-| `@firsthandjs/data-urql` | 0.42 kB | **0.30 kB** | 0.24 kB |
-| `@firsthandjs/data-apollo` | 0.61 kB | **0.37 kB** | 0.31 kB |
+| `@firsthandjs/data` | 8.89 kB | **3.65 kB** | 3.32 kB |
+| `@firsthandjs/data (.gql loader path, parser tree-shaken)` | 6.26 kB | **2.56 kB** | 2.35 kB |
+| `@firsthandjs/data-axios` | 0.98 kB | **0.49 kB** | 0.41 kB |
+| `@firsthandjs/data-urql` | 0.92 kB | **0.53 kB** | 0.46 kB |
+| `@firsthandjs/data-apollo` | 1.16 kB | **0.61 kB** | 0.52 kB |
 | `@firsthandjs/styled` | 4.18 kB | **1.98 kB** | 1.79 kB |
 | `@firsthandjs/react` | 1.19 kB | **0.66 kB** | 0.58 kB |
 | `@firsthandjs/react/auto` | 1.20 kB | **0.66 kB** | 0.58 kB |
@@ -466,7 +466,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 778 tests under Vitest and 87
+This repository is the demonstration: 829 tests under Vitest and 90
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all seven examples.
 <!-- prettier-ignore-end -->
