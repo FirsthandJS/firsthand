@@ -44,10 +44,10 @@ import { tag, type Tag, type TagVars, type Variables } from './tags.js';
 /** A tag variable: either bound from a call's variables, or fixed. */
 export type TagValue = { readonly variable: string } | { readonly literal: TagVars[string] };
 
-export interface TagTemplate {
+export type TagTemplate = {
   readonly name: string;
   readonly vars: Readonly<Record<string, TagValue>>;
-}
+};
 
 /**
  * A parsed operation, carrying what it returns and what it needs.
@@ -230,12 +230,12 @@ function readValue(raw: string, directive: string, at: number): { value: TagValu
   return { value: { literal: Number.isNaN(asNumber) ? text : asNumber }, next };
 }
 
-interface Found {
+type Found = {
   readonly tags: TagTemplate[];
   readonly invalidates: TagTemplate[];
   /** The document with every tag directive removed. */
   readonly stripped: string;
-}
+};
 
 /**
  * Walks the document once, collecting the cache's directives and removing them.

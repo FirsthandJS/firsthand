@@ -1,12 +1,12 @@
 /** Public reactive types. */
 
 /** A reactive value that can only be read. */
-export interface ReadonlyCell<T> {
+export type ReadonlyCell<T> = {
   /** Current value. Reading inside an effect or computed subscribes to it. */
   readonly value: T;
   /** Current value, without subscribing. */
   peek(): T;
-}
+};
 
 /** A reactive value that can be read and written. */
 export interface Signal<T> extends ReadonlyCell<T> {
@@ -18,13 +18,13 @@ export interface Signal<T> extends ReadonlyCell<T> {
 /** Releases whatever the call that returned it created. */
 export type Dispose = () => void;
 
-export interface CellOptions<T> {
+export type CellOptions<T> = {
   /**
    * Custom equality. `false` makes every write propagate, which is what you
    * want for values the application mutates in place and diffs itself.
    */
   equals?: ((a: T, b: T) => boolean) | false;
-}
+};
 
 /** Deeply readonly view of a value. Used by `ReadonlyProps`. */
 export type DeepReadonly<T> = T extends (...args: never[]) => unknown
@@ -58,7 +58,7 @@ export type ReadonlyProps<T> = { readonly [K in keyof T]: DeepReadonly<T[K]> };
  * module and none of them import each other's. A type costs nothing at
  * runtime, so sharing the definition does not share any code.
  */
-export interface DevtoolsHook {
+export type DevtoolsHook = {
   /** Set by the frontend once it is ready to receive labels. */
   attached: boolean;
   /** Labels a node of the graph: 'signal', 'computed' or 'effect'. */
@@ -85,7 +85,7 @@ export interface DevtoolsHook {
    * reactive graph — a tag match is a decision rather than an edge.
    */
   query(event: string, key: string, tags: readonly string[]): void;
-}
+};
 
 declare global {
   var __FIRSTHAND_DEVTOOLS__: DevtoolsHook | undefined;

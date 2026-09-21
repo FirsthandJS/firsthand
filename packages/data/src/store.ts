@@ -32,7 +32,7 @@ export type Status = 'idle' | 'loading' | 'success' | 'error';
  * memory would make that invalidation silently pointless. Every client in this
  * project takes this object and honours both.
  */
-export interface DataRequest {
+export type DataRequest = {
   /** Aborted when this run is superseded, or the resource goes away. */
   readonly signal: AbortSignal;
   /**
@@ -68,7 +68,7 @@ export interface DataRequest {
    * nothing to say.
    */
   readonly tags?: (...tags: Tag[]) => void;
-}
+};
 
 /** What a loader is given. */
 export interface LoadContext extends DataRequest {
@@ -86,7 +86,7 @@ export interface LoadContext extends DataRequest {
 }
 
 /** What an action is given. */
-export interface ActionContext {
+export type ActionContext = {
   readonly signal: AbortSignal;
   /**
    * Declares what this action changed, so resources carrying a matching tag
@@ -99,12 +99,12 @@ export interface ActionContext {
    * changes something, so nothing it sends may be answered from a cache.
    */
   readonly request: DataRequest;
-}
+};
 
 /** What a client hands back: a request waiting for the context to send it. */
 export type Loader<T> = (request: DataRequest) => Promise<T>;
 
-export interface Resource<T> {
+export type Resource<T> = {
   readonly data: ReadonlyCell<T | undefined>;
   readonly error: ReadonlyCell<unknown>;
   readonly status: ReadonlyCell<Status>;
@@ -114,10 +114,10 @@ export interface Resource<T> {
   reload(): Promise<T | undefined>;
   /** Stops this resource and aborts anything in flight. */
   dispose(): void;
-}
+};
 
 /** Somewhere to keep results between visits. See {@link DataOptions}. */
-export interface Storage {
+export type Storage = {
   /**
    * What was kept under this name, if anything. May return a promise; a value
    * that arrives after the loader has answered is dropped.
@@ -127,9 +127,9 @@ export interface Storage {
   write?(name: string, data: unknown): void;
   /** Called by `store.clear()`, which is what a sign-out calls. */
   clear?(): void;
-}
+};
 
-export interface DataOptions {
+export type DataOptions = {
   /** Where named resources are kept between visits. */
   readonly storage?: Storage;
   /**
@@ -149,15 +149,15 @@ export interface DataOptions {
    * and short enough to be forgotten.
    */
   readonly remember?: number;
-}
+};
 
 /** What was invalidated, and when. See {@link DataOptions.remember}. */
-interface Recent {
+type Recent = {
   readonly patterns: readonly Tag[];
   readonly at: number;
-}
+};
 
-interface Held<T = unknown> {
+type Held<T = unknown> = {
   data: Signal<T | undefined>;
   error: Signal<unknown>;
   status: Signal<Status>;
@@ -174,9 +174,9 @@ interface Held<T = unknown> {
   /** When this resource last carried an answer. 0 until it has one. */
   answeredAt: number;
   run: (force: boolean) => Promise<T | undefined>;
-}
+};
 
-export interface DataStore {
+export type DataStore = {
   /** Everything carrying a matching tag runs again, with `force`. */
   invalidate(...patterns: Tag[]): Promise<void>;
   /** Forgets every resource and empties the storage. */
@@ -197,7 +197,7 @@ export interface DataStore {
   settled(tags: readonly Tag[]): void;
   /** Internal: the storage this store was given. */
   readonly storage: Storage | undefined;
-}
+};
 
 export function createData(options: DataOptions = {}): DataStore {
   const held = new Set<Held>();

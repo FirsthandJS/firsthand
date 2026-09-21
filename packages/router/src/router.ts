@@ -31,14 +31,14 @@ import {
 } from './routes.js';
 import { sameParams, type Params } from './match.js';
 
-export interface RouterState {
+export type RouterState = {
   readonly history: History;
   readonly routes: readonly RouteDefinition[];
   /** The chain from the outermost matched route to the leaf. Empty if none matched. */
   readonly matches: ReadonlyCell<readonly RouteMatch[]>;
   /** Shown while a lazy route is loading, unless the route has its own. */
   readonly pending: (() => View) | undefined;
-}
+};
 
 export const RouterContext = createContext<RouterState>();
 
@@ -140,7 +140,7 @@ function renderDepth(depth: number): DynamicChild {
   });
 }
 
-export interface RouterProps {
+export type RouterProps = {
   readonly routes: readonly RouteDefinition[];
   /** Defaults to a browser history over the real URL. */
   readonly history?: History;
@@ -148,7 +148,7 @@ export interface RouterProps {
   readonly basename?: string;
   /** Shown while a lazy route is loading. */
   readonly pending?: () => View;
-}
+};
 
 /**
  * The root of a routed application.

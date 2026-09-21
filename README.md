@@ -354,7 +354,7 @@ different sample sizes would quietly weaken the confidence interval.
 | `@firsthandjs/dom` | 10.45 kB | **4.20 kB** | 3.76 kB |
 | `@firsthandjs/dom/internal` | 9.90 kB | **4.11 kB** | 3.67 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
-| full runtime (core + dom, everything imported) | 15.92 kB | **5.89 kB** | 5.31 kB |
+| full runtime (core + dom, everything imported) | 15.92 kB | **5.89 kB** | 5.34 kB |
 
 
 Optional packages, downloaded only by an application that imports them:
@@ -362,7 +362,7 @@ Optional packages, downloaded only by an application that imports them:
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
 | `@firsthandjs/deep` | 1.58 kB | **0.72 kB** | 0.66 kB |
-| `@firsthandjs/devtools` | 16.90 kB | **6.29 kB** | 5.53 kB |
+| `@firsthandjs/devtools` | 16.90 kB | **6.29 kB** | 5.52 kB |
 | `@firsthandjs/i18n` | 0.63 kB | **0.37 kB** | 0.32 kB |
 | `@firsthandjs/router` | 8.36 kB | **3.36 kB** | 3.06 kB |
 | `@firsthandjs/data` | 9.74 kB | **4.04 kB** | 3.67 kB |

@@ -43,7 +43,7 @@ export function useInvalidate(): (...patterns: Tag[]) => Promise<void> {
   return (...patterns) => store.invalidate(...patterns);
 }
 
-export interface ResourceOptions {
+export type ResourceOptions = {
   /**
    * A name to keep this resource's last value under, between visits.
    *
@@ -53,7 +53,7 @@ export interface ResourceOptions {
    * naming them the same asks for.
    */
   readonly persist?: string;
-}
+};
 
 /**
  * Loads something, and keeps it as reactive state.
@@ -202,14 +202,14 @@ export function useResource<T>(
   return expose(entry, release);
 }
 
-export interface Action<I, R> {
+export type Action<I, R> = {
   readonly data: Resource<R>['data'];
   readonly error: Resource<R>['error'];
   readonly status: Resource<R>['status'];
   readonly running: Resource<R>['loading'];
   /** Runs it. Never rejects: failure is reported through `error`. */
   run(input: I): Promise<R | undefined>;
-}
+};
 
 /**
  * Changes something, and says what it changed.
@@ -289,17 +289,17 @@ export function useAction<I, R>(
   };
 }
 
-export interface ObservableLike<T> {
+export type ObservableLike<T> = {
   subscribe(observer: {
     next?: (value: T) => void;
     error?: (error: unknown) => void;
   }): { unsubscribe: () => void } | (() => void);
-}
+};
 
-export interface BridgeOptions {
+export type BridgeOptions = {
   /** What `reload()` should do, if the source can do it. */
   readonly reload?: () => Promise<unknown>;
-}
+};
 
 /**
  * A source that pushes, as a resource.

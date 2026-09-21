@@ -13,13 +13,13 @@
  */
 
 /** One entry of a decoded map: a generated position and where it came from. */
-interface Mapping {
+type Mapping = {
   generatedLine: number;
   generatedColumn: number;
   source: string;
   originalLine: number;
   originalColumn: number;
-}
+};
 
 const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 

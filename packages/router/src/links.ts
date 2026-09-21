@@ -17,7 +17,7 @@ import { isActivePath, useBasePath, resolvePath } from './hooks.js';
 import { RouterContext } from './router.js';
 import { preloadRoutes } from './routes.js';
 
-export interface LinkProps {
+export type LinkProps = {
   readonly to: string;
   readonly replace?: boolean;
   readonly state?: unknown;
@@ -32,7 +32,7 @@ export interface LinkProps {
   readonly children?: View;
   /** Anything else is forwarded to the anchor. */
   readonly [attribute: string]: unknown;
-}
+};
 
 export interface NavLinkProps extends LinkProps {
   /** Active only on an exact match, rather than on a prefix. */

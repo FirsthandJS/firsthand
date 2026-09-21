@@ -23,7 +23,7 @@ import { render, type View } from '@firsthandjs/dom';
 /* eslint-disable @typescript-eslint/no-unnecessary-type-parameters */
 
 /** What `mount` hands back. */
-export interface Mounted {
+export type Mounted = {
   /** The element the view was rendered into. */
   readonly container: HTMLElement;
   /** Disposes the view and removes its container. Idempotent. */
@@ -34,7 +34,7 @@ export interface Mounted {
   get<E extends Element = HTMLElement>(selector: string): E;
   /** `querySelectorAll` as a real array. */
   all<E extends Element = HTMLElement>(selector: string): E[];
-}
+};
 
 const active = new Set<Dispose>();
 

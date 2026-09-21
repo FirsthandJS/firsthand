@@ -44,13 +44,13 @@ import {
 import { untrack } from '@firsthandjs/core';
 
 /** What urql gives back: a wonka source with a promise on it. */
-export interface UrqlResult<T> {
+export type UrqlResult<T> = {
   data?: T;
   error?: unknown;
-}
+};
 
 /** The part of an urql client this package uses. Nothing else. */
-export interface UrqlLike {
+export type UrqlLike = {
   query(
     document: string,
     variables: Variables,
@@ -61,9 +61,9 @@ export interface UrqlLike {
     variables: Variables,
     context?: Record<string, unknown>,
   ): { toPromise(): Promise<UrqlResult<unknown>> };
-}
+};
 
-export interface UrqlClientOptions {
+export type UrqlClientOptions = {
   /**
    * Headers for every request, sent through urql's `fetchOptions`. A function
    * is called **per request and untracked**, which is what lets a token change
@@ -86,9 +86,9 @@ export interface UrqlClientOptions {
   readonly scope?: () => string;
   /** Merged into urql's operation context for every request. */
   readonly context?: Record<string, unknown>;
-}
+};
 
-export interface UrqlClient {
+export type UrqlClient = {
   /**
    * A query, as a loader. Declares the document's `@tag` directives before the
    * request goes out, so an invalidation sent while it is in flight finds it.
@@ -109,7 +109,7 @@ export interface UrqlClient {
   /** A copy with some options replaced. The cache is shared unless replaced. */
   with(options: UrqlClientOptions): UrqlClient;
   readonly cache: CacheClient | undefined;
-}
+};
 
 export function createUrqlClient(client: UrqlLike, options: UrqlClientOptions = {}): UrqlClient {
   const cache =
