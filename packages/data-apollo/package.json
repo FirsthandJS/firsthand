@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/data-apollo",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Loaders for Apollo Client, for @firsthandjs/data. Takes your client; never configures it.",
   "license": "MIT",
   "type": "module",
@@ -19,7 +19,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@firsthandjs/data": "0.6.0"
+    "@firsthandjs/data": "0.6.1"
   },
   "engines": {
     "node": ">=20.11.0"

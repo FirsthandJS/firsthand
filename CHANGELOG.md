@@ -4,6 +4,29 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-09-21
+
+### Fixed
+
+- **`slot` is allowed in TSX.** `Element` declares `slot` as a property, so it
+  was excluded from an element's own attributes along with the rest of
+  `keyof Element` — and never declared as a global beside `id`, `class` and
+  `role`. The result was that
+
+  ```tsx
+  <wa-button>
+    <wa-icon slot="start" name="plus" />
+    Add
+  </wa-button>
+  ```
+
+  — the ordinary way to fill a web component's slot, and the first line anybody
+  writes against Web Awesome, Shoelace or any other component library — was a
+  type error. It affected every element, not only custom ones.
+
+  Found while building the kanban showcase against 0.6.0, which is what a
+  showcase is for.
+
 ## [0.6.0] - 2026-09-21
 
 ### Added
@@ -731,6 +754,7 @@ strictReactivity: false })` restores the previous behaviour.
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.6.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.6.1
 [0.6.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.6.0
 [0.5.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.5.0
 [0.4.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.4.1
