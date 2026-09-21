@@ -180,7 +180,7 @@ interface QueryEvent {
 }
 ```
 
-What the query cache has done, oldest first. This is the one part of the
+What the resources have done, oldest first. This is the one part of the
 framework whose behaviour is **not** in the reactive graph: a tag match is a
 decision rather than an edge, and an invalidation that matched nothing looks
 exactly like one that was never sent.
@@ -191,7 +191,7 @@ queries().filter((e) => e.event === 'invalidated');
 ```
 
 Tags are rendered as a person would write them — `order(id: 7)` — rather than
-as the cache's own key, which separates with control characters so two
+as a store's own key, which separates with control characters so two
 different tags can never collide into one string.
 
 Bounded to the last 200 events: a long session should not turn a debugging tool

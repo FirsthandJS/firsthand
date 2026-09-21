@@ -3,7 +3,7 @@
  *
  * Builds the static Storybook, checks that the stories are in its index, then
  * opens the built pages in a real browser and drives them: clicks the counter,
- * follows a router link, runs a mutation and waits for the query that it
+ * follows a router link, runs an action and waits for the resource that it
  * invalidated to show the new value. A configuration that compiles is not a
  * configuration that works.
  *
@@ -51,7 +51,7 @@ const expected = [
   'components-counter--default',
   'components-counter--starts-high',
   'integration--routed',
-  'integration--cached',
+  'integration--loaded',
   'graphql--from-a-file',
 ];
 for (const id of expected) {
@@ -135,8 +135,8 @@ await check('the router story navigates', async () => {
   }
 });
 
-await check('the query story fetches, mutates and invalidates', async () => {
-  await open('integration--cached');
+await check('the data story loads, acts and invalidates', async () => {
+  await open('integration--loaded');
   const heading = page.getByTestId('profile');
   await heading.waitFor();
   await page.waitForFunction(
@@ -168,7 +168,7 @@ await check('a .graphql file is loaded, stripped and tagged', async () => {
 ${source}`);
   }
 
-  // And the mutation's own directive invalidates the query.
+  // And the mutation's own directive invalidates the resource.
   await page.getByTestId('graphql-rename').click();
   await page.waitForFunction(
     () => document.querySelector('[data-testid="graphql-name"]')?.textContent === 'Grace Hopper',
@@ -183,6 +183,6 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  '\nStorybook renders and drives Firsthand components, the router, the query cache,' +
+  '\nStorybook renders and drives Firsthand components, the router, resources and actions,' +
     '\nand a .graphql file whose tags were read at build time.',
 );

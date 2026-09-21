@@ -43,13 +43,16 @@ export default defineConfig({
       '@firsthandjs/jsx-runtime/jsx-dev-runtime': source('jsx-runtime'),
       '@firsthandjs/jsx-runtime/jsx-runtime': source('jsx-runtime'),
       '@firsthandjs/jsx-runtime': source('jsx-runtime'),
-      '@firsthandjs/query/vite': fileURLToPath(
-        new URL('./packages/query/src/vite.ts', import.meta.url),
+      '@firsthandjs/data/vite': fileURLToPath(
+        new URL('./packages/data/src/vite.ts', import.meta.url),
       ),
-      '@firsthandjs/query/codegen': fileURLToPath(
-        new URL('./packages/query/src/codegen.ts', import.meta.url),
+      '@firsthandjs/data/codegen': fileURLToPath(
+        new URL('./packages/data/src/codegen.ts', import.meta.url),
       ),
-      '@firsthandjs/query': source('query'),
+      '@firsthandjs/data': source('data'),
+      '@firsthandjs/data-axios': source('data-axios'),
+      '@firsthandjs/data-urql': source('data-urql'),
+      '@firsthandjs/data-apollo': source('data-apollo'),
       '@firsthandjs/react/auto': fileURLToPath(
         new URL('./packages/react/src/auto.ts', import.meta.url),
       ),
@@ -90,7 +93,7 @@ export default defineConfig({
           name: 'dom',
           environment: 'happy-dom',
           include: [
-            'packages/{dom,jsx-runtime,testing,router,query,styled,react,devtools,i18n}/test/**/*.test.{ts,tsx}',
+            'packages/{dom,jsx-runtime,testing,router,data,data-axios,data-urql,data-apollo,styled,react,devtools,i18n}/test/**/*.test.{ts,tsx}',
             'packages/*/test/compiled/**/*.test.tsx',
           ],
         },

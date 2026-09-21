@@ -1,6 +1,6 @@
 import type { StorybookConfig } from '@storybook/html-vite';
 import { firsthand } from '@firsthandjs/compiler/vite';
-import { graphql } from '@firsthandjs/query/vite';
+import { graphql } from '@firsthandjs/data/vite';
 
 /**
  * Storybook, configured for Firsthand.

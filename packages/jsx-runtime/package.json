@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/jsx-runtime",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Runtime JSX entry points for Firsthand, for environments without the compiler.",
   "license": "MIT",
   "type": "module",
@@ -27,8 +27,8 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@firsthandjs/core": "0.4.1",
-    "@firsthandjs/dom": "0.4.1"
+    "@firsthandjs/core": "0.5.0",
+    "@firsthandjs/dom": "0.5.0"
   },
   "engines": {
     "node": ">=20.11.0"

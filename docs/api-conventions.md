@@ -8,18 +8,18 @@ Where a rule was broken, it was changed — the renames are in the changelog.
 
 ## Naming
 
-| Shape             | Means                                                    | Examples                                                                                        |
-| ----------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `createX(...)`    | Builds a new stateful thing you own, and usually dispose | `createRoot`, `createContext`, `createQueryClient`, `createBrowserHistory`                      |
-| `x(...)` (a noun) | A primitive: builds a value, not a subsystem             | `signal`, `computed`, `effect`, `component`, `portal`, `list`, `tag`, `json`                    |
-| `useX()`          | Reads what the tree above provides. Setup only           | `useContext`, `useQueryClient`, `useRouter`, `useRouteParams`, `useQuery`                       |
-| `setX(value)`     | Writes one global or element-level setting               | `setElementPrefix`, `setAttribute`, `setProperty`                                               |
-| `isX(...)`        | Returns a boolean and nothing else                       | `isActivePath`, `isComponent`                                                                   |
-| `XOptions`        | An options bag, every field optional                     | `ComponentOptions`, `QueryClientOptions`, `NavigateOptions`, `LoadOptions`                      |
-| `XProps`          | The props of a component                                 | `RouterProps`, `LinkProps`, `NavigateProps`                                                     |
-| `XResult`         | What a hook hands back                                   | `QueryResult`, `MutationResult`                                                                 |
-| `XDefinition`     | A description of something, as data                      | `RouteDefinition`, `QueryDefinition`                                                            |
-| `FirsthandXError` | Every error this project throws                          | `FirsthandCycleError`, `FirsthandHttpError`, `FirsthandGraphQLError`, `FirsthandDirectiveError` |
+| Shape             | Means                                                    | Examples                                                                     |
+| ----------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `createX(...)`    | Builds a new stateful thing you own, and usually dispose | `createRoot`, `createContext`, `createData`, `createBrowserHistory`          |
+| `x(...)` (a noun) | A primitive: builds a value, not a subsystem             | `signal`, `computed`, `effect`, `component`, `portal`, `list`, `tag`, `json` |
+| `useX()`          | Reads what the tree above provides. Setup only           | `useContext`, `useData`, `useRouter`, `useRouteParams`, `useResource`        |
+| `setX(value)`     | Writes one global or element-level setting               | `setElementPrefix`, `setAttribute`, `setProperty`                            |
+| `isX(...)`        | Returns a boolean and nothing else                       | `isActivePath`, `isComponent`                                                |
+| `XOptions`        | An options bag, every field optional                     | `ComponentOptions`, `DataOptions`, `ResourceOptions`, `NavigateOptions`      |
+| `XProps`          | The props of a component                                 | `RouterProps`, `LinkProps`, `NavigateProps`                                  |
+| `XContext`        | What a callback is handed                                | `LoadContext`, `ActionContext`                                               |
+| `XDefinition`     | A description of something, as data                      | `RouteDefinition`                                                            |
+| `FirsthandXError` | Every error this project throws                          | `FirsthandCycleError`, `FirsthandHttpError`, `FirsthandDirectiveError`       |
 
 Identifiers use the spelling the web platform uses — `normalizePath`,
 `serialize` — even though the prose around them is written in British English.
@@ -33,8 +33,8 @@ It marks exactly one thing: **the function reads something the tree above it
 provided**, so it can only be called while there is a tree — during a
 component's setup.
 
-- `useContext`, `useTheme`, `useRouter`, `useRouteParams`, `useQueryClient`,
-  `useQuery` all go up: they find a provider, a router, a client. Called from a
+- `useContext`, `useTheme`, `useRouter`, `useRouteParams`, `useData`,
+  `useResource` all go up: they find a provider, a router, a store. Called from a
   timer or an event handler, there is nothing above them, and they say so.
 - `signal`, `computed`, `effect`, `component`, `portal`, `tag`, `json` create a
   thing and hand it back. They read nothing from above. `effect` and `portal`
@@ -46,8 +46,8 @@ React names `useEffect` a hook because React needs the call-order slot. Firsthan
 does not: an effect is a value that exists, not a slot in a render.
 
 Errors are all prefixed `Firsthand` so that `instanceof` is never ambiguous:
-`HttpError` and `GraphQLError` are names other libraries use too, and
-`graphql-js` exports the second one.
+`HttpError` is a name other libraries use too, and an application that reads
+from two of them has to be able to tell which one threw.
 
 ## Reactivity
 
@@ -56,19 +56,29 @@ Errors are all prefixed `Firsthand` so that `instanceof` is never ambiguous:
 
 ```ts
 const params = useRouteParams(); // ReadonlyCell<Params>
-const user = useQuery(...); // { data, error, status, fetching } — all cells
+const user = useResource(...); // { data, error, status, loading } — all cells
 ```
 
 A hook that returns something which does _not_ change returns it directly:
-`useQueryClient()`, `useRouter()`, `useNavigate()`.
+`useData()`, `useRouter()`, `useNavigate()`.
 
 **Anything reactive you pass in is a thunk**, because a component body runs
 once and a plain value would be frozen at setup:
 
 ```ts
-useQuery(() => ({ tags: [tag('user', { id: props.id })], fetch: … }));
-useGraphQL(UserQuery, () => ({ id: props.id }));
+provide(ThemeContext, () => ({ accent: accent.value }));
 ```
+
+**Except where tracking can do it instead.** `useResource` takes a plain
+function and runs it inside an effect, so what it reads is what it depends on:
+
+```ts
+useResource(({ signal }) => json<User>(`/api/users/${props.id}`)({ signal }));
+```
+
+A thunk asks you to say what is reactive; tracking observes it. Where both are
+possible, the second cannot be forgotten — which is why the data layer uses it
+and a context value, which is read once, does not.
 
 ## Disposal
 

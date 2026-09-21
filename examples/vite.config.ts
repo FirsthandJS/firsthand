@@ -18,7 +18,7 @@ export default defineConfig({
         todo: page('todo'),
         context: page('context'),
         portal: page('portal'),
-        query: page('query'),
+        data: page('data'),
         router: page('router'),
         'massive-table': page('massive-table'),
       },

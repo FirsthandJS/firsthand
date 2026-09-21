@@ -4,6 +4,118 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-09-21
+
+### Changed
+
+- **`@firsthandjs/query` is now `@firsthandjs/data`, and it is not a cache.**
+  The package kept a store of loaded data _and_ a REST fetcher, a GraphQL
+  transport and the hooks binding them. Two problems followed, one measured and
+  one structural:
+
+  - **Identity.** An entry was identified by its tags and variables, so two
+    unrelated call sites that happened to carry the same tags shared one entry
+    — and one silently served the other's data. A key would have fixed it by
+    asking everybody to invent one and never collide. Removing the concept
+    removed the class of bug instead: a resource belongs to its **call site**.
+  - **Layers.** An application that brings Apollo or urql brings a normalising
+    cache. Two caches over the same data do not merely waste memory; they
+    disagree, and the disagreement is a bug nobody can reproduce. Caching now
+    belongs to the transport, where the knowledge of what is _the same thing_
+    actually lives.
+
+  Tags survived, and are now for invalidation only — so they may be coarse,
+  overlap, and be shared, none of which is dangerous once nothing is looked up
+  by them. [ADR-0022](docs/adr/0022-resources-not-a-cache.md) has the
+  measurement and the rejected alternatives; [ADR-0014](docs/adr/0014-tag-based-cache-invalidation.md)
+  is superseded.
+
+  | Was                                            | Is                                                       |
+  | ---------------------------------------------- | -------------------------------------------------------- |
+  | `@firsthandjs/query`                           | `@firsthandjs/data`                                      |
+  | `createQueryClient({ staleTime, cacheTime })`  | `createData({ storage })`                                |
+  | `QueryClientContext` / `useQueryClient()`      | `DataContext` / `useData()`                              |
+  | `useQuery(() => ({ tags, variables, fetch }))` | `useResource(({ signal, tags, force }) => …)`            |
+  | `useMutation({ mutate, invalidates })`         | `useAction(async (input, { signal, invalidates }) => …)` |
+  | `variables: { page }`                          | read `page.value` inside the loader                      |
+  | `query.fetching` / `mutation.fetching`         | `resource.loading` / `action.running`                    |
+  | `query.refetch()` / `mutation.mutate()`        | `resource.reload()` / `action.run()`                     |
+  | `status === 'pending'`                         | `status === 'loading'`                                   |
+  | `useGraphQL(Document, vars)`                   | `useResource((c) => client(Document, vars)(c))`          |
+  | `createGraphQLTransport({ url })`              | your urql or Apollo client, or `json()`                  |
+  | `createGraphQLApi(transport)`                  | a second loader                                          |
+  | `tagKey`, `tagsKey`, `variablesKey`            | gone — they existed to build an identity                 |
+  | `FirsthandGraphQLError`                        | gone — your client's own error reaches `error`           |
+
+  What a migration actually costs: a loader is an ordinary function, so
+  `fetch:` bodies move across unchanged, and `variables` become reads. What
+  changes behaviour is that **a second component asking for the same thing asks
+  the server** — `staleTime` and deduplication are gone. If that matters, put a
+  cache in the transport, where it can be the only one.
+
+- **Dependencies are tracked, not declared.** A resource's loader runs inside an
+  effect, so everything it reads before its first `await` is a dependency —
+  exactly as in `effect`. There is no `variables` object to keep in step with
+  the fetcher, which was the one mistake the old API could still let you make.
+  A token read to build a header is a dependency too, which `peek()` answers
+  and every helper package does for you.
+
+### Added
+
+- **`@firsthandjs/data-axios`, `-urql` and `-apollo`** — 0.11, 0.29 and 0.37 kB
+  gzip. Each binds an instance **you** built and declares the two or three
+  methods it uses _structurally_: no dependency on the client, not even a peer
+  one, so there is no version to follow and nothing to break when yours changes.
+  `apolloObservable` is the other shape: Apollo's cache as the source of truth,
+  bridged with `fromObservable`, for an entity shown in twenty places at once.
+
+- **Variables are checked against the operation.** `DocumentArguments<V>` is a
+  tuple, so `urqlLoader` and `apolloLoader` require variables for an operation
+  that has them and accept the document alone for one that does not — the
+  guarantee `useGraphQL` used to give, kept while the transport moved out. The
+  helper packages' tests were not being typechecked at all, which is how the
+  weaker signature survived; `tsconfig.typecheck.json` now covers them.
+
+- **`fromObservable` and `fromPromise`** — a pushing source or a bare promise as
+  a resource, for the cases a per-call-site loader is the wrong shape.
+
+- **Persistence, by name.** `useResource(load, { persist: 'boards' })` with a
+  `storage` on the store keeps the last value between visits — IndexedDB,
+  `localStorage`, anything with `read`/`write`/`clear`. It is opt-in because a
+  name is the one thing a call site cannot supply, and a storage that throws is
+  a storage that has nothing.
+
+- **Tags may be declared after the answer.** `tags()` replaces rather than
+  accumulates, so a loader names what it is about before the `await` when the
+  client knows and after it when only the server does. An invalidation arriving
+  while a run is in flight is remembered and matched again when the tags appear,
+  so the run that was overtaken goes again instead of leaving a stale value on
+  screen.
+
+- **`@invalidates` reaches the store through a helper package.** A mutation
+  document's directives are what it is about, so `{ tags: invalidates }` inside
+  an action wires the document's own declaration straight through. The
+  directives were parsed and typed before this release, but nothing consumed
+  them.
+
+- **`json({ json: … })`** — a JSON body with the content type the platform will
+  not set for you, beside `body:` for the ones it labels itself (`FormData`,
+  `URLSearchParams`, `Blob`). Every other `RequestInit` option passes through,
+  including `headers` and `cache`.
+
+### Documentation
+
+- The [data guide](docs/guide/09-data.md) is rewritten resources-first: what
+  the layer is and is not, dependencies, tags and where to declare them, `force`
+  past a transport cache, persistence, one section per client including
+  authentication and two APIs at once, GraphQL documents, mocking at three
+  levels, and a migration table.
+- A [reference page](docs/reference/data.md) for `@firsthandjs/data` and the
+  three helper packages, and a README for each of the four.
+- Package sizes in the tables were reconciled with the measurement: `devtools`
+  had been published as 1.96 kB against a measured 6.30 kB, from before source
+  maps and the panel.
+
 ## [0.4.1] - 2026-09-20
 
 ### Fixed
@@ -515,6 +627,10 @@ strictReactivity: false })` restores the previous behaviour.
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.5.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.5.0
+[0.4.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.4.1
+[0.4.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.4.0
+[0.3.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.3.0
 [0.2.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.2.0
 [0.1.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.1.1
 [0.1.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.1.0

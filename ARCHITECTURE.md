@@ -31,14 +31,17 @@ packages/
   testing/      test helpers (flush, mount harness, leak probes)
   deep/         reactivity that follows an object all the way down (optional)
   router/       nested routes, links, on-demand route code       (optional)
-  query/        tag-based cache for REST and GraphQL             (optional)
+  data/         resources, actions, tag-based invalidation       (optional)
+  data-axios/   Axios requests as loaders                        (optional)
+  data-urql/    urql documents as loaders                        (optional)
+  data-apollo/  Apollo documents as loaders                      (optional)
   styled/       CSS-in-JS over custom properties                 (optional)
   react/        React components inside Firsthand                   (optional)
   i18n/         a translation function, made reactive            (optional)
   devtools/     reads the graph the runtime already keeps    (development only)
 ```
 
-`deep`, `router`, `query`, `styled`, `react` and `i18n` are optional in the
+`deep`, `router`, `data`, `styled`, `react` and `i18n` are optional in the
 sense that matters: an application that does not import them does not download
 them, and the runtime budget below is measured without them. `devtools` is
 development only — it reads the graph through hooks the production build
@@ -57,7 +60,8 @@ Dependency rule, enforced in CI by an import-boundary lint rule:
 | `compiler`    | nothing at runtime (emits imports into user code by string) |
 | `testing`     | `core`, `dom`                                               |
 | `router`      | `core`, `dom`                                               |
-| `query`       | `core`, `dom`                                               |
+| `data`        | `core`, `dom`                                               |
+| `data-*`      | `data` (and nothing of the client they bind)                |
 | `styled`      | `core`, `dom`, `jsx-runtime` (types only)                   |
 | `react`       | `core`, `dom`, and `react`/`react-dom` as peers             |
 | `deep`        | `core`                                                      |

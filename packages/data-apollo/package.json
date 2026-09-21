@@ -1,0 +1,47 @@
+{
+  "name": "@firsthandjs/data-apollo",
+  "version": "0.5.0",
+  "description": "Loaders for Apollo Client, for @firsthandjs/data. Takes your client; never configures it.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@firsthandjs/data": "0.5.0"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firsthandjs/firsthand.git",
+    "directory": "packages/data-apollo"
+  },
+  "bugs": {
+    "url": "https://github.com/firsthandjs/firsthand/issues"
+  },
+  "homepage": "https://github.com/firsthandjs/firsthand#readme",
+  "keywords": [
+    "firsthand",
+    "data",
+    "apollo",
+    "resources",
+    "tags"
+  ]
+}

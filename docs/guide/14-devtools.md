@@ -240,9 +240,9 @@ nothing at all. In the panel its bar is grey, and it is very often the answer to
 The last 100 updates, so a page left open overnight is still a debugging tool
 rather than a leak.
 
-## The query cache
+## Resources
 
-The cache is the one part of the framework whose behaviour is **not** in the
+Invalidation is the one part of the framework whose behaviour is **not** in the
 reactive graph. A tag match is a decision, not an edge — so an invalidation
 that matched nothing looks exactly like one that was never sent.
 
@@ -251,10 +251,10 @@ __FIRSTHAND__.queries().filter((e) => e.event === 'invalidated');
 // [{ event: 'invalidated', key: 'order|…', tags: ['order(id: 7)'] }]
 ```
 
-Created, invalidated and dropped, oldest first, with the tags each entry
-carries. When a mutation does not refresh what you expected, this is where the
+Created, invalidated and dropped, oldest first, with the tags each resource
+carries. When an action does not refresh what you expected, this is where the
 answer is: either the invalidation is not there, or its tags did not match the
-ones the query carries.
+ones the resource carries.
 
 The last 200 events, so that a long session does not turn a debugging tool into
 a memory leak.

@@ -44,7 +44,7 @@ export interface Update {
   stack: string[];
 }
 
-/** Something the query cache did. */
+/** Something a resource did. */
 export interface QueryEvent {
   event: 'created' | 'invalidated' | 'dropped';
   /** The cache key: its tags and variables, as the client derived them. */
@@ -104,7 +104,7 @@ const writers = new WeakMap<object, Set<object>>();
 const causes = new WeakMap<object, object>();
 /** The component each scope belongs to, as the DOM layer reported it. */
 const components = new WeakMap<object, string>();
-/** What the query cache has done, newest last. */
+/** What the resources have done, newest last. */
 const cacheLog: QueryEvent[] = [];
 /**
  * Every update, newest last.
@@ -150,7 +150,7 @@ const MUTABLE = 1 << 0;
  * `packages/devtools/test` and must not be skipped.
  */
 const FRAMEWORK =
-  /@firsthandjs|[\\/]node_modules[\\/]|[\\/]packages[\\/](core|dom|deep|devtools|jsx-runtime|query|router|styled|testing)[\\/]src[\\/]/;
+  /@firsthandjs|[\\/]node_modules[\\/]|[\\/]packages[\\/](core|dom|deep|devtools|jsx-runtime|data|router|styled|testing)[\\/]src[\\/]/;
 
 /**
  * The application frames of the current call, nearest first.
@@ -530,7 +530,7 @@ export function causeOf(node: Node): string | null {
 }
 
 /**
- * What the query cache has done, oldest first.
+ * What the resources have done, oldest first.
  *
  * The cache is the one part of the framework whose behaviour is not in the
  * reactive graph: a tag match is a decision rather than an edge, and an

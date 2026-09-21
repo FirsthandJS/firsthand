@@ -213,7 +213,7 @@ its signature:
 [devtools](docs/reference/devtools.md),
 [i18n](docs/reference/i18n.md),
 [router](docs/reference/router.md),
-[query](docs/reference/query.md),
+[data](docs/reference/data.md),
 [styled](docs/reference/styled.md),
 [react](docs/reference/react.md),
 [testing](docs/reference/testing.md).
@@ -231,20 +231,23 @@ Shoelace and styled components on one page) and
 
 ## The packages
 
-| Package                    | Size (gzip) | What it is                                      |
-| -------------------------- | ----------- | ----------------------------------------------- |
-| `@firsthandjs/core`        | 2.42 kB     | Signals, computeds, effects, context, owners    |
-| `@firsthandjs/dom`         | 4.30 kB     | Components, rendering, elements, lists, portals |
-| `@firsthandjs/jsx-runtime` | 0.60 kB     | JSX types, and the runtime fallback             |
-| `@firsthandjs/deep`        | 0.74 kB     | Deep reactivity: every property is a signal     |
-| `@firsthandjs/devtools`    | 1.96 kB     | **Experimental.** What updates what, and why    |
-| `@firsthandjs/compiler`    | build only  | The TSX transform and the bundler plugin        |
-| `@firsthandjs/router`      | 3.44 kB     | Routes, links, history, lazy routes             |
-| `@firsthandjs/query`       | 3.32 kB     | The cache, tags, REST, GraphQL, codegen         |
-| `@firsthandjs/styled`      | 2.02 kB     | CSS-in-JS with custom properties                |
-| `@firsthandjs/react`       | 0.68 kB     | React components inside Firsthand               |
-| `@firsthandjs/i18n`        | 0.38 kB     | i18next and friends, made reactive              |
-| `@firsthandjs/testing`     | dev only    | `mount`, `cleanup`, leak probes                 |
+| Package                    | Size (gzip) | What it is                                       |
+| -------------------------- | ----------- | ------------------------------------------------ |
+| `@firsthandjs/core`        | 2.36 kB     | Signals, computeds, effects, context, owners     |
+| `@firsthandjs/dom`         | 4.20 kB     | Components, rendering, elements, lists, portals  |
+| `@firsthandjs/jsx-runtime` | 0.59 kB     | JSX types, and the runtime fallback              |
+| `@firsthandjs/deep`        | 0.72 kB     | Deep reactivity: every property is a signal      |
+| `@firsthandjs/devtools`    | 6.30 kB     | **Experimental.** What updates what, and why     |
+| `@firsthandjs/compiler`    | build only  | The TSX transform and the bundler plugin         |
+| `@firsthandjs/router`      | 3.36 kB     | Routes, links, history, lazy routes              |
+| `@firsthandjs/data`        | 2.81 kB     | Resources, actions, tags, GraphQL documents      |
+| `@firsthandjs/data-axios`  | 0.11 kB     | Axios requests as loaders                        |
+| `@firsthandjs/data-urql`   | 0.30 kB     | urql documents as loaders                        |
+| `@firsthandjs/data-apollo` | 0.37 kB     | Apollo documents as loaders, and its observables |
+| `@firsthandjs/styled`      | 1.98 kB     | CSS-in-JS with custom properties                 |
+| `@firsthandjs/react`       | 0.66 kB     | React components inside Firsthand                |
+| `@firsthandjs/i18n`        | 0.37 kB     | i18next and friends, made reactive               |
+| `@firsthandjs/testing`     | dev only    | `mount`, `cleanup`, leak probes                  |
 
 Every package is independent: installing `@firsthandjs/dom` pulls in the core and
 nothing else.
@@ -359,11 +362,14 @@ Optional packages, downloaded only by an application that imports them:
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
 | `@firsthandjs/deep` | 1.58 kB | **0.72 kB** | 0.66 kB |
-| `@firsthandjs/devtools` | 16.90 kB | **6.30 kB** | 5.52 kB |
+| `@firsthandjs/devtools` | 16.90 kB | **6.29 kB** | 5.53 kB |
 | `@firsthandjs/i18n` | 0.63 kB | **0.37 kB** | 0.32 kB |
 | `@firsthandjs/router` | 8.36 kB | **3.36 kB** | 3.06 kB |
-| `@firsthandjs/query` | 7.95 kB | **3.29 kB** | 3.01 kB |
-| `@firsthandjs/query (.gql loader path, parser tree-shaken)` | 5.22 kB | **2.18 kB** | 1.99 kB |
+| `@firsthandjs/data` | 6.71 kB | **2.81 kB** | 2.56 kB |
+| `@firsthandjs/data (.gql loader path, parser tree-shaken)` | 4.09 kB | **1.70 kB** | 1.56 kB |
+| `@firsthandjs/data-axios` | 0.11 kB | **0.11 kB** | 0.09 kB |
+| `@firsthandjs/data-urql` | 0.42 kB | **0.30 kB** | 0.24 kB |
+| `@firsthandjs/data-apollo` | 0.61 kB | **0.37 kB** | 0.31 kB |
 | `@firsthandjs/styled` | 4.18 kB | **1.98 kB** | 1.79 kB |
 | `@firsthandjs/react` | 1.19 kB | **0.66 kB** | 0.58 kB |
 | `@firsthandjs/react/auto` | 1.20 kB | **0.66 kB** | 0.58 kB |
@@ -460,7 +466,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 765 tests under Vitest and 87
+This repository is the demonstration: 778 tests under Vitest and 87
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all seven examples.
 <!-- prettier-ignore-end -->
@@ -472,7 +478,7 @@ Firsthand components build DOM and that is what `@storybook/html-vite` asks a
 story for. [`integrations/storybook/`](integrations/storybook/) is a working
 one, kept outside the workspace so that nobody has to install Storybook to work
 on the framework; `npm test` there builds it and drives four stories — a
-counter, args as props, the router on a memory history and the query cache
+counter, args as props, the router on a memory history and the data layer
 mutating and invalidating — in a real browser.
 
 Full guide, including which Vitest environment to use and how to assert that a
@@ -485,7 +491,7 @@ Modern evergreen browsers: Chromium, Firefox and WebKit. Firsthand relies on
 polyfills are shipped and none are planned.
 
 Cross-engine testing runs through Playwright, and the full suite — 29 tests
-covering the framework, the router, the query cache and the seven example
+covering the framework, the router, the data layer and the seven example
 applications, including the 100 000-row table — passes in all three engines. The performance numbers in this
 README are Chromium only.
 
