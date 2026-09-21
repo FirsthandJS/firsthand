@@ -53,7 +53,7 @@ export type ParamsOf<Path extends string> = Path extends `${infer Head}/${infer 
   ? SegmentParams<Head> & ParamsOf<Rest>
   : SegmentParams<Path>;
 
-export interface Pattern {
+export type Pattern = {
   readonly source: string;
   readonly regex: RegExp;
   readonly keys: readonly string[];
@@ -61,7 +61,7 @@ export interface Pattern {
   readonly score: number;
   /** Whether the pattern must consume the whole path. */
   readonly end: boolean;
-}
+};
 
 const STATIC = 10;
 const DYNAMIC = 6;

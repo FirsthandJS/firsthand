@@ -26,12 +26,12 @@ const PART: unique symbol = Symbol('firsthand.part');
  * to. Once the array is in the DOM, each one is bound through `insert` under
  * its own owner, exactly as a child of a real element would be.
  */
-export interface DynamicChild {
+export type DynamicChild = {
   readonly [PART]: true;
   readonly anchor: Text;
   readonly thunk: () => unknown;
   readonly owner: Owner | null;
-}
+};
 
 /** Marks a dynamic child of a fragment. Emitted by the compiler. */
 export function part(thunk: () => unknown): DynamicChild {

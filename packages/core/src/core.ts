@@ -145,7 +145,7 @@ export class Cell {
  * A logical scope (ADR-0008). Owners form a tree that is independent of the
  * DOM, which is what lets portals keep their context and disposal behaviour.
  */
-export interface Owner {
+export type Owner = {
   parent: Owner | null;
   /** Whether the owner is still in its parent's child list. */
   attached: boolean;
@@ -161,7 +161,7 @@ export interface Owner {
   ctx: ContextRecord | null;
   /** Error boundary installed by `catchError`. */
   handler: ((error: unknown) => void) | null;
-}
+};
 
 export type ContextRecord = Record<symbol, unknown>;
 

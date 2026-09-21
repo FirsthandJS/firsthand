@@ -9,7 +9,7 @@
  */
 import { signal, type ReadonlyCell } from '@firsthandjs/core';
 
-export interface Location {
+export type Location = {
   readonly pathname: string;
   /** Including the leading `?`, or empty. */
   readonly search: string;
@@ -19,14 +19,14 @@ export interface Location {
   readonly state: unknown;
   /** Changes on every navigation, including to the same URL. */
   readonly key: string;
-}
+};
 
-export interface NavigateOptions {
+export type NavigateOptions = {
   readonly replace?: boolean;
   readonly state?: unknown;
-}
+};
 
-export interface History {
+export type History = {
   readonly location: ReadonlyCell<Location>;
   push(to: string, options?: NavigateOptions): void;
   replace(to: string, options?: NavigateOptions): void;
@@ -35,7 +35,7 @@ export interface History {
   href(to: string): string;
   /** Stops listening. Returns nothing; calling it twice is harmless. */
   dispose(): void;
-}
+};
 
 let keyCounter = 0;
 const nextKey = (): string => `k${String(++keyCounter)}`;

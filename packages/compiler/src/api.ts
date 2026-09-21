@@ -24,7 +24,7 @@ export interface TransformOptions extends FirsthandPluginOptions {
  * inside this repository and fails in the first application that puts the
  * plugin into `vite.config.ts` — which is the one place it matters.
  */
-export interface SourceMap {
+export type SourceMap = {
   version: number;
   mappings: string;
   names: string[];
@@ -36,10 +36,10 @@ export interface SourceMap {
   sourcesContent?: string[];
   sourceRoot?: string;
   file?: string;
-}
+};
 
 /** A compiled module, and the map back to what was written. */
-export interface Compiled {
+export type Compiled = {
   code: string;
   /**
    * A source map, when one was asked for.
@@ -50,7 +50,7 @@ export interface Compiled {
    * cannot, so the Vite plugin always asks.
    */
   map: SourceMap | null;
-}
+};
 
 /**
  * Compiles one module, and maps it back.

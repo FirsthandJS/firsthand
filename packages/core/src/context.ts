@@ -6,14 +6,14 @@ import type { ReadonlyCell } from './types.js';
 /** Marks which owner a context record belongs to, so records are created once. */
 const RECORD_OWNER: unique symbol = Symbol('firsthand.ctx');
 
-interface ContextInternals<T> {
+type ContextInternals<T> = {
   readonly id: symbol;
   readonly description: string;
   readonly hasDefault: boolean;
   readonly defaultValue: T | undefined;
   /** Lazily created constant cell handed to consumers with no provider. */
   fallback: Cell | undefined;
-}
+};
 
 declare const BRAND: unique symbol;
 
@@ -23,11 +23,11 @@ declare const BRAND: unique symbol;
  * The phantom member makes the token invariant in `T`, so a `Context<Theme>`
  * cannot be passed where a `Context<User>` is expected.
  */
-export interface Context<T> {
+export type Context<T> = {
   readonly id: symbol;
   readonly description: string;
   readonly [BRAND]?: (value: T) => T;
-}
+};
 
 /**
  * Creates a context token.

@@ -26,9 +26,9 @@ import {
  * ordinary reactive read, so a navigation from `/users/1` to `/users/2`
  * updates what read it and remounts nothing.
  */
-export interface RouteProps<P extends Params = Params> {
+export type RouteProps<P extends Params = Params> = {
   readonly params: P;
-}
+};
 
 /** A component that a route renders. */
 export type RouteComponent<P extends Params = Params> = (props: RouteProps<P>) => View;
@@ -37,7 +37,7 @@ export type RouteComponent<P extends Params = Params> = (props: RouteProps<P>) =
 export type LazyModule<P extends Params = Params> =
   RouteComponent<P> | { readonly default: RouteComponent<P> };
 
-export interface RouteDefinition {
+export type RouteDefinition = {
   /** Relative to the parent, unless it starts with `/`. */
   readonly path?: string;
   /** Matches when the parent matches and nothing is left over. */
@@ -54,24 +54,24 @@ export interface RouteDefinition {
   /** Shown while `lazy` is loading, instead of the router's own fallback. */
   readonly pending?: () => View;
   readonly children?: readonly RouteDefinition[];
-}
+};
 
-export interface RouteMatch {
+export type RouteMatch = {
   readonly route: RouteDefinition;
   readonly params: Params;
   /** The portion of the pathname this route and its ancestors consumed. */
   readonly pathname: string;
-}
+};
 
-interface Level {
+type Level = {
   readonly route: RouteDefinition;
   readonly pattern: Pattern;
-}
+};
 
-interface Branch {
+type Branch = {
   readonly levels: readonly Level[];
   readonly score: number;
-}
+};
 
 /** Flattened branches are reused across navigations for the same route array. */
 const branchCache = new WeakMap<readonly RouteDefinition[], Branch[]>();
@@ -258,7 +258,7 @@ export const route: RouteBuilder<unknown> = (spec: object): RouteDefinition => {
 };
 
 /** What `route` accepts, with `Own` from its path and `Inherited` from above. */
-interface RouteSpec<Own, Inherited> {
+type RouteSpec<Own, Inherited> = {
   readonly component?: RouteComponent<Simplify<Inherited & Own> & Params>;
   /** Loaded when the route is first entered; the result is cached. */
   readonly lazy?: () => Promise<LazyModule<Simplify<Inherited & Own> & Params>>;
@@ -267,13 +267,13 @@ interface RouteSpec<Own, Inherited> {
   readonly children?:
     | readonly RouteDefinition[]
     | ((child: RouteBuilder<Simplify<Inherited & Own>>) => readonly RouteDefinition[]);
-}
+};
 
 /** Builds one route, knowing what the routes above it captured. */
-export interface RouteBuilder<Inherited> {
+export type RouteBuilder<Inherited> = {
   <const Path extends string>(
     spec: { readonly path: Path } & RouteSpec<ParamsOf<Path>, Inherited>,
   ): RouteDefinition;
   /** An index route adds no path, so it captures exactly what its parent did. */
   (spec: { readonly index: true } & RouteSpec<unknown, Inherited>): RouteDefinition;
-}
+};

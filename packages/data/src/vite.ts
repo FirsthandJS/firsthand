@@ -30,16 +30,16 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parseGraphQL } from './document.js';
 
-interface TransformResult {
+type TransformResult = {
   code: string;
   map: null;
-}
+};
 
-export interface GraphQLPlugin {
+export type GraphQLPlugin = {
   name: string;
   enforce: 'pre';
   transform(this: unknown, code: string, id: string): TransformResult | null;
-}
+};
 
 const IMPORT = /^#\s*import\s+(['"])(.+?)\1/gm;
 const DOCUMENT = /\.(graphql|gql)(\?.*)?$/;

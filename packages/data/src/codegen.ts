@@ -41,7 +41,7 @@
  */
 
 /** The bits of codegen's document shape this needs. Typed here to avoid a dependency. */
-export interface CodegenDocument {
+export type CodegenDocument = {
   readonly location?: string | undefined;
   readonly document?:
     | {
@@ -52,9 +52,9 @@ export interface CodegenDocument {
         }[];
       }
     | undefined;
-}
+};
 
-export interface CodegenConfig {
+export type CodegenConfig = {
   /**
    * Where `typescript-operations` wrote its types, relative to this file.
    *
@@ -63,7 +63,7 @@ export interface CodegenConfig {
   readonly typesPath?: string;
   /** Import path for the document type. Only useful when testing this plugin. */
   readonly documentTypePath?: string;
-}
+};
 
 const SUFFIX: Record<string, string> = {
   query: 'Query',

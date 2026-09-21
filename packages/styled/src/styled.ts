@@ -27,7 +27,7 @@ export type StyledProps<P> = P & { readonly theme: Theme };
 
 export type Interpolation<P> = string | number | CssFragment | ((props: StyledProps<P>) => unknown);
 
-export interface StyledFactory<Base> {
+export type StyledFactory<Base> = {
   /**
    * `P` is what you add: `styled.button<{ $primary?: boolean }>`.
    *
@@ -39,7 +39,7 @@ export interface StyledFactory<Base> {
     strings: TemplateStringsArray,
     ...values: Interpolation<P & Base>[]
   ): Component<P & Base>;
-}
+};
 
 /**
  * Whether a prop belongs on the element.

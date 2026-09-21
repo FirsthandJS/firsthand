@@ -80,7 +80,7 @@ export function stableKey(value: unknown): string {
   return `{${entries.map(([name, held]) => `${name}:${stableKey(held)}`).join(',')}}`;
 }
 
-export interface CacheOptions {
+export type CacheOptions = {
   /**
    * How long an answer is served again without running the producer, in ms.
    *
@@ -99,9 +99,9 @@ export interface CacheOptions {
   readonly max?: number;
   /** For tests: what `Date.now()` should be. */
   readonly now?: () => number;
-}
+};
 
-export interface CacheClient {
+export type CacheClient = {
   /**
    * Wraps a producer so its answer is kept under `key`.
    *
@@ -133,9 +133,9 @@ export interface CacheClient {
   forgetTagged(patterns: readonly Tag[]): void;
   /** How many entries are held, in flight included. */
   readonly size: number;
-}
+};
 
-interface Entry {
+type Entry = {
   value: unknown;
   /** What the request that produced this said it was about. Metadata only. */
   tags: readonly Tag[];
@@ -146,7 +146,7 @@ interface Entry {
   controller: AbortController | null;
   /** How many callers still want the in-flight run. */
   waiting: number;
-}
+};
 
 export function createCacheClient(options: CacheOptions = {}): CacheClient {
   const ttl = options.ttl ?? 0;

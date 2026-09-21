@@ -86,7 +86,7 @@ export interface JsonRequest extends Omit<RequestInit, 'body'> {
   readonly cacheKey?: string | false;
 }
 
-export interface FetchClientOptions {
+export type FetchClientOptions = {
   /** Prefixed to every relative path. A path beginning with `http` is left alone. */
   readonly baseUrl?: string;
   /**
@@ -126,9 +126,9 @@ export interface FetchClientOptions {
    * and keep that in one place rather than in a plugin system.
    */
   readonly fetch?: typeof globalThis.fetch;
-}
+};
 
-export interface FetchClient {
+export type FetchClient = {
   /** Any method: the general form the others are named shortcuts for. */
   request<T>(url: string, init?: JsonRequest): Loader<T>;
   get<T>(url: string, init?: JsonRequest): Loader<T>;
@@ -145,7 +145,7 @@ export interface FetchClient {
   with(options: FetchClientOptions): FetchClient;
   /** The cache this client keeps its answers in, if it has one. */
   readonly cache: CacheClient | undefined;
-}
+};
 
 /** Everything a request needs, after the client's options and the call's are merged. */
 function resolve(

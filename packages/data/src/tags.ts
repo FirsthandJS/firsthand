@@ -26,10 +26,10 @@ export type TagVars = Readonly<Record<string, string | number | boolean | null>>
  */
 export type Variables = Readonly<Record<string, unknown>>;
 
-export interface Tag {
+export type Tag = {
   readonly name: string;
   readonly vars: TagVars;
-}
+};
 
 const NO_VARS: TagVars = Object.freeze({});
 

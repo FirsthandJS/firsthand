@@ -29,12 +29,12 @@ import { stableId } from './ids.js';
 const RUNTIME = '@firsthandjs/dom/internal';
 const CORE = '@firsthandjs/core';
 
-interface FirsthandState {
+type FirsthandState = {
   imports: Map<string, t.Identifier>;
   templates: t.VariableDeclarator[];
   counter: number;
   moduleId: string;
-}
+};
 
 declare module '@babel/core' {
   interface PluginPass {
@@ -44,13 +44,13 @@ declare module '@babel/core' {
 
 type State = PluginPass;
 
-interface Build {
+type Build = {
   html: string[];
   statements: t.Statement[];
   next: () => t.Identifier;
-}
+};
 
-export interface FirsthandPluginOptions {
+export type FirsthandPluginOptions = {
   /** Package name used when hashing stable component ids (ADR-0004). */
   packageName?: string;
   /**
@@ -75,7 +75,7 @@ export interface FirsthandPluginOptions {
    * production build emits nothing.
    */
   devtools?: boolean;
-}
+};
 
 export default function firsthandPlugin(
   _api: unknown,
@@ -1094,11 +1094,11 @@ function isChildPosition(call: NodePath<t.CallExpression>): boolean {
   return holder.isJSXElement() || holder.isJSXFragment();
 }
 
-interface KeyedRoot {
+type KeyedRoot = {
   element: t.JSXElement;
   attribute: t.JSXAttribute;
   key: t.Expression;
-}
+};
 
 /** Finds the `key` attribute on the JSX element a map callback returns. */
 function keyedRoot(
@@ -1138,12 +1138,12 @@ function liveRead(scopePath: NodePath, name: string, cell: t.Identifier): void {
   }
 }
 
-interface ChildEntry {
+type ChildEntry = {
   kind: 'text' | 'element' | 'dynamic' | 'list';
   text?: string;
   element?: t.JSXElement;
   expression?: t.Expression;
-}
+};
 
 function emitChildren(
   children: t.JSXElement['children'],

@@ -54,13 +54,13 @@ import {
 import { untrack } from '@firsthandjs/core';
 
 /** The part of an Apollo client this package uses. Nothing else. */
-export interface ApolloLike {
+export type ApolloLike = {
   query(options: Record<string, unknown>): Promise<{ data: unknown }>;
   mutate(options: Record<string, unknown>): Promise<{ data?: unknown }>;
-}
+};
 
 /** A watched query: what Apollo pushes when its cache changes. */
-export interface WatchLike {
+export type WatchLike = {
   watchQuery(options: Record<string, unknown>): {
     subscribe(observer: {
       next?: (value: { data: unknown }) => void;
@@ -68,7 +68,7 @@ export interface WatchLike {
     }): { unsubscribe: () => void };
     refetch(): Promise<unknown>;
   };
-}
+};
 
 /**
  * How to turn a document's source into whatever Apollo wants.
@@ -79,7 +79,7 @@ export interface WatchLike {
  */
 export type Parse = (source: string) => unknown;
 
-export interface ApolloClientOptions {
+export type ApolloClientOptions = {
   /**
    * Headers for every request, sent through Apollo's per-operation context. A
    * function is called **per request and untracked**, which is what lets a
@@ -102,9 +102,9 @@ export interface ApolloClientOptions {
   readonly scope?: () => string;
   /** Merged into the options of every query and mutation. */
   readonly options?: Record<string, unknown>;
-}
+};
 
-export interface ApolloClient {
+export type ApolloClient = {
   /**
    * A query, as a loader. Declares the document's `@tag` directives before the
    * request goes out; `force` becomes `fetchPolicy: 'network-only'`, which is
@@ -138,7 +138,7 @@ export interface ApolloClient {
   /** A copy with some options replaced. The cache is shared unless replaced. */
   with(options: ApolloClientOptions): ApolloClient;
   readonly cache: CacheClient | undefined;
-}
+};
 
 export function createApolloClient(
   client: ApolloLike & WatchLike,

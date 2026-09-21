@@ -12,12 +12,12 @@ import {
 } from '@firsthandjs/core';
 import { devWarn } from './dev.js';
 
-interface Row<T> {
+type Row<T> = {
   owner: Owner;
   item: Signal<T>;
   index: Signal<number>;
   nodes: Node[];
-}
+};
 
 /**
  * A keyed list part.

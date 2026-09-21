@@ -22,7 +22,7 @@ export type NodeKind = 'signal' | 'computed' | 'effect' | 'part';
  * This is the thing the graph cannot answer on its own. The graph says what
  * depends on what; an update says what actually happened, in order, at a time.
  */
-export interface Update {
+export type Update = {
   /** Milliseconds since the page loaded, so entries can be read as a sequence. */
   at: number;
   /** What was written. */
@@ -42,19 +42,19 @@ export interface Update {
    * else reading this should do the same.
    */
   stack: string[];
-}
+};
 
 /** Something a resource did. */
-export interface QueryEvent {
+export type QueryEvent = {
   event: 'created' | 'invalidated' | 'dropped';
   /** The cache key: its tags and variables, as the client derived them. */
   key: string;
   /** The tags the entry carries, which is what an invalidation matches on. */
   tags: readonly string[];
-}
+};
 
 /** One node of the graph, as devtools describe it. */
-export interface GraphNode {
+export type GraphNode = {
   kind: NodeKind;
   /** `order.status`, `isEditable`, `button.disabled`, or a creation site. */
   name: string;
@@ -64,36 +64,36 @@ export interface GraphNode {
   dependencies: GraphNode[];
   /** What reads this node. */
   dependents: GraphNode[];
-}
+};
 
 /** Internal shape of a cell, as the core builds it. Read, never written. */
-interface CellLike {
+type CellLike = {
   flags: number;
   v: unknown;
   deps?: LinkLike;
   subs?: LinkLike;
   /** An effect's own scope, which is where the component stack starts. */
   scope?: OwnerLike;
-}
+};
 
-interface LinkLike {
+type LinkLike = {
   dep: CellLike;
   sub: CellLike;
   nextDep?: LinkLike;
   nextSub?: LinkLike;
-}
+};
 
-interface OwnerLike {
+type OwnerLike = {
   parent: OwnerLike | null;
   head: OwnerLike | null;
   next: OwnerLike | null;
   cells: CellLike[] | null;
-}
+};
 
-interface Label {
+type Label = {
   kind: NodeKind;
   name: string;
-}
+};
 
 const labels = new WeakMap<object, Label>();
 /** Which node and property each effect writes, learned while it runs. */
@@ -332,7 +332,7 @@ export function attach(): void {
 }
 
 /** What `attach()` puts on `globalThis` for the browser console to use. */
-export interface Console {
+export type Console = {
   chain: typeof chain;
   inspect: typeof inspect;
   causeOf: typeof causeOf;
@@ -343,7 +343,7 @@ export interface Console {
   detach: typeof detach;
   /** Opens the panel, or shows it for a node you already have. */
   panel: (node?: Node) => void;
-}
+};
 
 /** Stops recording and forgets everything. Mostly for tests. */
 export function detach(): void {
