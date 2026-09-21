@@ -12,7 +12,7 @@
   "dependencies": {
     "@firsthandjs/dom": "file:../../packages/dom",
     "@firsthandjs/jsx-runtime": "file:../../packages/jsx-runtime",
-    "@firsthandjs/query": "file:../../packages/query",
+    "@firsthandjs/data": "file:../../packages/data",
     "@firsthandjs/router": "file:../../packages/router"
   },
   "devDependencies": {

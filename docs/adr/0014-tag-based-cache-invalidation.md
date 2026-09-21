@@ -1,6 +1,12 @@
 # ADR-0014: Invalidation by tags, not by cache keys
 
-Status: **accepted** (2026-09-19)
+Status: **superseded** by [ADR-0022](0022-resources-not-a-cache.md) (2026-09-21)
+
+Tags survived; the cache around them did not. Identity derived from tags turned
+out to make two unrelated call sites share one entry, which
+[ADR-0022](0022-resources-not-a-cache.md) records with the measurement. What
+follows is the original decision, kept because the argument for tags over keys
+is still the argument this project makes.
 
 ## Problem
 

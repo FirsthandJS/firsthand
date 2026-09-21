@@ -74,15 +74,15 @@ export default {
 | `Components/Counter`                | A component, args as props, controls, fine-grained updates          |
 | `Components/Counter` (Starts High)  | Args reaching a second instance with different values               |
 | `Integration/Router`                | `@firsthandjs/router` on a memory history — routes without a server |
-| `Integration/Query`                 | `@firsthandjs/query`: fetch, mutate, invalidate, all in the canvas  |
+| `Integration/Data`                  | `@firsthandjs/data`: load, act, invalidate, all in the canvas       |
 | `GraphQL/Tags from a .graphql file` | The `.graphql` loader in a real Vite build                          |
 
 The last three are the ones worth having. A page that needs a router and a page
 that needs a server are usually exactly the pages that cannot be told as a
-story; a memory history and an in-memory fetcher make both ordinary.
+story; a memory history and an in-memory loader make both ordinary.
 
 The GraphQL one is also the only place the `.graphql` loader is exercised by a
-real build rather than a unit test. Its stub transport _rejects_ any document
+real build rather than a unit test. Its stand-in client _rejects_ any document
 still carrying a `@tag` or `@invalidates` directive, so "the cache's directives
 never reach the server" is checked rather than asserted.
 
@@ -90,7 +90,7 @@ never reach the server" is checked rather than asserted.
 
 `verify.mjs` builds the static Storybook, checks the five stories are in its
 index, serves it, and drives each one in headless Chromium — clicking the
-counter, following a router link, running a mutation and waiting for the query
+counter, following a router link, running an action and waiting for the resource
 it invalidated to show the new value, and reading the loaded GraphQL document
 off the page to confirm its directives were stripped. It exits non-zero if any
 of that stops being true.

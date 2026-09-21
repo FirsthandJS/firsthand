@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-09-20T19:58:49.225Z",
+  "measuredAt": "2026-09-21T00:42:33.469Z",
   "sizes": [
     {
       "module": "@firsthandjs/core",
@@ -41,9 +41,9 @@
     },
     {
       "module": "@firsthandjs/devtools",
-      "minified": 17310,
-      "gzip": 6448,
-      "brotli": 5652
+      "minified": 17306,
+      "gzip": 6444,
+      "brotli": 5662
     },
     {
       "module": "@firsthandjs/i18n",
@@ -58,16 +58,34 @@
       "brotli": 3135
     },
     {
-      "module": "@firsthandjs/query",
-      "minified": 8142,
-      "gzip": 3371,
-      "brotli": 3083
+      "module": "@firsthandjs/data",
+      "minified": 6867,
+      "gzip": 2880,
+      "brotli": 2622
     },
     {
-      "module": "@firsthandjs/query (.gql loader path, parser tree-shaken)",
-      "minified": 5348,
-      "gzip": 2228,
-      "brotli": 2037
+      "module": "@firsthandjs/data (.gql loader path, parser tree-shaken)",
+      "minified": 4192,
+      "gzip": 1744,
+      "brotli": 1596
+    },
+    {
+      "module": "@firsthandjs/data-axios",
+      "minified": 109,
+      "gzip": 114,
+      "brotli": 92
+    },
+    {
+      "module": "@firsthandjs/data-urql",
+      "minified": 428,
+      "gzip": 312,
+      "brotli": 248
+    },
+    {
+      "module": "@firsthandjs/data-apollo",
+      "minified": 627,
+      "gzip": 383,
+      "brotli": 315
     },
     {
       "module": "@firsthandjs/styled",

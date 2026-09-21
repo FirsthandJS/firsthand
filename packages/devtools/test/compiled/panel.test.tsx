@@ -2,13 +2,13 @@
  * The panel.
  *
  * What is asserted here is what a person would check by looking: that the
- * chain is on the screen, that picking an element selects it, that the query
+ * chain is on the screen, that picking an element selects it, that the resource
  * tab shows the cache, and that closing removes everything it added — an
  * inspector that leaves listeners or styles behind is worse than none.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createQueryClient, tag } from '@firsthandjs/query';
-import { signal } from '@firsthandjs/core';
+import { DataContext, createData, tag, useResource } from '@firsthandjs/data';
+import { provide, signal } from '@firsthandjs/core';
 import { component, render } from '@firsthandjs/dom';
 import { attach, detach } from '@firsthandjs/devtools';
 import { close, open, refresh, show } from '../../src/panel.js';
@@ -195,22 +195,31 @@ describe('picking', () => {
     press('[data-tab="queries"]');
 
     // The click landed on a button rather than selecting the panel.
-    expect(body()).toContain('query cache');
+    expect(body()).toContain('No resource has done anything yet.');
   });
 });
 
 describe('the query tab', () => {
-  it('says when the cache has done nothing', () => {
+  it('says when no resource has done anything', () => {
     open();
     press('[data-tab="queries"]');
 
-    expect(body()).toContain('has done nothing yet');
+    expect(body()).toContain('No resource has done anything yet.');
   });
 
-  it('lists what the cache did, newest first', async () => {
-    const client = createQueryClient({ cacheTime: 1000 });
-    void client.load({ tags: [tag('order', { id: 7 })], fetch: () => Promise.resolve('ok') });
-    await client.invalidate(tag('order'));
+  it('lists what the store did, newest first', async () => {
+    const store = createData();
+    const Host = component(() => {
+      provide(DataContext, store);
+      useResource(({ tags }) => {
+        tags(tag('order', { id: 7 }));
+        return Promise.resolve('ok');
+      });
+      return null;
+    });
+    render(() => <Host />, host);
+    await new Promise((wake) => setTimeout(wake, 20));
+    await store.invalidate(tag('order'));
 
     open();
     press('[data-tab="queries"]');

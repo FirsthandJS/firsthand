@@ -180,7 +180,7 @@ export default {
 
 And if you would rather not add a build step at all, leave the compiler out:
 set `"jsx": "react-jsx"` and let TypeScript emit the calls. Everything works —
-components, signals, the router, the query cache — through the runtime JSX
+components, signals, the router, resources — through the runtime JSX
 path described above. You can add the compiler later without changing a line
 of application code; it compiles the same JSX into something faster.
 
@@ -261,7 +261,7 @@ You will meet these as you need them; none is required to start.
 | `@firsthandjs/dom`      | Always. Components, rendering, signals          |
 | `@firsthandjs/compiler` | Always, as a dev dependency                     |
 | `@firsthandjs/router`   | More than one page                              |
-| `@firsthandjs/query`    | Talking to a server                             |
+| `@firsthandjs/data`     | Talking to a server                             |
 | `@firsthandjs/styled`   | Styles written next to the component            |
 | `@firsthandjs/react`    | A component library that only exists for React  |
 | `@firsthandjs/deep`     | State shaped like a tree, not like a value      |

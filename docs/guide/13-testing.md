@@ -16,7 +16,7 @@ expect(view.text()).toBe('1'); // no await, no flush, no act()
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository tests itself the way it documents here: 765 unit and
+This repository tests itself the way it documents here: 778 unit and
 compiler tests under Vitest, and 87 runs under Playwright across
 Chromium, Firefox and WebKit, covering the framework, the router, the query
 cache and all seven example applications.
@@ -227,7 +227,7 @@ export default {
 
 Pages that usually cannot be told as stories — one that needs a router, one
 that needs a server — can be here: give `Router` a `createMemoryHistory()` and
-give `useQuery` whatever fetcher the story wants.
+give a resource whatever loader the story wants.
 [`integrations/storybook/`](../../integrations/storybook/) is a working example,
 and its `npm test` drives the built stories in a real browser.
 

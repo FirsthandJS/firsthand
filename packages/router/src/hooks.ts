@@ -62,7 +62,7 @@ export function useBasePath(): ReadonlyCell<string> {
 /**
  * The router above this component.
  *
- * The same shape as `useQueryClient()` in `@firsthandjs/query`: a `use*` hook that
+ * The same shape as `useData()` in `@firsthandjs/data`: a `use*` hook that
  * returns the thing itself, because a router does not change under you.
  */
 export function useRouter(): RouterState {

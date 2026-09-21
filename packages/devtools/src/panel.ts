@@ -434,7 +434,7 @@ function renderQueries(host: HTMLElement): void {
   host.append(body);
   const events = queries();
   if (events.length === 0) {
-    body.append(text('p', 'empty', 'The query cache has done nothing yet.'));
+    body.append(text('p', 'empty', 'No resource has done anything yet.'));
     return;
   }
   for (const event of [...events].reverse()) {

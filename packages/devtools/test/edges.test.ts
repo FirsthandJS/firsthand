@@ -7,9 +7,9 @@
  * debugging tool.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createRoot, signal } from '@firsthandjs/core';
+import { createRoot, provide, signal } from '@firsthandjs/core';
 import { attach, cells, detach, inspect, queries, stack, timeline } from '@firsthandjs/devtools';
-import { createQueryClient, tag } from '@firsthandjs/query';
+import { DataContext, createData, tag, useResource } from '@firsthandjs/data';
 
 beforeEach(() => {
   document.body.innerHTML = '';
@@ -180,40 +180,59 @@ describe('roots that are gone', () => {
   });
 });
 
-describe('the query cache', () => {
-  it('records what the cache did, in order, with its tags', async () => {
-    attach();
-    const client = createQueryClient({ cacheTime: 1000 });
-    const query = { tags: [tag('order', { id: 7 })], fetch: () => Promise.resolve('ok') };
+describe('the resource store', () => {
+  /** Runs `body` under a store, and disposes it. */
+  const inRoot = (body: () => void, store = createData()): (() => void) => {
+    let stop = (): void => {};
+    createRoot((dispose) => {
+      stop = dispose;
+      provide(DataContext, store);
+      body();
+    });
+    return stop;
+  };
 
-    void client.load(query);
-    await client.invalidate(tag('order'));
-    client.clear();
+  it('records what the store did, in order, with its tags', async () => {
+    attach();
+    const store = createData();
+    const stop = inRoot(() => {
+      useResource(({ tags }) => {
+        tags(tag('order', { id: 7 }));
+        return Promise.resolve('ok');
+      });
+    }, store);
+
+    await new Promise((wake) => setTimeout(wake, 20));
+    await store.invalidate(tag('order'));
+    stop();
 
     expect(queries().map((e) => e.event)).toEqual(['created', 'invalidated', 'dropped']);
-    expect(queries()[0]?.tags).toEqual(['order(id: 7)']);
+    expect(queries()[1]?.tags).toEqual(['order(id: 7)']);
   });
 
   it('forgets the log when detached', () => {
     attach();
-    const client = createQueryClient({});
-    void client.load({ tags: [tag('thing')], fetch: () => Promise.resolve(1) });
+    const stop = inRoot(() => {
+      useResource(() => Promise.resolve(1));
+    });
     expect(queries()).toHaveLength(1);
 
     detach();
     expect(queries()).toEqual([]);
+    stop();
   });
 
   it('keeps the log bounded rather than growing with the session', () => {
     attach();
-    const client = createQueryClient({});
-    for (let i = 0; i < 205; i++) {
-      void client.load({ tags: [tag('row', { n: i })], fetch: () => Promise.resolve(i) });
-    }
+    const stop = inRoot(() => {
+      for (let i = 0; i < 205; i++) {
+        useResource(() => Promise.resolve(i));
+      }
+    });
 
     // 200 entries, and the oldest are the ones that went.
     expect(queries()).toHaveLength(200);
-    expect(queries()[0]?.tags).toEqual(['row(n: 5)']);
+    stop();
   });
 });
 

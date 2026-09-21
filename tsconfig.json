@@ -23,7 +23,16 @@
       "path": "./packages/router"
     },
     {
-      "path": "./packages/query"
+      "path": "./packages/data"
+    },
+    {
+      "path": "./packages/data-axios"
+    },
+    {
+      "path": "./packages/data-urql"
+    },
+    {
+      "path": "./packages/data-apollo"
     },
     {
       "path": "./packages/testing"

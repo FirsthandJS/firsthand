@@ -99,7 +99,30 @@ const targets = [
     optional: true,
   },
   {
-    pkg: 'query',
+    pkg: 'data',
+    entries: { index: 'src/index.ts' },
+    platform: 'browser',
+    runtime: false,
+    optional: true,
+  },
+  // One per client, each a thin binding over an instance the application
+  // built. They carry no dependency on the client they bind (ADR-0022).
+  {
+    pkg: 'data-axios',
+    entries: { index: 'src/index.ts' },
+    platform: 'browser',
+    runtime: false,
+    optional: true,
+  },
+  {
+    pkg: 'data-urql',
+    entries: { index: 'src/index.ts' },
+    platform: 'browser',
+    runtime: false,
+    optional: true,
+  },
+  {
+    pkg: 'data-apollo',
     entries: { index: 'src/index.ts' },
     platform: 'browser',
     runtime: false,
@@ -125,7 +148,7 @@ const targets = [
   // The `.graphql` loader and the codegen plugin are build-time, like the
   // compiler's plugin.
   {
-    pkg: 'query',
+    pkg: 'data',
     entries: { vite: 'src/vite.ts', codegen: 'src/codegen.ts' },
     platform: 'node',
     runtime: false,
@@ -260,17 +283,17 @@ for (const target of targets) {
  * and tree-shaken out. That is a published number, so it is measured here
  * rather than by hand.
  */
-const loaderEntry = resolve(root, 'scripts', '.query-loader-entry.js');
+const loaderEntry = resolve(root, 'scripts', '.data-loader-entry.js');
 mkdirSync(dirname(loaderEntry), { recursive: true });
 writeFileSync(
   loaderEntry,
   [
     'export {',
-    '  createQueryClient, QueryClientContext, useQuery, useQueryClient, useMutation,',
-    '  tag, tagKey, tagsKey, tagMatches, anyTagMatches, variablesKey,',
-    '  json, FirsthandHttpError, GraphQLContext, FirsthandGraphQLError,',
-    '  createGraphQLTransport, useGraphQL, useGraphQLMutation, resolveTags,',
-    "} from '../packages/query/src/index.js';",
+    '  createData, DataContext, useData, useInvalidate,',
+    '  useResource, useAction, fromObservable, fromPromise,',
+    '  tag, tagMatches, anyTagMatches, resolveTags,',
+    '  json, FirsthandHttpError,',
+    "} from '../packages/data/src/index.js';",
   ].join('\n'),
 );
 const loaderBuild = await esbuild.build({
@@ -289,8 +312,8 @@ const loaderBuild = await esbuild.build({
 rmSync(loaderEntry, { force: true });
 const loaderCode = Buffer.from(loaderBuild.outputFiles[0].contents);
 // Reported next to the package it is a variant of, rather than at the end.
-optional.splice(optional.findIndex((entry) => entry.module === '@firsthandjs/query') + 1, 0, {
-  module: '@firsthandjs/query (.gql loader path, parser tree-shaken)',
+optional.splice(optional.findIndex((entry) => entry.module === '@firsthandjs/data') + 1, 0, {
+  module: '@firsthandjs/data (.gql loader path, parser tree-shaken)',
   minified: loaderCode.byteLength,
   gzip: gzipSync(loaderCode, { level: 9 }).byteLength,
   brotli: brotliCompressSync(loaderCode).byteLength,

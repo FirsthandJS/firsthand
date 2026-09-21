@@ -1,13 +1,13 @@
 /**
- * What `@firsthandjs/query/vite` turns a `.graphql` import into.
+ * What `@firsthandjs/data/vite` turns a `.graphql` import into.
  *
- * `@firsthandjs/query/codegen` writes one of these per operation from the schema.
+ * `@firsthandjs/data/codegen` writes one of these per operation from the schema.
  * This project has no schema to generate from, so the two declarations are
  * written by hand — which is also what they look like when generated, and is
  * why no call site needs a type argument.
  */
 declare module '*/user.graphql' {
-  const document: import('@firsthandjs/query').GraphQLDocument<
+  const document: import('@firsthandjs/data').GraphQLDocument<
     { user: { id: string; name: string } },
     { id: string }
   >;
@@ -15,7 +15,7 @@ declare module '*/user.graphql' {
 }
 
 declare module '*/rename.graphql' {
-  const document: import('@firsthandjs/query').GraphQLDocument<
+  const document: import('@firsthandjs/data').GraphQLDocument<
     { renameUser: { id: string; name: string } },
     { id: string; name: string }
   >;
@@ -23,6 +23,6 @@ declare module '*/rename.graphql' {
 }
 
 declare module '*.graphql' {
-  const document: import('@firsthandjs/query').GraphQLDocument;
+  const document: import('@firsthandjs/data').GraphQLDocument;
   export default document;
 }

@@ -33,17 +33,20 @@ One page per package, listing every export with its signature.
 
 | Package                                                | Size (gzip) | What it is                                         |
 | ------------------------------------------------------ | ----------- | -------------------------------------------------- |
-| [`@firsthandjs/core`](reference/core.md)               | 2.42 kB     | Signals, computeds, effects, context, owners       |
-| [`@firsthandjs/dom`](reference/dom.md)                 | 4.30 kB     | Components, rendering, elements, lists, portals    |
-| [`@firsthandjs/jsx-runtime`](reference/jsx-runtime.md) | 0.60 kB     | JSX types, and the runtime fallback                |
+| [`@firsthandjs/core`](reference/core.md)               | 2.36 kB     | Signals, computeds, effects, context, owners       |
+| [`@firsthandjs/dom`](reference/dom.md)                 | 4.20 kB     | Components, rendering, elements, lists, portals    |
+| [`@firsthandjs/jsx-runtime`](reference/jsx-runtime.md) | 0.59 kB     | JSX types, and the runtime fallback                |
 | [`@firsthandjs/compiler`](reference/compiler.md)       | build only  | The TSX transform and the bundler plugin           |
-| [`@firsthandjs/deep`](reference/deep.md)               | 0.74 kB     | Deep reactivity: every property is a signal        |
-| [`@firsthandjs/devtools`](reference/devtools.md)       | 1.96 kB     | **Experimental.** What updates what, why, and when |
-| [`@firsthandjs/i18n`](reference/i18n.md)               | 0.38 kB     | i18next and friends, made reactive                 |
-| [`@firsthandjs/router`](reference/router.md)           | 3.44 kB     | Typed routes, links, history, lazy routes          |
-| [`@firsthandjs/query`](reference/query.md)             | 3.32 kB     | The cache, tags, REST, GraphQL, codegen            |
-| [`@firsthandjs/styled`](reference/styled.md)           | 2.02 kB     | CSS-in-JS with custom properties                   |
-| [`@firsthandjs/react`](reference/react.md)             | 0.68 kB     | React components inside Firsthand, directly or not |
+| [`@firsthandjs/deep`](reference/deep.md)               | 0.72 kB     | Deep reactivity: every property is a signal        |
+| [`@firsthandjs/devtools`](reference/devtools.md)       | 6.30 kB     | **Experimental.** What updates what, why, and when |
+| [`@firsthandjs/i18n`](reference/i18n.md)               | 0.37 kB     | i18next and friends, made reactive                 |
+| [`@firsthandjs/router`](reference/router.md)           | 3.36 kB     | Typed routes, links, history, lazy routes          |
+| [`@firsthandjs/data`](reference/data.md)               | 2.81 kB     | Resources, actions, tags, GraphQL documents        |
+| `@firsthandjs/data-axios`                              | 0.11 kB     | Axios requests as loaders                          |
+| `@firsthandjs/data-urql`                               | 0.30 kB     | urql documents as loaders                          |
+| `@firsthandjs/data-apollo`                             | 0.37 kB     | Apollo documents as loaders, and its observables   |
+| [`@firsthandjs/styled`](reference/styled.md)           | 1.98 kB     | CSS-in-JS with custom properties                   |
+| [`@firsthandjs/react`](reference/react.md)             | 0.66 kB     | React components inside Firsthand, directly or not |
 | [`@firsthandjs/testing`](reference/testing.md)         | dev only    | `mount`, `cleanup`, leak probes                    |
 
 Sizes are measured by `npm run build` and published in the
