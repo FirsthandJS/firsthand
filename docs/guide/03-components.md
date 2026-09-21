@@ -158,6 +158,12 @@ The compiler reports the first form as a build error (`strictReactivity`),
 because nothing throws at runtime: the button simply stops working, later, and
 it takes twenty minutes to find.
 
+It reports a **signal** read and not a prop read. A signal exists in order to
+change; a prop may be fixed for the life of an instance — a recursive
+`component((props) => (props.depth === 0 ? <Leaf /> : <Nested />))` decides its
+shape once and is right to — and the compiler cannot tell the two apart. Where
+a prop does change, the same rule applies and nobody will warn you.
+
 ## Destructuring works
 
 ```tsx

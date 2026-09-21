@@ -264,15 +264,18 @@ function checkKeptReads(setup: NodePath<t.Function>, name: string): void {
  * setup, and nothing throws — the screen is simply wrong, later, in a way that
  * reads as a broken button.
  *
- * Only the **returned expression** is examined, and only when a reactive read
- * decides which view it produces. A read *inside* JSX is a part and is left
- * alone; so is a return with no JSX in it at all, which is somebody's helper
- * rather than a view.
+ * Only the **returned expression** is examined, and only when a signal decides
+ * which view it produces. A read *inside* JSX is a part and is left alone; so
+ * is a return with no JSX in it at all, which is somebody's helper rather than
+ * a view.
+ *
+ * Deliberately narrow, because a false positive here stops a build. A `.value`
+ * read is reported and a **prop read is not**: a signal exists in order to
+ * change, while a prop may be fixed for the life of an instance — a recursive
+ * `<Nested depth={props.depth - 1} />` chooses its shape once on purpose, and
+ * a rule that could not tell the difference would refuse it.
  */
 function checkDecidedOnce(setup: NodePath<t.Function>, name: string): void {
-  const parameter = setup.node.params[0];
-  const propsName = t.isIdentifier(parameter) ? parameter.name : null;
-
   const report = (at: NodePath): never => {
     throw at.buildCodeFrameError(
       `${name}: this view is chosen once, here, from a value that changes. A setup ` +
@@ -288,7 +291,7 @@ function checkDecidedOnce(setup: NodePath<t.Function>, name: string): void {
       if (!hasView(returned.consequent) && !hasView(returned.alternate)) {
         return;
       }
-      if (readsSomething(returned.test, propsName)) {
+      if (readsSignal(returned.test)) {
         report(at);
       }
       return;
@@ -297,7 +300,7 @@ function checkDecidedOnce(setup: NodePath<t.Function>, name: string): void {
       if (!hasView(returned.right) && !hasView(returned.left)) {
         return;
       }
-      if (readsSomething(returned.left, propsName)) {
+      if (readsSignal(returned.left)) {
         report(at);
       }
     }
@@ -336,8 +339,8 @@ function hasView(node: t.Node): boolean {
   return t.isJSXElement(node) || t.isJSXFragment(node);
 }
 
-/** Whether an expression reads a signal or a prop anywhere inside it. */
-function readsSomething(node: t.Node, propsName: string | null): boolean {
+/** Whether an expression reads a signal anywhere inside it. */
+function readsSignal(node: t.Node): boolean {
   let found = false;
   const walk = (current: t.Node | null | undefined): void => {
     if (current === null || current === undefined || found) {
@@ -345,10 +348,6 @@ function readsSomething(node: t.Node, propsName: string | null): boolean {
     }
     if (t.isMemberExpression(current)) {
       if (!current.computed && t.isIdentifier(current.property, { name: 'value' })) {
-        found = true;
-        return;
-      }
-      if (propsName !== null && t.isIdentifier(current.object, { name: propsName })) {
         found = true;
         return;
       }

@@ -50,10 +50,18 @@ export const Panel = component((props) => {
     );
   });
 
-  it('refuses one decided by a prop', () => {
-    expect(() => compile(setup('return props.busy ? <b>wait</b> : <i>go</i>;'))).toThrow(
-      /chosen once/,
-    );
+  it('leaves a prop alone, because a prop may be fixed for the instance', () => {
+    // The case that made this rule narrower than it started: a recursive
+    // component chooses its shape from `props.depth` exactly once, on purpose,
+    // and a rule that could not tell a prop from a signal refused it.
+    expect(() =>
+      compile(`
+import { component } from '@firsthandjs/core';
+export const Nested = component((props) =>
+  props.depth === 0 ? <b>leaf</b> : <i>branch</i>,
+);
+`),
+    ).not.toThrow();
   });
 
   it('refuses the `&&` form, which is the same mistake with fewer characters', () => {
@@ -83,7 +91,7 @@ export const Panel = component((props) => {
   it('sees the read through the shapes people actually write', () => {
     const forms = [
       'return !open.value ? <b>a</b> : <i>b</i>;',
-      'return open.value && props.busy ? <b>a</b> : <i>b</i>;',
+      'return props.busy && open.value ? <b>a</b> : <i>b</i>;',
       'return count.value > 0 ? <b>a</b> : <i>b</i>;',
       'return (open.value ? 1 : 2) > 1 ? <b>a</b> : <i>b</i>;',
     ];
@@ -110,12 +118,13 @@ export const Panel = component(() => (open.value ? <b>form</b> : <i>button</i>))
     expect(() => compile(setup('return open.value && "open";'))).not.toThrow();
   });
 
-  it('sees a prop read through a member chain', () => {
+  it('sees a signal read through a member chain', () => {
     expect(() =>
       compile(`
-import { component } from '@firsthandjs/core';
-export const Panel = component((props) => {
-  return props.board.open ? <b>form</b> : <i>button</i>;
+import { component, signal } from '@firsthandjs/core';
+const state = { open: signal(false) };
+export const Panel = component(() => {
+  return state.open.value ? <b>form</b> : <i>button</i>;
 });
 `),
     ).toThrow(/chosen once/);
