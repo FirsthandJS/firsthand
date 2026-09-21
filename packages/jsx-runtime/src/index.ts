@@ -184,12 +184,42 @@ interface FirsthandAttributes<E extends Element> {
   onSubmit?: EventHandler<E, SubmitEvent> | undefined;
   onKeyDown?: EventHandler<E, KeyboardEvent> | undefined;
   onKeyUp?: EventHandler<E, KeyboardEvent> | undefined;
+  onFocus?: EventHandler<E, FocusEvent> | undefined;
+  onBlur?: EventHandler<E, FocusEvent> | undefined;
   onFocusIn?: EventHandler<E, FocusEvent> | undefined;
   onFocusOut?: EventHandler<E, FocusEvent> | undefined;
   onPointerDown?: EventHandler<E, PointerEvent> | undefined;
   onPointerUp?: EventHandler<E, PointerEvent> | undefined;
+  onPointerMove?: EventHandler<E, PointerEvent> | undefined;
+  onPointerEnter?: EventHandler<E, PointerEvent> | undefined;
+  onPointerLeave?: EventHandler<E, PointerEvent> | undefined;
+  onPointerCancel?: EventHandler<E, PointerEvent> | undefined;
   onMouseOver?: EventHandler<E, MouseEvent> | undefined;
   onMouseOut?: EventHandler<E, MouseEvent> | undefined;
+  onMouseEnter?: EventHandler<E, MouseEvent> | undefined;
+  onMouseLeave?: EventHandler<E, MouseEvent> | undefined;
+  onContextMenu?: EventHandler<E, MouseEvent> | undefined;
+  /**
+   * Dragging, which is the platform's and needs no library.
+   *
+   * `dragover` has to call `preventDefault()` or the browser refuses the drop,
+   * which is the one surprise in the set and is worth knowing before writing
+   * the handler rather than after.
+   */
+  onDragStart?: EventHandler<E, DragEvent> | undefined;
+  onDrag?: EventHandler<E, DragEvent> | undefined;
+  onDragEnd?: EventHandler<E, DragEvent> | undefined;
+  onDragEnter?: EventHandler<E, DragEvent> | undefined;
+  onDragOver?: EventHandler<E, DragEvent> | undefined;
+  onDragLeave?: EventHandler<E, DragEvent> | undefined;
+  onDrop?: EventHandler<E, DragEvent> | undefined;
+  onScroll?: EventHandler<E, Event> | undefined;
+  onWheel?: EventHandler<E, WheelEvent> | undefined;
+  onCopy?: EventHandler<E, ClipboardEvent> | undefined;
+  onCut?: EventHandler<E, ClipboardEvent> | undefined;
+  onPaste?: EventHandler<E, ClipboardEvent> | undefined;
+  onAnimationEnd?: EventHandler<E, AnimationEvent> | undefined;
+  onTransitionEnd?: EventHandler<E, TransitionEvent> | undefined;
 }
 
 /** DOM properties of the element that Firsthand does not already describe. */

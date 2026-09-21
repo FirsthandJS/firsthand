@@ -8,6 +8,16 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- **Drag and drop, blur and focus are typeable in TSX.** `FirsthandAttributes`
+  listed fourteen `on…` handlers and none of the drag ones, so the ordinary way
+  to move a card between columns — `draggable` plus `onDragStart`, `onDragOver`
+  and `onDrop` — was a type error, as were `onBlur`, `onFocus`,
+  `onContextMenu`, `onWheel`, `onScroll`, the clipboard events and the pointer
+  events beyond down and up. All of them are declared now.
+
+  Found the same way `slot` was in 0.6.1: by building a kanban board with the
+  published packages.
+
 - **An action's answer no longer lands in the cache.** `force` kept an action
   from being _answered_ out of the cache; nothing kept its answer from being
   _written_ into one. So a `GET` that changes something — a
