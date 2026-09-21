@@ -121,6 +121,22 @@ it changes — including on the way out of a sign-out, where they would all go
 again without one. That bug was measured once already (0.4.1); the clients now
 prevent it rather than documenting it.
 
+**A cache key is an identity and a request.** Added in 0.6.2, after the
+question "whose answer is that?" was asked of the design. `GET /api/me` is the
+same URL for every account, so a key made of method and URL alone can serve one
+account's answer to the next one in the same session — the worst failure a
+cache has, because nothing looks wrong. Every client therefore prefixes its
+keys with an identity, defaulting to the `authorization` header the request
+would carry, and takes a `scope` function for the sessions that are not a
+header. Clearing on sign-out remains worth doing and is now about memory rather
+than correctness.
+
+The same review found a real collision: the Axios client keyed reads by base
+URL and path, and Axios keeps the query string in `params` rather than in the
+URL — so two pages of one list were one entry. Keys now include `params`,
+through an exported `stableKey` that is order-independent, and a caller writing
+their own `cacheKey` is told to use it.
+
 ## Non-goals
 
 Interceptors, retries, backoff, token refresh, XSRF, request queues,

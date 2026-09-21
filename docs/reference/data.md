@@ -1,6 +1,6 @@
 # @firsthandjs/data
 
-[Reference index](../README.md#reference) · 3.65 kB gzip (2.56 kB with the
+[Reference index](../README.md#reference) · 3.84 kB gzip (2.61 kB with the
 `.gql` loader, which leaves the parser out) · depends on `@firsthandjs/dom`
 
 Two layers: **resources and actions**, which are reactive state and
@@ -209,6 +209,9 @@ interface CacheOptions {
   readonly now?: () => number;
 }
 
+/** A key for a value, stable however the value was written. */
+function stableKey(value: unknown): string;
+
 interface CacheClient {
   /** Wraps a producer so its answer is kept under `key`. */
   read<T>(key: string, produce: Loader<T>): Loader<T>;
@@ -236,6 +239,12 @@ these, and there is no second implementation hidden inside it.
   is still waiting for.
 - **A failure is not kept**: the next caller asks again.
 
+Keys are the caller's, and every client here builds one from an **identity**
+and a **request** so that two accounts in one session cannot read each other's
+answers. `stableKey` is exported because a key you write yourself needs the
+same property: it must carry everything that varies, in an order-independent
+form.
+
 ## fetch
 
 ```ts
@@ -248,6 +257,11 @@ interface FetchClientOptions {
   readonly headers?: HeadersInit | (() => HeadersInit);
   /** `false` (default), options for a cache of its own, or a shared one. */
   readonly cache?: false | CacheOptions | CacheClient;
+  /**
+   * Who the cached answers belong to. Default: the `authorization` header this
+   * request would carry. Read per request, untracked.
+   */
+  readonly scope?: () => string;
   /** Applied to every request: `credentials`, `mode`, `referrerPolicy`, … */
   readonly init?: RequestInit;
   /** The seam: wrap `fetch` to log, to retry, or to end a session on a 401. */
@@ -271,7 +285,10 @@ interface JsonRequest extends Omit<RequestInit, 'body'> {
   readonly body?: BodyInit | null;
   /** Sent as JSON, with the content type the platform will not set for you. */
   readonly json?: unknown;
-  /** This call's cache key, or `false` for nowhere. */
+  /**
+   * This call's cache key, or `false` for nowhere. It must carry everything
+   * that varies — the body included — and the identity is added for you.
+   */
   readonly cacheKey?: string | false;
 }
 
@@ -286,8 +303,8 @@ A small REST client on the browser's own `fetch`: a base URL, headers read per
 request, a failed status thrown, the abort signal wired through, and the shared
 cache. An empty body, such as a 204, is `undefined` rather than a parse error.
 
-Only `GET` and `HEAD` are cached, keyed by method and URL — a write is not
-identified by where it was sent. `cacheKey` says otherwise for a POST that
+Only `GET` and `HEAD` are cached, keyed by identity, method and URL — a write
+is not identified by where it was sent. `cacheKey` says otherwise for a POST that
 reads, and `cacheKey: false` keeps one read out of the cache entirely. The
 platform's own `cache` option is untouched and still passed to `fetch`: that
 one is the HTTP cache, a different thing.
@@ -356,13 +373,16 @@ function createApolloClient(
 
 | Package                                                            |    gzip | Has                                            |
 | ------------------------------------------------------------------ | ------: | ---------------------------------------------- |
-| [`@firsthandjs/data-axios`](../../packages/data-axios/README.md)   | 0.47 kB | `request`, `get`/`post`/`put`/`patch`/`remove` |
-| [`@firsthandjs/data-urql`](../../packages/data-urql/README.md)     | 0.53 kB | `query`, `mutate`                              |
-| [`@firsthandjs/data-apollo`](../../packages/data-apollo/README.md) | 0.61 kB | `query`, `mutate`, `watch`                     |
+| [`@firsthandjs/data-axios`](../../packages/data-axios/README.md)   | 0.58 kB | `request`, `get`/`post`/`put`/`patch`/`remove` |
+| [`@firsthandjs/data-urql`](../../packages/data-urql/README.md)     | 0.58 kB | `query`, `mutate`                              |
+| [`@firsthandjs/data-apollo`](../../packages/data-apollo/README.md) | 0.65 kB | `query`, `mutate`, `watch`                     |
 
 Each takes `headers` (a function is read per request and untracked), `cache`
-(`false`, options, or a shared `CacheClient`), a per-transport options bag, and
-has `.with(...)` and `.cache` like the fetch client. None depends on the client
+(`false`, options, or a shared `CacheClient`), `scope` (who the cached answers
+belong to; the `authorization` header by default), a per-transport options bag,
+and has `.with(...)` and `.cache` like the fetch client. Axios reads are keyed
+by their `params` as well as their URL, because that is where Axios keeps the
+query string; the GraphQL clients are keyed by operation and variables. None depends on the client
 it binds, not even as a peer: the two or three methods each uses are declared
 structurally, so there is no version to follow.
 

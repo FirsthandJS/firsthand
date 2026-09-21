@@ -155,6 +155,67 @@ describe('createUrqlClient', () => {
     expect(seen).toHaveLength(5);
   });
 
+  it('never serves one account the answer cached for another', async () => {
+    const { seen, client } = stub();
+    const token = signal('ada');
+    const api = createUrqlClient(client, {
+      headers: () => ({ authorization: `Bearer ${token.value}` }),
+      cache: { ttl: 10_000 },
+    });
+    const document = parseGraphQL('query Me { me { id } }');
+
+    await api.query(document)(ask());
+    token.value = 'grace';
+    await api.query(document)(ask());
+
+    expect(seen).toHaveLength(2);
+  });
+
+  it('keys a query by its variables, in any order they were written', async () => {
+    const { seen, client } = stub();
+    const api = createUrqlClient(client, { cache: { ttl: 10_000 } });
+    const document = parseGraphQL<unknown, { a: number; b: number }>(
+      'query Rows($a: Int!, $b: Int!) { rows(a: $a, b: $b) { id } }',
+    );
+
+    await api.query(document, { a: 1, b: 2 })(ask());
+    await api.query(document, { b: 2, a: 1 })(ask());
+
+    expect(seen).toHaveLength(1);
+  });
+
+  it('takes an identity of its own, for a session that is not a header', async () => {
+    const { seen, client } = stub();
+    const account = signal('a1');
+    const api = createUrqlClient(client, {
+      scope: () => account.value,
+      cache: { ttl: 10_000 },
+    });
+    const document = parseGraphQL('query Me { me { id } }');
+
+    await api.query(document)(ask());
+    await api.query(document)(ask());
+    expect(seen).toHaveLength(1);
+
+    account.value = 'a2';
+    await api.query(document)(ask());
+    expect(seen).toHaveLength(2);
+  });
+
+  it('reads a capitalised Authorization header as the same identity', async () => {
+    const { seen, client } = stub();
+    const api = createUrqlClient(client, {
+      headers: { Authorization: 'Bearer ada' },
+      cache: { ttl: 10_000 },
+    });
+    const document = parseGraphQL('query Me { me { id } }');
+
+    await api.query(document)(ask());
+    await api.query(document)(ask());
+
+    expect(seen).toHaveLength(1);
+  });
+
   it('makes a variation that keeps what it did not replace, cache included', async () => {
     const { seen, client } = stub();
     const api = createUrqlClient(client, {

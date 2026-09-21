@@ -41,10 +41,10 @@ One page per package, listing every export with its signature.
 | [`@firsthandjs/devtools`](reference/devtools.md)                | 6.29 kB     | **Experimental.** What updates what, why, and when |
 | [`@firsthandjs/i18n`](reference/i18n.md)                        | 0.37 kB     | i18next and friends, made reactive                 |
 | [`@firsthandjs/router`](reference/router.md)                    | 3.36 kB     | Typed routes, links, history, lazy routes          |
-| [`@firsthandjs/data`](reference/data.md)                        | 3.65 kB     | Resources, actions, tags, the cache, fetch client  |
-| [`@firsthandjs/data-axios`](../packages/data-axios/README.md)   | 0.47 kB     | Axios, as a client                                 |
-| [`@firsthandjs/data-urql`](../packages/data-urql/README.md)     | 0.53 kB     | urql, as a client                                  |
-| [`@firsthandjs/data-apollo`](../packages/data-apollo/README.md) | 0.61 kB     | Apollo, as a client, and its observables           |
+| [`@firsthandjs/data`](reference/data.md)                        | 3.84 kB     | Resources, actions, tags, the cache, fetch client  |
+| [`@firsthandjs/data-axios`](../packages/data-axios/README.md)   | 0.58 kB     | Axios, as a client                                 |
+| [`@firsthandjs/data-urql`](../packages/data-urql/README.md)     | 0.58 kB     | urql, as a client                                  |
+| [`@firsthandjs/data-apollo`](../packages/data-apollo/README.md) | 0.65 kB     | Apollo, as a client, and its observables           |
 | [`@firsthandjs/styled`](reference/styled.md)                    | 1.98 kB     | CSS-in-JS with custom properties                   |
 | [`@firsthandjs/react`](reference/react.md)                      | 0.66 kB     | React components inside Firsthand, directly or not |
 | [`@firsthandjs/testing`](reference/testing.md)                  | dev only    | `mount`, `cleanup`, leak probes                    |

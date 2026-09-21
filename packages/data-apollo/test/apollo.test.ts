@@ -146,6 +146,54 @@ describe('createApolloClient', () => {
     expect(seen).toHaveLength(4);
   });
 
+  it('never serves one account the answer cached for another', async () => {
+    const { seen, client } = stub();
+    const token = signal('ada');
+    const api = createApolloClient(client, parse, {
+      headers: () => ({ authorization: `Bearer ${token.value}` }),
+      cache: { ttl: 10_000 },
+    });
+    const document = parseGraphQL('query Me { me { id } }');
+
+    await api.query(document)(ask());
+    token.value = 'grace';
+    await api.query(document)(ask());
+
+    expect(seen).toHaveLength(2);
+  });
+
+  it('takes an identity of its own, for a session that is not a header', async () => {
+    const { seen, client } = stub();
+    const account = signal('a1');
+    const api = createApolloClient(client, parse, {
+      scope: () => account.value,
+      cache: { ttl: 10_000 },
+    });
+    const document = parseGraphQL('query Me { me { id } }');
+
+    await api.query(document)(ask());
+    await api.query(document)(ask());
+    expect(seen).toHaveLength(1);
+
+    account.value = 'a2';
+    await api.query(document)(ask());
+    expect(seen).toHaveLength(2);
+  });
+
+  it('reads a capitalised Authorization header as the same identity', async () => {
+    const { seen, client } = stub();
+    const api = createApolloClient(client, parse, {
+      headers: { Authorization: 'Bearer ada' },
+      cache: { ttl: 10_000 },
+    });
+    const document = parseGraphQL('query Me { me { id } }');
+
+    await api.query(document)(ask());
+    await api.query(document)(ask());
+
+    expect(seen).toHaveLength(1);
+  });
+
   it('has no cache unless it was asked for one, because Apollo has its own', () => {
     const { client } = stub();
     expect(createApolloClient(client, parse).cache).toBeUndefined();
