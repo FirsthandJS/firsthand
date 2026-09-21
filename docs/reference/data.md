@@ -56,6 +56,11 @@ interface DataRequest {
   readonly signal: AbortSignal;
   /** True when this run was caused by an invalidation or by `reload()`. */
   readonly force: boolean;
+  /**
+   * True when this request is part of an action. Nothing it sends is answered
+   * from a cache (`force` says that) or kept in one (this does).
+   */
+  readonly mutating?: boolean;
   /** Where a client reports what the answer turned out to be about. */
   readonly tags?: (...tags: Tag[]) => void;
 }
@@ -150,6 +155,9 @@ interface Action<I, R> {
 The body is **untracked**: an action runs from an event handler, and what it
 reads on the way is nobody's dependency. A second `run()` aborts the first.
 
+Its request carries `force: true` **and** `mutating: true`, so nothing it sends
+is answered out of a cache or written into one.
+
 ## Bridges
 
 ```ts
@@ -234,6 +242,9 @@ these, and there is no second implementation hidden inside it.
   configuration. Serving an _older_ answer is the separate decision, and that
   is what `ttl` buys.
 - **`force` drops the entry**, which is how an invalidation reaches through.
+- **A `mutating` request is run and nothing else**: not served from here, not
+  shared with anybody, and not kept. That is every action, whatever its method
+  or key.
 - **The producer gets a signal of the cache's own**, aborted only when every
   waiter has gone — so one component leaving does not cancel a request another
   is still waiting for.

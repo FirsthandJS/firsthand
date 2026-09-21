@@ -230,7 +230,14 @@ export function createFetchClient(options: FetchClientOptions = {}): FetchClient
         // Two parts, separated by a character a URL cannot contain: an
         // identity and a request. Neither can be mistaken for the other.
         const key = named === undefined ? undefined : `${scope}\u0000${named}`;
-        if (cache === undefined || init.cacheKey === false || key === undefined) {
+        if (
+          cache === undefined ||
+          init.cacheKey === false ||
+          key === undefined ||
+          // An action. Even a `cacheKey` does not put its answer in here: the
+          // call site asked for a key, not for its writes to be remembered.
+          request.mutating === true
+        ) {
           return await send<T>(options, target, merged, request);
         }
         return await cache.read<T>(key, (shared) => send<T>(options, target, merged, shared))(

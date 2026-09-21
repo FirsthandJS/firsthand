@@ -10,6 +10,13 @@ const ask = (force = false): DataRequest => ({
   signal: new AbortController().signal,
   force,
 });
+
+/** What an action hands a client: it changes something. */
+const change = (): DataRequest => ({
+  signal: new AbortController().signal,
+  force: true,
+  mutating: true,
+});
 const parse = (source: string): unknown => ({ parsed: source });
 
 /** A request that records what the client said it was about. */
@@ -212,6 +219,17 @@ describe('createApolloClient', () => {
     expect(seen[0]?.options['context']).toEqual({ headers: { 'x-app': 'notes' } });
     expect(seen[0]?.options['errorPolicy']).toBe('ignore');
     expect(traced.cache).toBe(api.cache);
+  });
+
+  it('keeps a query an action sends out of the cache', async () => {
+    const { seen, client } = stub();
+    const api = createApolloClient(client, parse, { cache: { ttl: 10_000 } });
+    const document = parseGraphQL('query Me { me { id } }');
+
+    await api.query(document)(change());
+    await api.query(document)(ask());
+
+    expect(seen).toHaveLength(2);
   });
 
   it('keeps having no cache when a variation adds none', () => {

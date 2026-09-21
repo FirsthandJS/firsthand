@@ -43,6 +43,21 @@ export interface DataRequest {
    */
   readonly force: boolean;
   /**
+   * True when this request is part of an action: it changes something.
+   *
+   * Nothing an action sends touches the cache — not read from it, which
+   * `force` already prevents, and **not written to it**. A cache holds
+   * representations, and what an action gets back is the answer to *doing*
+   * something: a mutation result, a receipt, a recalculated report. Storing it
+   * under the URL it was sent to means a later read is served an answer that
+   * was never a representation of anything, and nothing looks wrong on the way
+   * there.
+   *
+   * It is separate from `force` because the two say different things. `force`
+   * is "do not answer me from memory"; this is "do not remember me".
+   */
+  readonly mutating?: boolean;
+  /**
    * Where a client reports what this request is about, when it knows.
    *
    * A GraphQL document carries its own `@tag` and `@invalidates` directives,

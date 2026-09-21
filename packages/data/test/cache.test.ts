@@ -139,6 +139,26 @@ describe('createCacheClient', () => {
     expect(cache.size).toBe(1);
   });
 
+  it('stays out of an action’s way: run, not served, not kept', async () => {
+    const cache = createCacheClient({ ttl: 10_000 });
+    const { calls, produce } = counted('done');
+    cache.write('k', 'from a read');
+
+    // What an action hands a client: it changes something. Even with a fresh
+    // entry sitting there under the same key, the producer runs…
+    const changing: DataRequest = {
+      signal: new AbortController().signal,
+      force: true,
+      mutating: true,
+    };
+    await expect(cache.read('k', produce)(changing)).resolves.toBe('done');
+    expect(calls).toHaveLength(1);
+
+    // …and what it answered is not kept: a write is not a representation, so
+    // the next read must not be given it.
+    expect(cache.peek('k')).toBe('from a read');
+  });
+
   it('forgets one key, and everything', async () => {
     const cache = createCacheClient({ ttl: 10_000 });
     const { calls, produce } = counted('kept');

@@ -140,8 +140,13 @@ export function createAxiosClient(
       async (request: DataRequest): Promise<T> => {
         const method = text(config['method'], 'get').toUpperCase();
         // Only a read is cacheable, and only by its URL: a POST is not
-        // identified by where it was sent.
-        if (cache === undefined || (method !== 'GET' && method !== 'HEAD')) {
+        // identified by where it was sent. Nor is anything an action sends,
+        // whatever its method — a write is not a representation.
+        if (
+          cache === undefined ||
+          request.mutating === true ||
+          (method !== 'GET' && method !== 'HEAD')
+        ) {
           return await send<T>(config, request);
         }
         // `params` is part of the URL once Axios has sent it, so it is part of
