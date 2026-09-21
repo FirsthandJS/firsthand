@@ -149,7 +149,7 @@ type Attribute<T> = T | (() => T) | undefined;
 /** Like `Partial<T>`, but explicit `undefined` is allowed and thunks are too. */
 type OptionalAttributes<T> = { [K in keyof T]?: Attribute<T[K]> };
 
-interface FirsthandAttributes<E extends Element> {
+type FirsthandAttributes<E extends Element> = {
   /**
    * Consumed by the keyed list part; it never reaches a component as a prop.
    *
@@ -220,7 +220,7 @@ interface FirsthandAttributes<E extends Element> {
   onPaste?: EventHandler<E, ClipboardEvent> | undefined;
   onAnimationEnd?: EventHandler<E, AnimationEvent> | undefined;
   onTransitionEnd?: EventHandler<E, TransitionEvent> | undefined;
-}
+};
 
 /** DOM properties of the element that Firsthand does not already describe. */
 type DomAttributes<E extends Element> = OptionalAttributes<

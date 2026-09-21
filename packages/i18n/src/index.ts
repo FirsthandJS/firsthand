@@ -35,7 +35,7 @@ import {
 type Translate = (...args: never[]) => unknown;
 
 /** What a localisation library has to offer to be made reactive. */
-export interface Source<T extends Translate> {
+export type Source<T extends Translate> = {
   /** The library's own `t`, untouched — its types are the ones you keep. */
   translate: T;
   /** The language in effect right now, read when something asks. */
@@ -50,17 +50,17 @@ export interface Source<T extends Translate> {
    * never recover.
    */
   subscribe: (changed: () => void) => Dispose;
-}
+};
 
 /** A reactive translation function, and the language it is reading. */
-export interface Translator<T extends Translate> {
+export type Translator<T extends Translate> = {
   /** The same function, with the same types, that now re-runs when it should. */
   t: T;
   /** The current language, as a cell: read it in a part and it stays current. */
   language: ReadonlyCell<string>;
   /** Stops listening. Registered with the enclosing scope, if there is one. */
   dispose: Dispose;
-}
+};
 
 /**
  * Wraps any translation function so that reading it subscribes.
@@ -114,7 +114,7 @@ export function translator<T extends Translate>(source: Source<T>): Translator<T
  * on i18next, no opinion about its version, and works with anything that looks
  * like it — `createInstance()`, a mock in a test, or a fork.
  */
-export interface I18nextLike<T extends Translate> {
+export type I18nextLike<T extends Translate> = {
   t: T;
   language: string;
   on(event: string, handler: () => void): void;
@@ -128,13 +128,13 @@ export interface I18nextLike<T extends Translate> {
    * against the real library rather than against something shaped like it.
    */
   store?: Emitter;
-}
+};
 
 /** The part of an event emitter this package uses. */
-export interface Emitter {
+export type Emitter = {
   on(event: string, handler: () => void): void;
   off(event: string, handler: () => void): void;
-}
+};
 
 /**
  * What changes the answer, and where each is announced.

@@ -18,14 +18,14 @@ import { applyChild, type DynamicChild } from './insert.js';
 /** Marks a value as a Firsthand component; used by the JSX runtime and compiler. */
 export const COMPONENT: unique symbol = Symbol.for('firsthand.component');
 
-export interface ComponentOptions {
+export type ComponentOptions = {
   /** Attach a shadow root to the element host. Implies `tag` (ADR-0007). */
   shadow?: boolean;
   /** Host this component in a real custom element (ADR-0003). */
   tag?: true | string;
   /** Explicit attribute codecs for vanilla-HTML consumers of the element. */
   attributes?: Readonly<Record<string, AttributeCodec>>;
-}
+};
 
 /** Converts an attribute string to a prop value. `null` means "absent". */
 export type AttributeCodec = (raw: string | null) => unknown;
@@ -57,7 +57,7 @@ export type PropsArgument<P> = {
   [K in keyof P]: undefined extends P[K] ? P[K] | undefined : P[K];
 };
 
-export interface Component<P> {
+export type Component<P> = {
   /**
    * Creates an instance.
    *
@@ -76,7 +76,7 @@ export interface Component<P> {
   readonly name: string;
   /** Registered custom element name, once `defineElement` has run. */
   tag: string | undefined;
-}
+};
 
 let sequence = 0;
 let prefix = 'firsthand';

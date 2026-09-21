@@ -41,14 +41,14 @@ import {
 import { untrack } from '@firsthandjs/core';
 
 /** The part of an Axios instance this package uses. Nothing else. */
-export interface AxiosLike {
+export type AxiosLike = {
   request(config: Record<string, unknown>): Promise<{ data: unknown }>;
-}
+};
 
 /** An Axios request config, minus the wiring this package does for you. */
 export type AxiosRequest = Record<string, unknown>;
 
-export interface AxiosClientOptions {
+export type AxiosClientOptions = {
   /**
    * Headers for every request, merged over the instance's own. A function is
    * called **per request and untracked**, which is what lets a token change
@@ -69,9 +69,9 @@ export interface AxiosClientOptions {
   readonly scope?: () => string;
   /** Merged into every request: `responseType`, `timeout`, `withCredentials`, … */
   readonly config?: AxiosRequest;
-}
+};
 
-export interface AxiosClient {
+export type AxiosClient = {
   /** Any method: the general form the others are named shortcuts for. */
   request<T>(config: AxiosRequest): Loader<T>;
   get<T>(url: string, config?: AxiosRequest): Loader<T>;
@@ -83,7 +83,7 @@ export interface AxiosClient {
   /** A copy with some options replaced. The cache is shared unless replaced. */
   with(options: AxiosClientOptions): AxiosClient;
   readonly cache: CacheClient | undefined;
-}
+};
 
 /**
  * One field of an Axios config, as the string it is meant to be.

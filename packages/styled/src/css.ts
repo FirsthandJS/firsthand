@@ -16,10 +16,10 @@
  */
 
 /** What a `css` template is before anything reads it. */
-export interface CssFragment {
+export type CssFragment = {
   readonly strings: readonly string[];
   readonly values: readonly unknown[];
-}
+};
 
 const FRAGMENT: unique symbol = Symbol('firsthand.css');
 
@@ -38,15 +38,15 @@ export function isFragment(value: unknown): value is CssFragment {
 }
 
 /** An interpolation that has to be evaluated per instance. */
-export interface Slot {
+export type Slot = {
   /** `value` becomes a custom property; `block` becomes part of a class. */
   readonly kind: 'value' | 'block';
   /** The custom property's name, for a value slot. */
   readonly property: string;
   readonly fn: (props: Record<string, unknown>) => unknown;
-}
+};
 
-export interface Compiled {
+export type Compiled = {
   /**
    * The template as literal text and block slots, in order.
    *
@@ -57,7 +57,7 @@ export interface Compiled {
   readonly slots: readonly Slot[];
   /** True when nothing has to be resolved per instance. */
   readonly static: boolean;
-}
+};
 
 /**
  * Whether an interpolation sits inside a declaration's value.
