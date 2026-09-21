@@ -97,6 +97,13 @@ makes the first almost never fire.
 
 - **Partial invalidation of a normalising cache.** Apollo's `cache.evict` is
   Apollo's, and an entity is not a tag.
+- **Retrofitting tags onto an entry that was written without them.** A loader
+  that declares its tags after the answer has arrived leaves an untagged entry
+  behind, which `forgetTagged` will never match. That case is handled one
+  layer up — [ADR-0024](0024-an-invalidation-outlives-its-reader.md) makes the
+  run go again — rather than by giving the cache a way to relabel an entry
+  after the fact, which would mean a second key lookup on every successful run
+  to fix a case that costs one request.
 - **Tags on a cache used without a store.** `read(key, produce)` in front of an
   algorithm has no tags, gets an empty array, and is never matched by
   `forgetTagged` — silence is the right answer where nothing was declared.

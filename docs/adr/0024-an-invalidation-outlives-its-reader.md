@@ -85,6 +85,24 @@ from after the change, and the next resource to appear may have it. Without
 that rule, one invalidation would force every resource created in the following
 minute.
 
+**And tags that arrive too late are honoured anyway.** The design above rests
+on a client declaring tags _before_ it reads `force`, which every client in
+this project does. A loader that cannot — one that only learns what it fetched
+from the reply — would otherwise get the worst of both halves: the cache
+answered before the flag went up, the entry it answered from carries no tags
+for [ADR-0025](0025-tags-as-cache-metadata.md) to drop, and the run would then
+_settle_ the invalidation it had just failed to act on.
+
+So the request notices whether it has been asked. If `force` was read before
+the tags were known, raising it is too late to matter and the run is marked
+**superseded** instead — the same mark an invalidation arriving mid-flight
+leaves, and the same consequence: go again, with `force`, now that the tags
+exist. A superseded run settles nothing, because it never reached the server.
+
+The cost is one extra request, in one case: a late declaration that matches an
+invalidation from the last `remember` window. Declaring first remains the fast
+path and the documented one.
+
 **And it expires.** `remember` is a window rather than a permanent record,
 because the memory is about a _cache's contents_ and a cache entry does not
 live for ever. A minute is longer than any sensible `ttl` and short enough to

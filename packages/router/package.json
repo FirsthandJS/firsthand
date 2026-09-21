@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/router",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Routing for Firsthand: nested routes, params, and route code loaded on demand.",
   "license": "MIT",
   "type": "module",
@@ -19,8 +19,8 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@firsthandjs/core": "0.7.0",
-    "@firsthandjs/dom": "0.7.0"
+    "@firsthandjs/core": "0.7.1",
+    "@firsthandjs/dom": "0.7.1"
   },
   "engines": {
     "node": ">=20.11.0"

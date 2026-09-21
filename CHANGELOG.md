@@ -4,6 +4,40 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-09-21
+
+### Fixed
+
+- **An invalidation is no longer lost when the tags arrive after the answer.**
+  0.7.0 forces a run whose tags match an invalidation nobody was alive to
+  receive, and it works because a client declares a document's tags _before_ it
+  looks in its cache. A loader that cannot do that — one that only learns what
+  it fetched from the reply — got the worst of both halves:
+
+  ```ts
+  useResource(async ({ request, tags }) => {
+    const thing = await api.get('/things/current')(request); // served from cache
+    tags(tag('thing', { id: thing.id })); // …and only now is it known what this is
+    return thing;
+  });
+  ```
+
+  The cache entry carried no tags, so `forgetTagged` could not find it. The
+  lookup happened with `force` still false, so the stale answer was served. The
+  store then raised `force` — too late, nothing was left to read it — and
+  `settled` credited the run with having been to the server, which threw away
+  the debt for every other resource as well.
+
+  The store now notices that a client had already asked why it was running when
+  the tags turned up, and marks the run superseded: it goes again with `force`,
+  which is the same path an invalidation arriving mid-flight has always taken.
+  A superseded run no longer settles anything, because it never went to the
+  server.
+
+  One extra request in that case, and only when an invalidation actually
+  matches. A loader that declares its tags first — every client this project
+  ships — is untouched.
+
 ## [0.7.0] - 2026-09-21
 
 ### Fixed
@@ -75,12 +109,27 @@ All notable changes to this project are documented here. The format follows
   return <>{open.value ? <Form /> : <Button />}</>;
   ```
 
-  `strictReactivity` now reports the first form — for a signal read, a prop
-  read, `&&` as well as `? :`, and the short `component(() => cond ? a : b)`
+  `strictReactivity` now reports the first form — for a **signal read**, for
+  `&&` as well as `? :`, and for the short `component(() => cond ? a : b)`
   form. A branch on something that does _not_ change is left alone, as is a
   return with no markup in it. It was written after making this exact mistake
   three times in one afternoon while building the kanban showcase; the third
   one took twenty minutes to find.
+
+  **What it does not catch**, because the check is syntactic and looks for
+  `.value`:
+
+  - **Props.** `props.open ? <A /> : <B />` in a return position is not
+    reported. It was, in an earlier build, and it flagged a recursive
+    component branching on `props.depth` — which is correct code, because that
+    prop is fixed for the life of the instance. A false positive stops a
+    build, so the rule was narrowed to the case it can be sure about.
+  - **`deepSignal`.** `state.open ? <Form /> : <Button />` is every bit as
+    reactive and has no `.value` in it to find.
+
+  So the honest claim is that Firsthand now catches an important class of
+  setup-time view mistakes, not that the mistake has become impossible. The
+  guide says which class.
 
 ## [0.6.3] - 2026-09-21
 

@@ -94,6 +94,16 @@ export function useResource<T>(
 
     /** Raised when the run turns out to be about something recently invalidated. */
     let forced = force;
+    /**
+     * Whether a client has already asked why this is running.
+     *
+     * A client that declares its tags *before* it reads `force` gets the
+     * corrected answer and looks in its cache with it. One that cannot — a
+     * loader that only learns what it fetched from the reply — reads `force`
+     * first, and by the time `tags()` arrives the cache has already answered.
+     * Raising the flag then changes nothing, so the run is marked instead.
+     */
+    let asked = false;
 
     const declare = (...next: Tag[]): void => {
       // Replaces. A run says what it is about; it does not accumulate what
@@ -105,6 +115,12 @@ export function useResource<T>(
       // after it has declared them and before it asks its cache.
       if (!forced && store.missed(entry, next)) {
         forced = true;
+        // Too late to be honoured: the answer in hand is the one that was
+        // invalidated. Nothing else can tell — the cache entry it came from
+        // carries no tags, because they did not exist when it was written.
+        if (asked) {
+          entry.superseded = true;
+        }
       }
       // And the race this closes: an invalidation that arrived while this
       // run was in flight could not match tags that did not exist yet.
@@ -118,6 +134,7 @@ export function useResource<T>(
     const request: DataRequest = {
       signal: controller.signal,
       get force(): boolean {
+        asked = true;
         return forced;
       },
       // Read after `tags()` by a cache that keeps them, which is every client
@@ -130,6 +147,7 @@ export function useResource<T>(
     const context: LoadContext = {
       signal: controller.signal,
       get force(): boolean {
+        asked = true;
         return forced;
       },
       request,
@@ -143,9 +161,13 @@ export function useResource<T>(
         }
         entry.controller = null;
         succeed(entry, value);
-        // A run with these tags has answered: an invalidation about them has
-        // been acted on, and is not owed to the next resource that appears.
-        store.settled(entry.tags);
+        if (!entry.superseded) {
+          // A run with these tags has answered: an invalidation about them has
+          // been acted on, and is not owed to the next resource that appears.
+          // A superseded run has not — its answer predates the invalidation,
+          // and the debt is paid by the run that follows.
+          store.settled(entry.tags);
+        }
         if (options.persist !== undefined) {
           try {
             store.storage?.write?.(options.persist, value);

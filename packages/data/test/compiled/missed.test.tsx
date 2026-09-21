@@ -159,3 +159,50 @@ describe('an invalidation outlives the resource that was watching', () => {
     expect(served).toBe(1);
   });
 });
+
+describe('tags that only the answer knows', () => {
+  it('runs again when the answer turns out to be one that was invalidated', async () => {
+    capture();
+    const cache = createCacheClient({ ttl: 10_000 });
+    const store = createData({ caches: [cache] });
+    const api = createFetchClient({ cache });
+
+    /**
+     * A resource that cannot say what it is about until the server has told
+     * it — `/api/things/current` is the documented case, and the tags name the
+     * thing that came back rather than the request that went out.
+     */
+    const current = (): { host: HTMLElement; stop: () => void } => {
+      const host = document.createElement('div');
+      document.body.append(host);
+      const Page = component(() => {
+        provide(DataContext, store);
+        useResource(async ({ request, tags }) => {
+          const answer = await api.get<{ served: number }>('/api/things/current')(request);
+          tags(tag('thing', { id: 42 }));
+          return answer;
+        });
+        return null;
+      });
+      return { host, stop: render(() => <Page />, host) };
+    };
+
+    const first = current();
+    await settle();
+    expect(served).toBe(1);
+    first.stop();
+
+    // Nothing is watching it, and the cache entry carries no tags — they were
+    // not known when it was created — so emptying the cache cannot find it.
+    await store.invalidate(tag('thing', { id: 42 }));
+
+    current();
+    await settle();
+    await settle();
+
+    // The cache answered the first run, and the tags arrived afterwards. That
+    // is the moment the store can tell this answer is the one that was
+    // invalidated, and the resource has to go again rather than keep it.
+    expect(served).toBe(2);
+  });
+});

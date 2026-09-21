@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/dom",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "DOM parts, templates, components, portals and keyed lists for Firsthand.",
   "license": "MIT",
   "type": "module",
@@ -25,7 +25,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@firsthandjs/core": "0.7.0"
+    "@firsthandjs/core": "0.7.1"
   },
   "engines": {
     "node": ">=20.11.0"
