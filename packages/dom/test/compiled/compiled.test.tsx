@@ -257,3 +257,40 @@ describe('compiled templates', () => {
     dispose();
   });
 });
+
+/**
+ * An element the DOM library knows about, the way a component library's types
+ * declare theirs. This is the case that matters: an element with no
+ * declaration is typed permissively, so only a declared one can prove that
+ * `slot` is allowed.
+ */
+class SlotHost extends HTMLElement {}
+customElements.define('slot-host', SlotHost);
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'slot-host': SlotHost;
+  }
+}
+
+describe('global attributes a custom element cares about', () => {
+  it('puts `slot` on the element, which is how a web component is filled', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+
+    // Web Awesome, Shoelace and every other component library places content
+    // with `slot`. It is a property on `Element`, so it is excluded from an
+    // element's own attributes and has to be declared as a global — without
+    // that, this line is a type error rather than an icon in a button.
+    render(
+      () => (
+        <slot-host>
+          <span slot="start">icon</span>
+        </slot-host>
+      ),
+      host,
+    );
+
+    expect(host.querySelector('span')?.getAttribute('slot')).toBe('start');
+  });
+});

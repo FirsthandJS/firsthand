@@ -163,6 +163,15 @@ interface FirsthandAttributes<E extends Element> {
   id?: Attribute<string>;
   title?: Attribute<string>;
   role?: Attribute<string>;
+  /**
+   * Which slot of the surrounding custom element this goes in.
+   *
+   * Global, like `id` and `class`, and here for the same reason: `Element`
+   * already declares `slot` as a property, so it is excluded from the
+   * element's own attributes below. Without it, `<wa-icon slot="start" />` —
+   * the ordinary way to fill a web component's slot — would not typecheck.
+   */
+  slot?: Attribute<string>;
   tabindex?: Attribute<number | string>;
   hidden?: Attribute<boolean>;
   /** Receives the element once it exists. */
