@@ -7,7 +7,7 @@
 export { component, defineElement, setElementPrefix, createComponent } from './component.js';
 export { setComponentAdapter, FirsthandComponentError } from './adapter.js';
 export type { ComponentAdapter } from './adapter.js';
-export type { Component, ComponentOptions, AttributeCodec, View } from './component.js';
+export type { Component, ComponentOptions, AttributeCodec, View, Render } from './component.js';
 export { render } from './render.js';
 export { portal } from './portal.js';
 export { list } from './list.js';

@@ -4,6 +4,129 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-09-21
+
+### Added
+
+- **A setup may return a render function.** A setup runs once, so a view chosen
+  in it was chosen for ever — and the only answer this framework had was a
+  build error. Now there is somewhere to put an `if`:
+
+  ```tsx
+  const Guarded = component(() => () => {
+    if (token.value === null) {
+      return <Navigate to="/sign-in" />;
+    }
+    return <Page />;
+  });
+  ```
+
+  It is not a second rendering model. It is the rule this framework already
+  had, one level up: **every function you write is a reactive scope, and JSX
+  beneath it makes the smallest scopes it can — as long as they need nothing
+  from the run that made them.** A component returning markup is exactly a
+  render function with an empty body, and nothing about it changed.
+
+  What a run does to the DOM: a site is built once and written afterwards, so a
+  run that keeps the same branch keeps the same nodes, along with focus, the
+  caret and whatever was half typed. A branch the run stops returning is
+  disposed — cleanups fire, parts stop, coming back builds it again — because
+  that is what the control flow says.
+
+  Where markup stands is what identifies it, including inside an `if`, so there
+  is no ordering rule of any kind. Markup that appears many times from one
+  place needs a `key`, and the compiler insists.
+
+  [ADR-0026](docs/adr/0026-a-function-is-a-reactive-scope.md) has the design,
+  the rejected alternatives and the three measurements that changed it.
+
+- **A plain function that returns markup is a view.** No `component()`, because
+  it has nothing to hold:
+
+  ```tsx
+  function Badge({ kind }: { kind: string }) {
+    return <span class={kind}>{kind}</span>;
+  }
+
+  <Badge kind={status.value} />; // a scope of its own, with a place of its own
+  ```
+
+  Written as a tag it is a reactive scope; called, it is a function call and
+  behaves like one. `component()` now means one thing: _this view needs a
+  setup_.
+
+  The boundary is which compiler translated the markup. A function this
+  compiler compiled markup into is marked as ours, and `createComponent` reads
+  that mark **before** it reaches for an adapter — so a React component in the
+  same project, built with React's own transform, still goes to
+  `@firsthandjs/react`. Found by the framework's own test suite, which declares
+  React components in compiled files and broke the moment the rule was too
+  broad.
+
+- **`include` and `exclude` for the Vite plugin**, as regular expressions:
+
+  ```ts
+  firsthand({ packageName: 'my-app', exclude: [/\/legacy\//] });
+  ```
+
+  How a project says _these files are not mine_, which is what a migration
+  needs. What this compiler does not compile, it does not claim.
+
+- **Two diagnostics, in development only.** A run that keeps running and keeps
+  writing nothing is doing work for nobody:
+
+  ```
+  <OrderTable> ran 20 times and wrote nothing.
+  Something it reads in a statement changes more often than what it shows.
+  ```
+
+  And the `useCallback` problem, named rather than papered over: a handler made
+  in a run is a new function every time, so a child it is passed to runs again
+  whenever its parent does. Nothing is optimised behind your back — this is
+  bookkeeping, said out loud.
+
+### Changed
+
+- **A part no longer writes text that has not changed.** `insert` remembers the
+  string it last wrote and compares against that. Worth about **2x** on the
+  ordinary case where an object changes and most of what is derived from it
+  does not. It has to be a remembered value: comparing against the DOM instead
+  — reading `text.data` back — measured _slower than not comparing at all_.
+
+- **`on()` replaces a direct listener rather than adding one.** Delegated types
+  always replaced, by assignment; the non-delegated ones (`wheel`, `scroll`,
+  `focus`, the drag events) stacked. A handler re-attached on every run would
+  have left one listener behind per run. Keyed by the options as well as the
+  type, so `onClick:native` and `onClick:once` on one element stay two
+  listeners.
+
+- **`View` includes `Render`**, which is `() => View`. A setup that returns a
+  function is now what the type says it is.
+
+- **The bundle budget is 7 kB gzip, from 6.** The full runtime is 6.32 kB. The
+  new functions are separate exports, so an application that never returns a
+  render function does not pay for them; the figure that moved is the
+  everything-imported one.
+
+### Performance
+
+`npm run bench:runs`, recorded in `benchmarks/results/render-functions.json`.
+1000 components of 20 sites derived from one signal, both compiled by the real
+compiler and both verified to render 20 000 nodes before timing:
+
+|                       | mount        | update       | heap       |
+| --------------------- | ------------ | ------------ | ---------- |
+| a site per expression | 29.10 ms     | 10.420 ms    | 13.8 MB    |
+| one render function   | **18.60 ms** | **7.670 ms** | **8.8 MB** |
+
+1.56x, 1.36x and 1.57x, and most of it is arithmetic on effects: twenty
+subscriptions and twenty reads of one signal become one of each.
+
+The shape is the point, and it cuts both ways: twenty sites with twenty
+_independent_ sources is the opposite case, and there the fine-grained form
+wins. The classification means a component that mixes the two gets both
+behaviours without anyone choosing.
+
 ## [0.7.1] - 2026-09-21
 
 ### Fixed

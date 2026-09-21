@@ -22,17 +22,36 @@ export default defineConfig({
 ```ts
 function firsthand(options?: FirsthandPluginOptions): VitePluginLike;
 
-interface FirsthandPluginOptions {
+interface FirsthandViteOptions {
   /** Used when hashing stable component ids. */
   packageName?: string;
   /** Refuse to compile a value read once in a setup and then kept. Default: true. */
   strictReactivity?: boolean;
+  /** Files to compile. Everything with a JSX extension, by default. */
+  include?: readonly RegExp[];
+  /** Files to leave alone — a folder of another framework's components, say. */
+  exclude?: readonly RegExp[];
 }
 ```
 
 It handles `.tsx` and `.jsx`, runs before the bundler's own TypeScript pass,
 and needs no `esbuild.jsx` configuration — configuring `jsx: 'preserve'`
 changes nothing and is a type error on Vite 8.
+
+`include` and `exclude` are regular expressions rather than globs, so this
+package keeps having no dependencies and what matches is something you can
+read. They are how a project says _these files are not mine_:
+
+```ts
+firsthand({ packageName: 'my-app', exclude: [/\/legacy\//] });
+```
+
+That matters where another framework is in the same repository. **What this
+compiler compiles, it claims:** a function it translated markup into is marked
+as a view, and `createComponent` reads that mark before it reaches for an
+adapter. A file it never saw is never claimed, so a React component in an
+excluded folder goes to `@firsthandjs/react` exactly as one from `node_modules`
+does.
 
 `packageName` should be set and should be stable: component ids are hashed from
 it plus the module path, which is what makes an id survive a rebuild
@@ -71,6 +90,17 @@ What it therefore cannot see is a read that leaves the module — `doSomething(p
 with the read in another file. That is what the runtime half is for:
 [`setStrictReactivity(true)`](core.md#setstrictreactivity) reports the same
 mistake during development, including the cases no compiler can follow.
+
+`strictReactivity` also covers the three things a view cannot do, which are
+errors for the same reason: nothing throws, and the screen is simply wrong.
+
+- **A view chosen once.** `return open.value ? <A /> : <B />` in a setup. The
+  error offers both ways out — the choice in the markup, or a render function.
+- **Something persistent made in a run.** `signal`, `computed`, `effect`,
+  `useResource` and their kind belong in the setup, which runs once.
+- **Repeated markup without a `key`.** Where markup stands identifies one of
+  it; only a key identifies many
+  ([ADR-0026](../adr/0026-a-function-is-a-reactive-scope.md)).
 
 **The runtime half stays opt-in, and this one does not.** The difference is
 precision. The compiler sees the _shape_ of a declaration and only reports the

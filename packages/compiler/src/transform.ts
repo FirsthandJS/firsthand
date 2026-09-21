@@ -34,7 +34,53 @@ type FirsthandState = {
   templates: t.VariableDeclarator[];
   counter: number;
   moduleId: string;
+  /** Module-level functions markup was compiled into, in source order. */
+  views: Map<string, t.Identifier>;
+  /** Every function markup was written inside, for resolving tags locally. */
+  viewNodes: Set<t.Node>;
+  /** Functions that run again as a whole, and where each keeps its sites. */
+  runs: Map<t.Node, RunContext>;
 };
+
+/**
+ * What a re-running function needs in order to keep its DOM.
+ *
+ * `store` is an array declared once per instance — in the setup, which runs
+ * once — and every site inside the run takes a numbered place in it. The index
+ * is fixed at compile time, so a site inside an `if` keeps its own place
+ * whether or not the branch was taken: nothing depends on the order the run
+ * happens to reach things in, which is the rule React needs for hooks and this
+ * does not.
+ */
+type RunContext = {
+  /** The function whose body re-runs. Bindings inside it belong to one run. */
+  node: t.Node;
+  store: t.Identifier;
+  next: () => number;
+};
+
+/**
+ * Marks an arrow the compiler wrote for a child slot.
+ *
+ * Whatever sits directly in one is already inside a reactive scope, so a view
+ * function there can be called where it stands instead of being wrapped in a
+ * part of its own.
+ */
+const CHILD_THUNK = Symbol('firsthand.childThunk');
+
+/**
+ * Marks a wrapper the compiler wrote, which is not a scope of anyone's.
+ *
+ * A template compiles to an immediately invoked arrow, and that arrow is a
+ * function — so walking up from markup inside it would stop there and lose the
+ * run it belongs to. It is machinery, not a boundary, and is walked through.
+ */
+const GENERATED = Symbol('firsthand.generated');
+
+function generated(arrow: t.ArrowFunctionExpression): t.ArrowFunctionExpression {
+  (arrow as unknown as Record<symbol, boolean>)[GENERATED] = true;
+  return arrow;
+}
 
 declare module '@babel/core' {
   interface PluginPass {
@@ -46,9 +92,26 @@ type State = PluginPass;
 
 type Build = {
   html: string[];
+  /** Navigation to the nodes a template's parts need. Runs every time. */
   statements: t.Statement[];
+  /** Work done when the site is made: parts, listeners, refs. */
+  once: t.Statement[];
+  /** Writes the run performs into a site it already made. */
+  each: t.Statement[];
+  run: RunContext | null;
+  /** Where to resolve names from, when deciding what belongs to the run. */
+  at: NodePath;
   next: () => t.Identifier;
+  name: (prefix: string) => t.Identifier;
 };
+
+function pushOnce(build: Build, statement: t.Statement): void {
+  build.once.push(statement);
+}
+
+function pushEach(build: Build, statement: t.Statement): void {
+  build.each.push(statement);
+}
 
 export type FirsthandPluginOptions = {
   /** Package name used when hashing stable component ids (ADR-0004). */
@@ -85,16 +148,29 @@ export default function firsthandPlugin(
     name: 'firsthand',
     visitor: {
       Program: {
-        enter(_path: NodePath<t.Program>, state: State) {
+        enter(path: NodePath<t.Program>, state: State) {
           state.firsthand = {
             imports: new Map(),
             templates: [],
             counter: 0,
             moduleId: stableId(options.packageName ?? 'app', state.filename ?? 'module'),
+            views: new Map(),
+            viewNodes: new Set(),
+            runs: new Map(),
           };
+          collectViews(path, state);
+          collectRuns(path, state);
         },
         exit(path: NodePath<t.Program>, state: State) {
-          const { imports, templates } = state.firsthand;
+          const { imports, templates, views } = state.firsthand;
+          // After the declarations, because a `const` view is not initialised
+          // until its statement runs. Function declarations are hoisted and do
+          // not care.
+          for (const [, local] of views) {
+            path.node.body.push(
+              expressionStatement(t.callExpression(runtime(state, 'view'), [t.cloneNode(local)])),
+            );
+          }
           if (templates.length > 0) {
             path.node.body.unshift(t.variableDeclaration('const', templates));
           }
@@ -193,6 +269,7 @@ function annotateComponent(
     const setupPath = path.get('arguments.0') as NodePath<t.Function>;
     checkKeptReads(setupPath, name);
     checkDecidedOnce(setupPath, name);
+    checkRunBody(setupPath, name);
   }
   path.node.arguments = [
     setup,
@@ -280,8 +357,11 @@ function checkDecidedOnce(setup: NodePath<t.Function>, name: string): void {
     throw at.buildCodeFrameError(
       `${name}: this view is chosen once, here, from a value that changes. A setup ` +
         'runs one time per instance, so the other branch will never appear.' +
-        '\n\nPut the choice inside the markup, where it is a part that can run ' +
-        'again:\n\n  return <>{open.value ? <A /> : <B />}</>;',
+        '\n\nEither put the choice inside the markup, where it is a part:' +
+        '\n\n  return <>{open.value ? <A /> : <B />}</>;' +
+        '\n\nor return a render function, which is a reactive scope of its own ' +
+        'and may use ordinary control flow:' +
+        '\n\n  return () => (open.value ? <A /> : <B />);',
     );
   };
 
@@ -336,6 +416,136 @@ function checkDecidedOnce(setup: NodePath<t.Function>, name: string): void {
       }
     },
   });
+}
+
+/**
+ * Rejects the two things a render function cannot do.
+ *
+ * **Nothing persistent is made in a run.** A signal, a computed, an effect or
+ * a resource is a thing that outlives the moment it was made; a run happens
+ * again, so one made there would be made again, and the one before it thrown
+ * away. That is not a rule about order — it is the same rule as everywhere
+ * else in Firsthand, said once: persistent things are made in the setup.
+ *
+ * **Repeated markup carries a key.** A site is identified by where it stands,
+ * which answers for markup that appears once. Markup inside a loop appears
+ * many times from one place, and only a key can say which of them is which.
+ * Without one, a run would take the rows apart and build them again — silently,
+ * losing whatever they held.
+ */
+function checkRunBody(setup: NodePath<t.Function>, name: string): void {
+  const runs: NodePath<t.Function>[] = [];
+  // Every setup has a block by now: `collectRuns` gave one to any that had an
+  // expression body, so that it had somewhere to declare a store.
+  const body = setup.get('body') as NodePath<t.BlockStatement>;
+  body.traverse({
+    Function(nested: NodePath<t.Function>) {
+      nested.skip();
+    },
+    ReturnStatement(statement: NodePath<t.ReturnStatement>) {
+      const argument = statement.get('argument') as NodePath;
+      if (argument.isArrowFunctionExpression() || argument.isFunctionExpression()) {
+        runs.push(argument);
+      }
+    },
+  });
+  for (const run of runs) {
+    checkNothingPersistent(run, name);
+    checkRepeatedMarkup(run, name);
+  }
+}
+
+/** Things that outlive the run that made them, and so cannot be made in one. */
+const PERSISTENT = new Map([
+  ['signal', 'a signal'],
+  ['computed', 'a computed'],
+  ['effect', 'an effect'],
+  ['deepSignal', 'a deep signal'],
+  ['useResource', 'a resource'],
+  ['useAction', 'an action'],
+  ['onCleanup', 'a cleanup'],
+  ['provide', 'a context value'],
+]);
+
+function checkNothingPersistent(run: NodePath<t.Function>, name: string): void {
+  run.traverse({
+    Function(nested: NodePath<t.Function>) {
+      // A handler runs on its own terms and may hold whatever it likes.
+      nested.skip();
+    },
+    CallExpression(call: NodePath<t.CallExpression>) {
+      const callee = call.node.callee;
+      if (!t.isIdentifier(callee)) {
+        return;
+      }
+      const what = PERSISTENT.get(callee.name);
+      if (what === undefined) {
+        return;
+      }
+      const binding = call.scope.getBinding(callee.name);
+      if (binding === undefined || !isFirsthandImport(binding)) {
+        return;
+      }
+      throw call.buildCodeFrameError(
+        `${name}: this render function makes ${what}, and it runs again whenever ` +
+          'something it read changes — so this would be made again, and the one ' +
+          'before it thrown away.\n\nMove it into the setup, above the render ' +
+          'function. Persistent things are made once, where the setup runs once.',
+      );
+    },
+  });
+}
+
+function checkRepeatedMarkup(run: NodePath<t.Function>, name: string): void {
+  const report = (at: NodePath): never => {
+    throw at.buildCodeFrameError(
+      `${name}: this markup is written once and appears many times, so where it ` +
+        'stands cannot say which of them is which.\n\nGive it a key:\n\n' +
+        '  {rows.map((row) => <Row key={row.id} row={row} />)}',
+    );
+  };
+  run.traverse({
+    Function(nested: NodePath<t.Function>) {
+      // Only what this run writes. A list callback the compiler already turned
+      // into a keyed part carries its key, and is skipped with it.
+      nested.skip();
+    },
+    'ForStatement|ForOfStatement|ForInStatement|WhileStatement|DoWhileStatement'(loop: NodePath) {
+      loop.traverse({
+        JSXElement(element: NodePath<t.JSXElement>) {
+          if (!hasKey(element.node)) {
+            report(element);
+          }
+        },
+      });
+    },
+    CallExpression(call: NodePath<t.CallExpression>) {
+      // A `.map` the keyed rewrite did not take: either it had no key, or its
+      // value does not go straight into a child slot.
+      const callee = call.node.callee;
+      if (
+        LIST_CALL in call.node ||
+        !t.isMemberExpression(callee) ||
+        callee.computed ||
+        !t.isIdentifier(callee.property, { name: 'map' })
+      ) {
+        return;
+      }
+      call.traverse({
+        JSXElement(element: NodePath<t.JSXElement>) {
+          if (!hasKey(element.node)) {
+            report(element);
+          }
+        },
+      });
+    },
+  });
+}
+
+function hasKey(element: t.JSXElement): boolean {
+  return element.openingElement.attributes.some(
+    (attribute) => t.isJSXAttribute(attribute) && attributeName(attribute) === 'key',
+  );
 }
 
 /** Whether a branch of an `if` returns markup. */
@@ -665,6 +875,342 @@ function compileNode(path: NodePath<t.JSXElement | t.JSXFragment>, state: State)
   return compileTemplate(path, state);
 }
 
+/**
+ * Finds every function this module writes markup inside, before anything is
+ * compiled.
+ *
+ * This is the line between a view of ours and a component of somebody else's,
+ * and it is drawn where it can actually be seen: **which compiler turned the
+ * markup into code.** A function that builds its result with another
+ * framework's `createElement` contains no markup for this compiler to
+ * translate, so it is not ours and is left to the adapter — even though it is
+ * a local function that returns something renderable.
+ *
+ * A pass of its own rather than a note taken while compiling, because a tag
+ * can stand above the function it names and the answer must not depend on the
+ * order Babel happens to walk in.
+ *
+ * Every enclosing function is recorded, not only the innermost: a view that
+ * builds its markup in a helper closure is still a view.
+ */
+function collectViews(program: NodePath<t.Program>, state: State): void {
+  const { views, viewNodes } = state.firsthand;
+  const record = (path: NodePath): void => {
+    let fn = path.getFunctionParent();
+    while (fn !== null) {
+      viewNodes.add(fn.node);
+      const named = moduleLevelName(fn);
+      if (named !== null) {
+        views.set(named, t.identifier(named));
+      }
+      fn = fn.getFunctionParent();
+    }
+  };
+  program.traverse({
+    JSXElement: record,
+    JSXFragment: record,
+  });
+}
+
+/**
+ * The name a function is declared under at module level, if it is.
+ *
+ * Asked of the scope rather than of the parent chain: a declaration reached
+ * through an `export` has one more node above it, and a block inside a
+ * function has one more again. The scope a name belongs to answers both at
+ * once, and a name that belongs to the module's scope is one another module
+ * can import.
+ */
+function moduleLevelName(fn: NodePath<t.Function>): string | null {
+  if (fn.isFunctionDeclaration()) {
+    const id = fn.node.id;
+    // `export default function () {}` has no name to mark.
+    if (id === null || id === undefined) {
+      return null;
+    }
+    return t.isProgram(fn.parentPath.scope.block) ? id.name : null;
+  }
+  // Anything else is only nameable through the variable it is assigned to,
+  // which also rules out an object method and a class method.
+  const declarator = fn.parentPath;
+  if (!declarator.isVariableDeclarator() || !t.isIdentifier(declarator.node.id)) {
+    return null;
+  }
+  return t.isProgram(declarator.scope.block) ? declarator.node.id.name : null;
+}
+
+/**
+ * Whether a tag names a plain function declared in this module.
+ *
+ * Then the compiler knows what it is — it compiled the markup inside it — and
+ * emits the call itself. Nothing is looked up at runtime, so an installed
+ * adapter for another framework never sees it, and the decision cannot be
+ * wrong. An imported name is left to `createComponent`, which reads the mark.
+ */
+function isLocalView(path: NodePath<t.JSXElement>, state: State): boolean {
+  const name = path.node.openingElement.name;
+  if (!t.isJSXIdentifier(name)) {
+    return false;
+  }
+  const binding = path.scope.getBinding(name.name);
+  // An import, or a name reassigned somewhere: the value at the call site is
+  // not necessarily the function that was declared.
+  if (binding === undefined || binding.kind === 'module' || binding.constantViolations.length > 0) {
+    return false;
+  }
+  if (binding.path.isFunctionDeclaration()) {
+    return state.firsthand.viewNodes.has(binding.path.node);
+  }
+  if (!binding.path.isVariableDeclarator()) {
+    return false;
+  }
+  const init = binding.path.node.init;
+  // `const Counter = component(...)` is a call, and stays one.
+  if (!t.isArrowFunctionExpression(init) && !t.isFunctionExpression(init)) {
+    return false;
+  }
+  return state.firsthand.viewNodes.has(init);
+}
+
+/**
+ * Finds the functions that run again as a whole, and gives each one a store.
+ *
+ * A render function is the one a setup returns. The setup runs once per
+ * instance, so a `const` declared there is per instance too — which is exactly
+ * what a store has to be, and why this needs no registry and no ambient state.
+ */
+function collectRuns(program: NodePath<t.Program>, state: State): void {
+  program.traverse({
+    CallExpression(call: NodePath<t.CallExpression>) {
+      if (!isComponentCall(call)) {
+        return;
+      }
+      const setup = call.get('arguments.0') as NodePath;
+      if (!setup.isArrowFunctionExpression() && !setup.isFunctionExpression()) {
+        return;
+      }
+      const found: NodePath<t.Function>[] = [];
+      const body = setup.get('body') as NodePath;
+      if (!body.isBlockStatement()) {
+        if (body.isArrowFunctionExpression() || body.isFunctionExpression()) {
+          found.push(body);
+        }
+      } else {
+        body.traverse({
+          // A handler or a callback returns its own things; only what the
+          // setup itself hands back is the view.
+          Function(nested: NodePath<t.Function>) {
+            nested.skip();
+          },
+          ReturnStatement(statement: NodePath<t.ReturnStatement>) {
+            const argument = statement.get('argument') as NodePath;
+            if (argument.isArrowFunctionExpression() || argument.isFunctionExpression()) {
+              found.push(argument);
+            }
+          },
+        });
+      }
+      if (found.length === 0) {
+        return;
+      }
+      // An expression body has nowhere to declare a store, so it becomes a
+      // block. Nothing else about it changes.
+      setup.ensureBlock();
+      const block = setup.get('body') as NodePath<t.BlockStatement>;
+      for (const run of found) {
+        const store = setup.scope.generateUidIdentifier('store');
+        block.unshiftContainer(
+          'body',
+          t.variableDeclaration('const', [
+            t.variableDeclarator(
+              store,
+              t.callExpression(runtime(state, 'store'), [t.stringLiteral(declaredName(call))]),
+            ),
+          ]),
+        );
+        let index = 0;
+        state.firsthand.runs.set(run.node, {
+          node: run.node,
+          store,
+          next: () => index++,
+        });
+        closeRun(run, store, state);
+      }
+    },
+  });
+}
+
+/**
+ * Marks the end of a run, wherever it ends.
+ *
+ * Every `return` hands its value through `ran`, which is where a branch the
+ * run has stopped taking is disposed. Wrapping the whole body instead would
+ * have been one call rather than several, and would have put a frame between
+ * the run and whoever asked for it — this way the stack a debugger shows is
+ * the one the source describes.
+ */
+function closeRun(run: NodePath<t.Function>, store: t.Identifier, state: State): void {
+  const body = run.get('body') as NodePath;
+  if (!body.isBlockStatement()) {
+    body.replaceWith(
+      t.callExpression(runtime(state, 'ran'), [t.cloneNode(store), body.node as t.Expression]),
+    );
+    return;
+  }
+  const returns: NodePath<t.ReturnStatement>[] = [];
+  body.traverse({
+    Function(nested: NodePath<t.Function>) {
+      nested.skip();
+    },
+    ReturnStatement(statement: NodePath<t.ReturnStatement>) {
+      returns.push(statement);
+    },
+  });
+  for (const statement of returns) {
+    statement.node.argument = t.callExpression(runtime(state, 'ran'), [
+      t.cloneNode(store),
+      statement.node.argument ?? t.identifier('undefined'),
+    ]);
+  }
+}
+
+function isComponentCall(path: NodePath<t.CallExpression>): boolean {
+  if (!t.isIdentifier(path.node.callee, { name: 'component' })) {
+    return false;
+  }
+  const binding = path.scope.getBinding('component');
+  return binding !== undefined && isFirsthandImport(binding);
+}
+
+/** The run this markup belongs to, or `null` when it is built once. */
+function enclosingRun(path: NodePath, state: State): RunContext | null {
+  let fn = path.getFunctionParent();
+  // The nearest function the *author* wrote decides. Markup inside a callback
+  // — a list row, a handler, a part the compiler wrapped — belongs to that
+  // callback, which is made once and is not this run. A wrapper the compiler
+  // wrote is not a boundary and is stepped over.
+  while (fn !== null && GENERATED in fn.node) {
+    fn = fn.getFunctionParent();
+  }
+  if (fn === null) {
+    return null;
+  }
+  return state.firsthand.runs.get(fn.node) ?? null;
+}
+
+/**
+ * Whether an expression needs a value that belongs to one run of the function.
+ *
+ * This is the whole classification, and it is forced rather than chosen: an
+ * expression that names nothing from the run can be given a scope of its own
+ * and left to update itself, and one that names something from the run cannot
+ * — that value belongs to the call that produced it, so the run must write it.
+ */
+function dependsOnRun(node: t.Node, run: RunContext | null, at: NodePath): boolean {
+  if (run === null) {
+    return false;
+  }
+  const names = new Set<string>();
+  collectNames(node, names);
+  for (const name of names) {
+    const binding = at.scope.getBinding(name);
+    if (binding === undefined) {
+      continue;
+    }
+    if (
+      binding.scope.block === run.node ||
+      binding.path.findParent((parent) => parent.node === run.node) !== null
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Every name an expression mentions.
+ *
+ * Deliberately generous: a name that turns out not to be a reference only
+ * makes the answer more cautious, and being cautious means writing a value
+ * that could have updated itself — slower, never wrong.
+ */
+function collectNames(node: t.Node, into: Set<string>): void {
+  if (t.isIdentifier(node)) {
+    into.add(node.name);
+    return;
+  }
+  for (const key of t.VISITOR_KEYS[node.type] as readonly string[]) {
+    // A property name and an object key are spellings, not references.
+    if (t.isMemberExpression(node) && !node.computed && key === 'property') {
+      continue;
+    }
+    if ((t.isObjectProperty(node) || t.isObjectMethod(node)) && !node.computed && key === 'key') {
+      continue;
+    }
+    const value = (node as unknown as Record<string, unknown>)[key];
+    for (const child of Array.isArray(value) ? value : [value]) {
+      if (typeof child === 'object' && child !== null) {
+        collectNames(child as t.Node, into);
+      }
+    }
+  }
+}
+
+/**
+ * Whether a site can be kept between runs.
+ *
+ * Everything a run needs to write has to be something this compiler knows how
+ * to write. A spread, a `ref` or a keyed list is made once by its nature, and
+ * making one once out of a value that belongs to a single run would hold that
+ * run's value for ever — so such a site is built afresh instead, which is what
+ * happens today and is never wrong.
+ */
+function canRetain(node: t.JSXElement, build: Build): boolean {
+  let possible = true;
+  const visit = (element: t.JSXElement): void => {
+    for (const attribute of element.openingElement.attributes) {
+      if (t.isJSXSpreadAttribute(attribute)) {
+        if (dependsOnRun(attribute.argument, build.run, build.at)) {
+          possible = false;
+        }
+        continue;
+      }
+      const value = attribute.value;
+      if (
+        attributeName(attribute) === 'ref' &&
+        t.isJSXExpressionContainer(value) &&
+        !t.isJSXEmptyExpression(value.expression) &&
+        dependsOnRun(value.expression, build.run, build.at)
+      ) {
+        possible = false;
+      }
+    }
+    for (const child of element.children) {
+      if (t.isJSXElement(child)) {
+        if (!isComponentTag(child)) {
+          visit(child);
+        }
+        continue;
+      }
+      if (
+        t.isJSXExpressionContainer(child) &&
+        !t.isJSXEmptyExpression(child.expression) &&
+        isKeyedList(child.expression) &&
+        dependsOnRun(child.expression, build.run, build.at)
+      ) {
+        possible = false;
+      }
+    }
+  };
+  visit(node);
+  return possible;
+}
+
+/** Whether an expression is the keyed-list call `rewriteKeyedMaps` produced. */
+function isKeyedList(node: t.Node): boolean {
+  return t.isCallExpression(node) && LIST_CALL in node;
+}
+
 function isComponentTag(node: t.JSXElement): boolean {
   const name = node.openingElement.name;
   if (t.isJSXMemberExpression(name)) {
@@ -685,7 +1231,26 @@ function tagExpression(name: t.JSXIdentifier | t.JSXMemberExpression): t.Express
 
 function compileComponent(path: NodePath<t.JSXElement>, state: State): t.Expression {
   const node = path.node;
+  const run = enclosingRun(path, state);
   const properties: (t.ObjectProperty | t.ObjectMethod | t.SpreadElement)[] = [];
+  /** Declarations that must run before the child is made, and on every run. */
+  const cells: t.Statement[] = [];
+  const throughCell = (value: t.Expression): t.Expression => {
+    const holder = t.identifier(`_cell$${String((run as RunContext).next())}`);
+    cells.push(
+      t.variableDeclaration('const', [
+        t.variableDeclarator(
+          holder,
+          t.callExpression(runtime(state, 'cell'), [
+            t.cloneNode((run as RunContext).store),
+            t.numericLiteral((run as RunContext).next()),
+            value,
+          ]),
+        ),
+      ]),
+    );
+    return t.memberExpression(t.cloneNode(holder), t.identifier('value'));
+  };
   for (const attribute of node.openingElement.attributes) {
     if (t.isJSXSpreadAttribute(attribute)) {
       properties.push(t.spreadElement(attribute.argument));
@@ -698,9 +1263,14 @@ function compileComponent(path: NodePath<t.JSXElement>, state: State): t.Express
     } else {
       // Dynamic props are accessors, so the child reads them live and its setup
       // function is never re-run (ADR-0005).
-      properties.push(
-        t.objectMethod('get', propertyKey(name), [], t.blockStatement([t.returnStatement(value)])),
-      );
+      //
+      // The `return` carries the position of the expression, so that the line
+      // the prop was written on is a line a debugger can stop on — it is where
+      // the read that ties a child to a signal actually happens.
+      const held = dependsOnRun(value, run, path) ? throughCell(value) : value;
+      const read = t.returnStatement(held);
+      takePosition(read, value);
+      properties.push(t.objectMethod('get', propertyKey(name), [], t.blockStatement([read])));
     }
   }
   const children = compileChildren(node.children, state);
@@ -723,11 +1293,83 @@ function compileComponent(path: NodePath<t.JSXElement>, state: State): t.Express
       ),
     );
   }
-  return t.callExpression(runtime(state, 'createComponent'), [
-    // `isComponentTag` has already excluded namespaced names.
-    tagExpression(node.openingElement.name as t.JSXIdentifier | t.JSXMemberExpression),
-    t.objectExpression(properties),
-  ]);
+  const tag = tagExpression(node.openingElement.name as t.JSXIdentifier | t.JSXMemberExpression);
+  const make = isLocalView(path, state)
+    ? t.callExpression(tag, [t.objectExpression(properties)])
+    : t.callExpression(runtime(state, 'createComponent'), [tag, t.objectExpression(properties)]);
+
+  if (run !== null) {
+    return keptChild(state, run, make, cells);
+  }
+  if (isLocalView(path, state)) {
+    // A view is a reactive scope. In a child slot the surrounding thunk is
+    // already one, so the call goes there as it stands; anywhere else — a
+    // return, a variable — it gets a part of its own.
+    const parent = path.parentPath;
+    if (
+      parent.isArrowFunctionExpression() &&
+      parent.node.body === node &&
+      CHILD_THUNK in parent.node
+    ) {
+      return make;
+    }
+    return t.callExpression(runtime(state, 'part'), [t.arrowFunctionExpression([], make)]);
+  }
+  return make;
+}
+
+/**
+ * A child a run keeps.
+ *
+ * The child is made once and handed back unchanged on every run, so it keeps
+ * its instance, its state and its place. What the run has to say to it goes
+ * through the cells its props read — written before the child exists on the
+ * first run, and written again afterwards, which wakes exactly the parts that
+ * read the prop that moved.
+ */
+function keptChild(
+  state: State,
+  run: RunContext,
+  make: t.Expression,
+  cells: t.Statement[],
+): t.Expression {
+  const slot = t.identifier(`_kept$${String(run.next())}`);
+  const held = t.identifier(`_own$${String(run.next())}`);
+  const made = (): t.MemberExpression =>
+    t.memberExpression(t.cloneNode(slot), t.identifier('last'));
+  const body: t.Statement[] = [
+    ...cells,
+    t.variableDeclaration('const', [
+      t.variableDeclarator(
+        slot,
+        t.callExpression(runtime(state, 'site'), [
+          t.cloneNode(run.store),
+          t.numericLiteral(run.next()),
+        ]),
+      ),
+    ]),
+    t.ifStatement(
+      t.binaryExpression('===', made(), t.identifier('undefined')),
+      t.blockStatement([
+        t.variableDeclaration('const', [
+          t.variableDeclarator(
+            held,
+            t.callExpression(runtime(state, 'open'), [t.cloneNode(run.store), t.cloneNode(slot)]),
+          ),
+        ]),
+        expressionStatement(
+          t.assignmentExpression(
+            '=',
+            made(),
+            t.callExpression(runtime(state, 'part'), [t.arrowFunctionExpression([], make)]),
+          ),
+        ),
+        expressionStatement(t.callExpression(runtime(state, 'close'), [t.cloneNode(held)])),
+      ]),
+    ),
+    t.returnStatement(made()),
+  ];
+  return t.callExpression(generated(t.arrowFunctionExpression([], t.blockStatement(body))), []);
 }
 
 function propertyKey(name: string): t.Identifier | t.StringLiteral {
@@ -769,14 +1411,38 @@ function isStaticValue(value: t.Expression): boolean {
 // ---------------------------------------------------------------------------
 
 function compileTemplate(path: NodePath<t.JSXElement>, state: State): t.Expression {
+  let names = 0;
+  const statements: t.Statement[] = [];
   const build: Build = {
     html: [],
-    statements: [],
+    statements,
+    // Where a site is built once, these are three lists; where it is not, they
+    // are one, and everything simply happens in the order it was written.
+    once: statements,
+    each: statements,
+    run: null,
+    at: path,
     next: (() => {
       let n = 0;
       return () => t.identifier(`_el$${String(++n)}`);
     })(),
+    name: (prefix: string) => t.identifier(`${prefix}${String(++names)}`),
   };
+  // A site is kept between runs when everything the run has to put into it is
+  // something this compiler can write. Decided before anything is emitted, so
+  // that what is emitted is all of one kind.
+  const run = enclosingRun(path, state);
+  if (run !== null) {
+    build.run = run;
+    if (canRetain(path.node, build)) {
+      build.once = [];
+      build.each = [];
+    } else {
+      build.run = null;
+    }
+  }
+  const kept = build.run !== null;
+
   const root = t.identifier('_el$');
   emitElement(path.node, build, root, state);
 
@@ -792,14 +1458,130 @@ function compileTemplate(path: NodePath<t.JSXElement>, state: State): t.Expressi
     ),
   );
 
+  if (!kept) {
+    const body: t.Statement[] = [
+      t.variableDeclaration('const', [
+        t.variableDeclarator(root, t.callExpression(t.cloneNode(templateId), [])),
+      ]),
+      ...build.statements,
+      t.returnStatement(t.cloneNode(root)),
+    ];
+    return t.callExpression(generated(t.arrowFunctionExpression([], t.blockStatement(body))), []);
+  }
+
+  // The kept form: the node and everything made with it exist once, and the
+  // run walks back to them and writes what has changed.
+  const slot = build.name('_site$');
+  const fresh = build.name('_new$');
+  const held = build.name('_own$');
+  // `kept` is exactly the statement that `build.run` is set.
+  const owner = build.run as RunContext;
   const body: t.Statement[] = [
     t.variableDeclaration('const', [
-      t.variableDeclarator(root, t.callExpression(t.cloneNode(templateId), [])),
+      t.variableDeclarator(
+        slot,
+        t.callExpression(runtime(state, 'site'), [
+          t.cloneNode(owner.store),
+          t.numericLiteral(owner.next()),
+        ]),
+      ),
     ]),
+    t.variableDeclaration('let', [
+      t.variableDeclarator(root, t.memberExpression(t.cloneNode(slot), t.identifier('node'))),
+    ]),
+    t.variableDeclaration('const', [
+      t.variableDeclarator(
+        fresh,
+        t.binaryExpression('===', t.cloneNode(root), t.identifier('undefined')),
+      ),
+    ]),
+    t.variableDeclaration('let', [t.variableDeclarator(held)]),
+    t.ifStatement(
+      t.cloneNode(fresh),
+      t.blockStatement([
+        // What this site makes belongs to the instance. A run's own scope is
+        // cleared before it runs again, and a part left there would be
+        // disposed by the very next run.
+        expressionStatement(
+          t.assignmentExpression(
+            '=',
+            t.cloneNode(held),
+            t.callExpression(runtime(state, 'open'), [t.cloneNode(owner.store), t.cloneNode(slot)]),
+          ),
+        ),
+        expressionStatement(
+          t.assignmentExpression(
+            '=',
+            t.cloneNode(root),
+            t.assignmentExpression(
+              '=',
+              t.memberExpression(t.cloneNode(slot), t.identifier('node')),
+              t.callExpression(t.cloneNode(templateId), []),
+            ),
+          ),
+        ),
+      ]),
+    ),
     ...build.statements,
-    t.returnStatement(t.cloneNode(root)),
+    t.ifStatement(
+      t.cloneNode(fresh),
+      t.blockStatement([
+        ...build.once,
+        expressionStatement(t.callExpression(runtime(state, 'close'), [t.cloneNode(held)])),
+      ]),
+    ),
   ];
-  return t.callExpression(t.arrowFunctionExpression([], t.blockStatement(body)), []);
+  body.push(...build.each, t.returnStatement(t.cloneNode(root)));
+  return t.callExpression(generated(t.arrowFunctionExpression([], t.blockStatement(body))), []);
+}
+
+/**
+ * A write the run performs, guarded by what it last put there.
+ *
+ * ```js
+ * const _w$1 = _$site(_store, 3), _x$1 = u.kind;
+ * if (_w$1.last !== _x$1) { _w$1.last = _x$1; _$applyProp(_el$, "class", _x$1); }
+ * ```
+ *
+ * The comparison is against a remembered value rather than against the DOM:
+ * reading an attribute or a text node back costs more than writing it, which
+ * is the one thing measuring this changed my mind about.
+ */
+function guardedWrite(
+  build: Build,
+  state: State,
+  value: t.Expression,
+  write: (held: t.Identifier) => t.Expression,
+): void {
+  const run = build.run as RunContext;
+  const slot = build.name('_w$');
+  const held = build.name('_x$');
+  const last = (): t.MemberExpression =>
+    t.memberExpression(t.cloneNode(slot), t.identifier('last'));
+  pushEach(
+    build,
+    t.variableDeclaration('const', [
+      t.variableDeclarator(
+        slot,
+        t.callExpression(runtime(state, 'site'), [
+          t.cloneNode(run.store),
+          t.numericLiteral(run.next()),
+        ]),
+      ),
+      t.variableDeclarator(held, value),
+    ]),
+  );
+  pushEach(
+    build,
+    t.ifStatement(
+      t.binaryExpression('!==', last(), t.cloneNode(held)),
+      t.blockStatement([
+        expressionStatement(t.assignmentExpression('=', last(), t.cloneNode(held))),
+        expressionStatement(t.callExpression(runtime(state, 'wrote'), [t.cloneNode(run.store)])),
+        expressionStatement(write(t.cloneNode(held))),
+      ]),
+    ),
+  );
 }
 
 function emitElement(node: t.JSXElement, build: Build, self: t.Identifier, state: State): void {
@@ -840,7 +1622,8 @@ function emitAttribute(
 ): void {
   if (t.isJSXSpreadAttribute(attribute)) {
     deferred.push(() => {
-      build.statements.push(
+      pushOnce(
+        build,
         expressionStatement(
           t.callExpression(runtime(state, 'bind'), [
             t.arrowFunctionExpression(
@@ -859,7 +1642,10 @@ function emitAttribute(
 
   if (name === 'ref') {
     deferred.push(() => {
-      build.statements.push(
+      // A ref is called with the node it was given, once: `canRetain` has
+      // already refused to keep a site whose ref depends on the run.
+      pushOnce(
+        build,
         expressionStatement(t.callExpression(value as t.Expression, [t.cloneNode(self)])),
       );
     });
@@ -887,7 +1673,15 @@ function emitAttribute(
           t.objectExpression([t.objectProperty(propertyKey(modifier), t.booleanLiteral(true))]),
         );
       }
-      build.statements.push(expressionStatement(t.callExpression(runtime(state, 'on'), args)));
+      const attach = expressionStatement(t.callExpression(runtime(state, 'on'), args));
+      // A handler that closes over something from the run is a new function on
+      // every run, and has to replace the one before it — which is what the
+      // source says, and what keeps it from ever holding a stale value.
+      if (dependsOnRun(value as t.Expression, build.run, build.at)) {
+        pushEach(build, attach);
+      } else {
+        pushOnce(build, attach);
+      }
     });
     return;
   }
@@ -913,7 +1707,16 @@ function emitAttribute(
   }
 
   deferred.push(() => {
-    build.statements.push(
+    if (dependsOnRun(value, build.run, build.at)) {
+      // The run owns this value, so the run writes it — and writes nothing
+      // when it produced what is already there.
+      guardedWrite(build, state, value, (held) =>
+        dynamicAttributeCall(name, held, self, state, tag),
+      );
+      return;
+    }
+    pushOnce(
+      build,
       expressionStatement(
         t.callExpression(runtime(state, 'bind'), [
           located(
@@ -1187,25 +1990,45 @@ function emitChildren(
       continue;
     }
     const isLast = i === entries.length - 1;
+    const expression = entry.expression as t.Expression;
+    let marker: t.Expression | null = null;
+    if (!isLast) {
+      build.html.push('<!>');
+      marker = t.cloneNode(reference());
+    }
+    if (entry.kind !== 'list' && dependsOnRun(expression, build.run, build.at)) {
+      // Written by the run, into the place it wrote last time.
+      const run = build.run as RunContext;
+      pushEach(
+        build,
+        expressionStatement(
+          t.callExpression(runtime(state, 'writeChild'), [
+            t.cloneNode(run.store),
+            t.numericLiteral(run.next()),
+            t.cloneNode(self),
+            marker ?? t.nullLiteral(),
+            expression,
+          ]),
+        ),
+      );
+      index++;
+      continue;
+    }
     const args: t.Expression[] = [
       t.cloneNode(self),
       // A list part is already a thunk that owns its rows; wrapping it would
       // rebuild the whole list on every evaluation.
-      entry.kind === 'list'
-        ? (entry.expression as t.Expression)
-        : thunk(entry.expression as t.Expression),
+      entry.kind === 'list' ? expression : thunk(expression),
     ];
-    if (!isLast) {
-      build.html.push('<!>');
-      const id = reference();
-      args.push(t.cloneNode(id));
+    if (marker !== null) {
+      args.push(marker);
     }
     // The call is deliberately left without a position, and only the thunk
     // inside it carries one. Both would map to `{value}`, and a debugger takes
     // the first location on a line — which would be this call, and it runs
     // once, when the part is created. The thunk runs on every update, which is
     // where a breakpoint on that expression is expected to stop.
-    build.statements.push(expressionStatement(t.callExpression(runtime(state, 'insert'), args)));
+    pushOnce(build, expressionStatement(t.callExpression(runtime(state, 'insert'), args)));
     index++;
   }
 }
@@ -1343,9 +2166,7 @@ function compileChildren(children: t.JSXElement['children'], state: State): t.Ex
       result.push(t.callExpression(runtime(state, 'part'), [entry.expression as t.Expression]));
     } else {
       result.push(
-        t.callExpression(runtime(state, 'part'), [
-          t.arrowFunctionExpression([], entry.expression as t.Expression),
-        ]),
+        t.callExpression(runtime(state, 'part'), [thunk(entry.expression as t.Expression)]),
       );
     }
   }
@@ -1366,17 +2187,30 @@ function compileChildren(children: t.JSXElement['children'], state: State): t.Ex
  */
 function thunk(expression: t.Expression): t.ArrowFunctionExpression {
   const arrow = t.arrowFunctionExpression([], expression);
+  (arrow as unknown as Record<symbol, boolean>)[CHILD_THUNK] = true;
+  takePosition(arrow, expression);
+  return arrow;
+}
+
+/**
+ * Moves an expression's position onto the thing the compiler wrapped it in.
+ *
+ * A point rather than a range. The generator maps both ends of a node, and an
+ * end one column along is a second marker that looks identical to the first
+ * and does the same thing. A wrapper the compiler invented does not span
+ * anything in the source anyway — it belongs where the expression begins.
+ *
+ * It matters for more than tidiness: a debugger offers a breakpoint on a line
+ * only where a *statement* is mapped to it. An expression buried in a getter
+ * the compiler wrote has no statement of its own, and the line it came from
+ * cannot be stopped on at all until one carries its position.
+ */
+function takePosition(target: t.Node, expression: t.Expression): void {
   const loc = expression.loc;
   if (loc !== null && loc !== undefined) {
-    // A point rather than a range. The generator maps both ends of a node, and
-    // an end one column along is a second marker that looks identical to the
-    // first and does the same thing. A wrapper the compiler invented does not
-    // span anything in the source anyway — it belongs at the place the
-    // expression begins.
-    arrow.loc = { ...loc, end: loc.start };
+    target.loc = { ...loc, end: loc.start };
     expression.loc = null;
   }
-  return arrow;
 }
 
 function expressionStatement(expression: t.Expression): t.Statement {

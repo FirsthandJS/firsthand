@@ -135,7 +135,7 @@ if (import.meta.env.DEV) {
 }
 ```
 
-## A view is chosen in the markup, not before it
+## Choosing a view
 
 A setup runs **once**, which makes this wrong in a way that compiles:
 
@@ -147,8 +147,8 @@ const Panel = component(() => {
 ```
 
 Whichever branch was true while the component was being built is the only one
-that will ever be on screen. The same thing spelled with a keyword is the same mistake, and it is the one
-that turns up in a route guard:
+that will ever be on screen. The same thing spelled with a keyword is the same
+mistake, and it is the one that turns up in a route guard:
 
 ```tsx
 const Guarded = component(() => {
@@ -159,16 +159,29 @@ const Guarded = component(() => {
 });
 ```
 
-Put the choice where it can run again — in a child
-position, where it is a part:
+There are two ways to fix it, and they are the two halves of the same rule.
+
+**Put the choice in the markup**, where it is a part:
 
 ```tsx
 return <>{open.value ? <Form /> : <Button />}</>;
 ```
 
-The compiler reports the first form as a build error (`strictReactivity`),
-because nothing throws at runtime: the button simply stops working, later, and
-it takes twenty minutes to find.
+**Or return a render function**, which is a reactive scope of its own and may
+use ordinary control flow:
+
+```tsx
+const Guarded = component(() => () => {
+  if (token.value === null) {
+    return <Navigate to="/sign-in" />;
+  }
+  return <Page />;
+});
+```
+
+The compiler reports the broken form as a build error (`strictReactivity`) and
+offers both, because nothing throws at runtime: the button simply stops
+working, later, and it takes twenty minutes to find.
 
 It reports a **signal** read and not a prop read. A signal exists in order to
 change; a prop may be fixed for the life of an instance — a recursive
@@ -184,9 +197,354 @@ return state.open ? <Form /> : <Button />; // just as wrong, and not reported
 ```
 
 goes through. The check catches an important class of this mistake rather than
-all of it. The rule to carry is the one at the top of this section — a view is
-chosen in the markup — and the compiler is a second pair of eyes on it, not a
-proof.
+all of it, and the section below is the rule it is a second pair of eyes on.
+
+## Functions are the unit of reactive work
+
+Everything in this framework is one rule, said once:
+
+> **Every function you write is a reactive scope: it runs again when something
+> it read changes. JSX beneath it makes the smallest scopes it can — as long
+> as they need nothing from the run that made them.**
+
+`computed`, `effect` and `useResource` are that rule. So is a render function,
+one level up. There is no second rendering model to learn, and no keyword: the
+shape of your functions _is_ the shape of the reactive graph.
+
+### Three shapes, and what each one is for
+
+```tsx
+// 1. A view function: markup, no state.
+function Badge({ kind }: { kind: string }) {
+  return <span class={kind}>{kind}</span>;
+}
+
+// 2. A component: it has a setup, so it can hold something.
+const Counter = component(() => {
+  const count = signal(0);
+  return <button onClick={() => count.value++}>{count.value}</button>;
+});
+
+// 3. A component with a render function: the setup holds, the run decides.
+const Panel = component(() => {
+  const open = signal(false);
+  return () => {
+    if (!open.value) {
+      return <Closed onOpen={() => (open.value = true)} />;
+    }
+    return <Form />;
+  };
+});
+```
+
+Read them as a progression rather than as alternatives:
+
+- **`component()` means "this view needs a setup"** — a signal, an effect, a
+  resource, a context value. Without one, a function is enough.
+- **The arrow means "this view has statements"** — an `if`, a value derived
+  from several reads. Without them, returning the markup is enough, and shape 2
+  is exactly shape 3 with an empty body.
+
+Nothing about shape 2 has changed, and an application that never writes an
+arrow never meets any of what follows.
+
+## What belongs to a run, and what does not
+
+Inside a render function, the compiler asks one question of every expression in
+the markup: **does it name something the run made?**
+
+```tsx
+return () => {
+  const user = profile.value;
+
+  return (
+    <article class={user.kind}>
+      <h1>{user.name}</h1> {/* names `user` — the run writes it */}
+      <time>{clock.value}</time> {/* names nothing of the run's — its own part */}
+      <Footer /> {/* nothing of the run's — made once */}
+    </article>
+  );
+};
+```
+
+This is not an optimisation the compiler chooses; it is the only thing it can
+do. `user` belongs to _this_ call of the run — a part that captured it would
+hold a value from a run that is over. `clock` belongs to nobody, so a part can
+read it for ever, and does: **the clock ticks without waking the run at all.**
+
+Three consequences worth holding on to:
+
+| Where you read it                    | What happens                              |
+| ------------------------------------ | ----------------------------------------- |
+| In a statement                       | the whole run happens again               |
+| In the markup, from a signal or prop | that one site updates; the run sleeps     |
+| In the markup, from a run local      | the run writes it, and only if it changed |
+
+You choose between the first two by where you put a normal JavaScript line:
+
+```tsx
+// Twenty sites, twenty scopes, each reading `profile` for itself.
+return () => (
+  <dl>
+    <dt>{profile.value.name}</dt>
+    <dd>{profile.value.email}</dd>
+    {/* … */}
+  </dl>
+);
+
+// One scope: read once, derive once, write what moved.
+return () => {
+  const person = profile.value;
+  return (
+    <dl>
+      <dt>{person.name}</dt>
+      <dd>{person.email}</dd>
+      {/* … */}
+    </dl>
+  );
+};
+```
+
+Both are correct. The second is the one to reach for when the sites share a
+source, and it is measurably cheaper — see
+[Performance](15-performance.md#render-functions).
+
+## What a run does to the DOM
+
+**A site is made once and written afterwards.** The markup in a run is not
+rebuilt when the run happens again; the same nodes are written into, and a
+value that has not changed is not written at all.
+
+That is worth more than the speed. It is why this keeps working:
+
+```tsx
+return () => {
+  const total = price.value * quantity.value;
+  return (
+    <form>
+      <input name="note" />
+      <output>{total}</output>
+    </form>
+  );
+};
+```
+
+A price change runs the function again, and the `<input>` keeps its focus, its
+caret and whatever was half typed into it — because it is the same element.
+
+**A branch the run leaves is gone, not hidden.** When the run stops returning
+a piece of markup, that piece is disposed: its components run their cleanups,
+its parts stop, its nodes are removed. Coming back builds it again.
+
+```tsx
+return () => {
+  if (editing.value) {
+    return <Editor draft={draft} />; // disposed when editing ends
+  }
+  return <Preview />; // and built again when it starts
+};
+```
+
+That is what the control flow says, so it is what happens. Nothing is kept
+alive off-screen, and no state survives a branch it was not in.
+
+### Identity
+
+A site is identified by **where it stands in the source**. That is enough for
+markup that appears once — including markup inside an `if`, which is the thing
+hook rules cannot do: each branch has its own place whether or not it was
+taken, and nothing depends on the order the run reached them in.
+
+Markup that appears _many_ times from one place needs a key, and the compiler
+insists:
+
+```tsx
+return () => {
+  const rows = table.value.rows;
+  return (
+    <ul>
+      {rows.map((row) => (
+        <Row key={row.id} row={row} /> // without `key`: a build error
+      ))}
+    </ul>
+  );
+};
+```
+
+### Children keep their instance
+
+A component written inside a run is made **once**. When the run happens again
+it is handed the same instance, and only its props move:
+
+```tsx
+return () => {
+  const user = profile.value;
+  return <UserCard name={user.name} email={user.email} />;
+};
+```
+
+`UserCard`'s setup runs once, its state survives, and a prop whose value did
+not change does not reach it at all. Props fed from a run are held in cells for
+exactly this reason; a prop that is not — `<UserCard name={profile.value.name} />`
+— stays an ordinary live read and costs nothing extra.
+
+### Handlers are what they look like
+
+```tsx
+return () => {
+  const user = profile.value;
+  return <button onClick={() => save(user.id)}>Save</button>;
+};
+```
+
+Normal JavaScript makes a new closure on every run, and that is exactly what
+happens: the new one replaces the old one on the node. **It is never stale** —
+the handler is always as old as the DOM beside it, because the same run wrote
+both. If the button says "Grace", it saves Grace.
+
+The one thing to know is what that costs when the handler goes to a _child_:
+
+```tsx
+return () => {
+  const user = profile.value;
+  return <UserCard user={user} onSave={() => save(user.id)} />;
+};
+```
+
+A new function is never equal to the one before it, so `UserCard` runs again
+whenever its parent does. If the handler does not need the run, define it in
+the setup, where it is made once:
+
+```tsx
+const save = () => saveUser(profile.peek().id);
+return () => <UserCard user={profile.value} onSave={save} />;
+```
+
+Development says so when it happens, rather than leaving you to find it.
+
+## Where the framework stops helping
+
+A render function is one scope, so everything in its body runs when anything in
+its body changes. That is the whole model, and it has one sharp edge:
+
+```tsx
+return () => {
+  const sorted = expensiveSort(rows.value); // expensive
+  const label = `Page ${String(page.value)}`; // cheap, changes often
+  return (
+    <>
+      <h2>{label}</h2>
+      <Table rows={sorted} />
+    </>
+  );
+};
+```
+
+Every page change sorts again. In the fine-grained shape the framework hoists
+that for you, because the sort is its own part; here you say it yourself, with
+the tool that has always been there:
+
+```tsx
+const sorted = computed(() => expensiveSort(rows.value)); // setup
+
+return () => {
+  const label = `Page ${String(page.value)}`;
+  return (
+    <>
+      <h2>{label}</h2>
+      <Table rows={sorted.value} />
+    </>
+  );
+};
+```
+
+Now the source says what depends on what: the sort depends on the rows, the run
+depends on the page. **Drawing the reactive graph with function boundaries is
+the point of the whole model** — this is the same act as choosing where to put
+`const user = profile.value`, one level further out.
+
+You are told when you get it wrong. A run that keeps running and keeps writing
+nothing is doing work for nobody, and development says so in as many words:
+
+```
+<OrderTable> ran 20 times and wrote nothing.
+Something it reads in a statement changes more often than what it shows. Move
+that read into the markup, where it is a part of its own, or move the
+derivation into a computed in the setup.
+```
+
+Nothing is optimised behind your back — it is bookkeeping, said out loud.
+
+## Two things a render function may not do
+
+Both are compiler errors, and both are the same rule as everywhere else.
+
+**Nothing persistent is made in a run.** A signal, a computed, an effect, a
+resource — anything that outlives the moment it was made belongs in the setup,
+which runs once:
+
+```tsx
+component(() => {
+  const draft = signal(''); // here
+
+  return () => {
+    const draft = signal(''); // not here: a build error
+    return <input value={draft.value} />;
+  };
+});
+```
+
+This is not a rule about ordering, and there is nothing to keep in the same
+sequence between runs. It is one sentence: **persistent things are made in the
+setup.**
+
+**Repeated markup carries a key**, as above. Where markup stands answers for
+one of it; only a key answers for many.
+
+## View functions
+
+A function that returns markup is a view, and a view is a reactive scope like
+any other. It needs no `component()`, because it has nothing to hold:
+
+```tsx
+function Money({ amount }: { amount: number }) {
+  return <span class={amount < 0 ? 'debit' : 'credit'}>{amount.toFixed(2)}</span>;
+}
+
+// Used as a tag, it is a scope of its own: it runs again when what it read
+// changes, and nothing else on the page is disturbed.
+<Money amount={balance.value} />;
+```
+
+Writing it as a **tag** is what gives it a place and a scope. Calling it is
+just a function call, and behaves like one:
+
+```tsx
+{
+  Money({ amount: 5 });
+} // a call: runs where you wrote it, builds markup
+<Money amount={5} />; // a site: its own scope, its own place
+```
+
+Both are legitimate and the difference is visible, which is the point. Reach
+for the tag when the thing should be able to update on its own; call it when
+you are just building some markup in passing.
+
+A view function has no setup, so it may not make anything persistent — the same
+error as above, with the same fix: give it a `component()` when it needs to
+hold something.
+
+## Which one should you write?
+
+| You need                                        | Write                     |
+| ----------------------------------------------- | ------------------------- |
+| markup, nothing held                            | a view function           |
+| state, an effect, a resource, context           | `component()`             |
+| an `if`, an early return, a guard               | a render function         |
+| a value several sites share                     | a statement in the run    |
+| a value one site uses                           | the read, in the markup   |
+| a derivation that must not re-run with the rest | a `computed` in the setup |
+| the same markup many times                      | `key`                     |
 
 ## Destructuring works
 

@@ -41,8 +41,54 @@ therefore read once and kept: `const id = props.id` is a snapshot, while
 See [Setup runs once](../guide/03-components.md#setup-runs-once-so-a-value-you-read-is-a-value-you-keep).
 
 ```ts
-type View = Node | string | number | boolean | null | undefined | DynamicChild | readonly View[];
+type View =
+  Node | string | number | boolean | null | undefined | DynamicChild | readonly View[] | Render;
+
+/** A view evaluated as a whole, again, when something it read changes. */
+type Render = () => View;
 ```
+
+**A setup may return a render function.** It is an ordinary function and
+therefore an ordinary reactive scope, one level up from `computed` and
+`effect`: statements in it are its dependencies, and markup expressions that
+name nothing it made keep scopes of their own.
+
+```tsx
+component(() => {
+  const draft = signal('');
+
+  return () => {
+    if (!draft.value) {
+      return <Empty />;
+    }
+    return <Editor draft={draft} />;
+  };
+});
+```
+
+What it does: a site is built once and written afterwards, so a run that keeps
+the same branch keeps the same nodes — and whatever the DOM was holding, such
+as focus and a caret. A branch the run stops returning is disposed. Children
+written inside it keep their instance, and props fed from the run reach them
+through cells, so a prop that did not change wakes nothing.
+
+What it may not do, both build errors: make anything persistent (`signal`,
+`computed`, `effect`, `useResource`, …), which belongs in the setup; and repeat
+markup without a `key`. See
+[Functions are the unit of reactive work](../guide/03-components.md#functions-are-the-unit-of-reactive-work)
+and [ADR-0026](../adr/0026-a-function-is-a-reactive-scope.md).
+
+**A plain function that returns markup is a view**, and needs no `component()`:
+
+```tsx
+function Badge({ kind }: { kind: string }) {
+  return <span class={kind}>{kind}</span>;
+}
+```
+
+Written as a tag it is a reactive scope with a place of its own; called, it is
+a function call and behaves like one. It has no setup, so it may not hold
+anything either. `component()` is what says _this view needs a setup_.
 
 ## render
 

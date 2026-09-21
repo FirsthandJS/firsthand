@@ -91,3 +91,53 @@ export function label<T>(value: T, kind: string, name: string): T {
   }
   return value;
 }
+
+/** How many runs in a row may change nothing before it is worth saying so. */
+const QUIET = 20;
+
+/**
+ * Reports a render function that keeps running and keeps changing nothing.
+ *
+ * Nothing is optimised here and nothing is hidden: this is bookkeeping, said
+ * out loud. A run that produces exactly what is already on screen did work for
+ * no one, and the reason is always the same — it reads something in a
+ * statement that moves more often than what it shows.
+ */
+export function devRan(store: { name: string; busy?: boolean; quiet?: number }): void {
+  if (store.busy === true) {
+    store.busy = false;
+    store.quiet = 0;
+    return;
+  }
+  const quiet = (store.quiet ?? 0) + 1;
+  store.quiet = quiet;
+  if (quiet !== QUIET) {
+    return;
+  }
+  devWarnOnce(
+    `quiet-run:${store.name}`,
+    `<${store.name}> ran ${String(QUIET)} times and wrote nothing.\n` +
+      'Something it reads in a statement changes more often than what it shows. ' +
+      'Move that read into the markup, where it is a part of its own, or move ' +
+      'the derivation into a computed in the setup.',
+  );
+}
+
+/**
+ * Reports a child that is handed a new function on every run.
+ *
+ * A function made in a run is never equal to the one before it, so the child
+ * it is given to runs again every time its parent does — the `useCallback`
+ * problem, named rather than papered over.
+ */
+export function devHandedNewFunction(store: { name: string }, value: unknown): void {
+  if (typeof value !== 'function') {
+    return;
+  }
+  devWarnOnce(
+    `new-function:${store.name}`,
+    `<${store.name}> hands a child a new function on every run, so that child ` +
+      'runs again whenever this one does.\n' +
+      'If the handler does not depend on the run, define it in the setup.',
+  );
+}

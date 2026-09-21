@@ -88,6 +88,58 @@ characteristics, and React itself is about 45 kB gzip. That is the price of
 running a React component, and it is the same price a React application pays.
 See [React interop](11-react-interop.md).
 
+## Render functions
+
+A [render function](03-components.md#functions-are-the-unit-of-reactive-work)
+collapses a view into one reactive scope: one read of the source, one pass of
+derivation, and a write only where the value moved. Where a component's sites
+share a source — a detail view, a card, a row — that is less work than giving
+each site a scope of its own.
+
+The same component, written both ways, compiled by the real compiler and
+checked to render the same 20,000 nodes before
+anything is timed. 1,000 instances of
+20 sites, all derived from one signal;
+medians of 11 repetitions with the
+order rotated.
+
+<!-- prettier-ignore-start -->
+
+| | mount | update | heap |
+|---|---|---|---|
+| a site per expression | 29.10 ms | 10.420 ms | 13.8 MB |
+| one render function | **18.60 ms** | **7.670 ms** | **8.8 MB** |
+| | 1.56x | 1.36x | 1.57x |
+
+<!-- prettier-ignore-end -->
+
+`npm run bench:runs` reproduces it, and writes
+`benchmarks/results/render-functions.json`.
+
+**What the numbers are, and are not.** They are one shape: twenty sites and one
+source. Turn that around — twenty sites with twenty independent sources — and
+the fine-grained form is the faster one, because a run would look at all twenty
+to write the one that moved. The compiler does not make you choose blindly:
+an expression that names nothing from the run keeps its own scope either way,
+so a view that mixes the two gets both behaviours in the one component.
+
+Three things move the numbers, in order of size:
+
+- **Fewer effects.** Twenty sites derived from one signal are twenty effects,
+  twenty subscriptions and twenty reads of that signal. A run is one of each.
+  This is most of the mount and heap difference.
+- **One derivation.** `const person = profile.value` unpacks the source once
+  instead of twenty times.
+- **Writes that do not happen.** Each site remembers what it last wrote, so a
+  run that produces what is already on screen touches nothing. Comparing a
+  remembered string costs about half of setting one; comparing against the DOM
+  instead — reading `text.data` back — measured _slower than not comparing at
+  all_, which is why the remembered value is the one that is kept.
+
+There is headroom left: every write looks its site up through
+`site(store, index)` rather than through a local, and a hand-written stand-in
+that hoisted those lookups measured about 20 % better again on the update path.
+
 ## Measuring
 
 Guessing is what the benchmarks in this repository exist to replace. Three

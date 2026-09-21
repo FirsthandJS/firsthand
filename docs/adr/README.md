@@ -30,3 +30,7 @@ performance or semantics are affected.
 | [0020](0020-devtools-without-a-runtime-cost.md)                  | Devtools that production does not pay for                      | accepted                                            |
 | [0021](0021-localisation-as-an-adapter.md)                       | Localisation as an adapter, not a library                      | accepted                                            |
 | [0022](0022-resources-not-a-cache.md)                            | Resources and invalidation, with caching left to the transport | accepted                                            |
+| [0023](0023-one-cache-at-the-transport-edge.md)                  | One cache, at the transport edge                               | accepted                                            |
+| [0024](0024-an-invalidation-outlives-its-reader.md)              | An invalidation outlives the resource that was watching        | accepted                                            |
+| [0025](0025-tags-as-cache-metadata.md)                           | Tags as cache metadata, never as cache identity                | accepted                                            |
+| [0026](0026-a-function-is-a-reactive-scope.md)                   | A function is a reactive scope, one level up                   | accepted                                            |
