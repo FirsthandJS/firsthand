@@ -176,6 +176,18 @@ change; a prop may be fixed for the life of an instance — a recursive
 shape once and is right to — and the compiler cannot tell the two apart. Where
 a prop does change, the same rule applies and nobody will warn you.
 
+It also looks for `.value` in the source, which is the other thing worth
+knowing: a [`deepSignal`](../reference/deep.md) is read without it, so
+
+```tsx
+return state.open ? <Form /> : <Button />; // just as wrong, and not reported
+```
+
+goes through. The check catches an important class of this mistake rather than
+all of it. The rule to carry is the one at the top of this section — a view is
+chosen in the markup — and the compiler is a second pair of eyes on it, not a
+proof.
+
 ## Destructuring works
 
 ```tsx

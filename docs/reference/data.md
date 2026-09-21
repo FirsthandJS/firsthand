@@ -152,6 +152,21 @@ An invalidation that arrives while a run is in flight is remembered and matched
 again when the run declares its tags, so tags that only the server knows still
 supersede the run that was overtaken.
 
+**Declare tags before handing `request` to a client** where you can. That is
+what lets an invalidation nobody was alive to receive turn into a `force` the
+cache lookup can still see:
+
+```ts
+useResource(({ request, tags }) => {
+  tags(tag('board', { id: id() })); // known before the call
+  return api.get<Board>(`/boards/${id()}`)(request);
+});
+```
+
+Declaring afterwards is supported and costs a request: the answer may have come
+from a cache that was written before the tags existed, so the run is discarded
+and repeated with `force` rather than trusted.
+
 ## useAction
 
 ```ts
