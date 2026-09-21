@@ -147,7 +147,19 @@ const Panel = component(() => {
 ```
 
 Whichever branch was true while the component was being built is the only one
-that will ever be on screen. Put the choice where it can run again — in a child
+that will ever be on screen. The same thing spelled with a keyword is the same mistake, and it is the one
+that turns up in a route guard:
+
+```tsx
+const Guarded = component(() => {
+  if (token.value === null) {
+    return <Navigate to="/sign-in" />; // never runs again; a sign-out leaves
+  } // the page it was hiding on screen
+  return <Page />;
+});
+```
+
+Put the choice where it can run again — in a child
 position, where it is a part:
 
 ```tsx

@@ -322,7 +322,34 @@ function checkDecidedOnce(setup: NodePath<t.Function>, name: string): void {
         check(returned, statement);
       }
     },
+    /**
+     * The same mistake spelled with a keyword, and the one that actually
+     * shipped: a route guard that returned `<Navigate />` early left the page
+     * it was meant to hide on the screen after a sign-out.
+     */
+    IfStatement(statement: NodePath<t.IfStatement>) {
+      if (!readsSignal(statement.node.test)) {
+        return;
+      }
+      if (returnsView(statement.node.consequent) || returnsView(statement.node.alternate)) {
+        report(statement.get('test'));
+      }
+    },
   });
+}
+
+/** Whether a branch of an `if` returns markup. */
+function returnsView(node: t.Statement | null | undefined): boolean {
+  if (node === null || node === undefined) {
+    return false;
+  }
+  if (t.isReturnStatement(node)) {
+    return node.argument !== null && node.argument !== undefined && hasView(node.argument);
+  }
+  if (t.isBlockStatement(node)) {
+    return node.body.some((inner) => returnsView(inner));
+  }
+  return false;
 }
 
 /**

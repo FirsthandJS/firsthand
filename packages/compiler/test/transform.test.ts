@@ -64,6 +64,14 @@ export const Nested = component((props) =>
     ).not.toThrow();
   });
 
+  it('refuses an early return guarded by a signal', () => {
+    // The route-guard shape, and the one that actually shipped in the
+    // showcase: after a sign-out the page it was meant to hide stayed put.
+    expect(() =>
+      compile(setup('if (open.value) { return <b>form</b>; } return <i>button</i>;')),
+    ).toThrow(/chosen once/);
+  });
+
   it('refuses the `&&` form, which is the same mistake with fewer characters', () => {
     expect(() => compile(setup('return open.value && <b>form</b>;'))).toThrow(/chosen once/);
   });
@@ -128,6 +136,17 @@ export const Panel = component(() => {
 });
 `),
     ).toThrow(/chosen once/);
+  });
+
+  it('leaves an early return that is not about a signal alone', () => {
+    // A capability check, a prop, an argument: decided once on purpose.
+    expect(() =>
+      compile(setup('if (props.hidden) { return <b>nothing</b>; } return <i>panel</i>;')),
+    ).not.toThrow();
+    // And an `if` that returns no markup at all is somebody's guard clause.
+    expect(() =>
+      compile(setup('if (open.value) { throw new Error("no"); } return <i>panel</i>;')),
+    ).not.toThrow();
   });
 
   it('leaves a constant `&&` and a bare return alone', () => {
