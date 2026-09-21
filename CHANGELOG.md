@@ -37,6 +37,26 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **An invalidation can empty the cache, not just outrun it.** The half above
+  makes the _next_ reader pay for a stale entry; this drops it where it stands:
+
+  ```ts
+  const cache = createCacheClient({ ttl: 30_000 });
+  const store = createData({ caches: [cache] });
+  ```
+
+  A cache entry now keeps what its request said it was about, and
+  `store.invalidate` calls `forgetTagged` on the caches it was handed. The tags
+  are **metadata on the entry, never the key** — identity is still the scope
+  and the request, which is the distinction
+  [ADR-0022](docs/adr/0022-resources-not-a-cache.md) exists to protect and
+  [ADR-0025](docs/adr/0025-tags-as-cache-metadata.md) spends its length
+  defending.
+
+  A cache that is not passed is not touched, which is the right default for a
+  transport's own: Apollo's and urql's caches are theirs, and `force` stays the
+  only contact with them.
+
 - **The compiler refuses a view that is chosen once.** This compiled, ran, and
   looked like a broken button:
 

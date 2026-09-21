@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { component, provide, render } from '@firsthandjs/dom';
 import {
   DataContext,
+  createCacheClient,
   createData,
   createFetchClient,
   tag,
@@ -51,6 +52,47 @@ function listing(store: DataStore, api: ReturnType<typeof createFetchClient>) {
 }
 
 const settle = (): Promise<void> => new Promise((wake) => setTimeout(wake, 10));
+
+describe('an invalidation empties the cache it was given', () => {
+  it('drops the entries that said they were about those tags', async () => {
+    capture();
+    const cache = createCacheClient({ ttl: 10_000 });
+    // The cache is handed over, so the store can throw things out of it.
+    const store = createData({ caches: [cache], remember: 0 });
+    const api = createFetchClient({ cache });
+
+    const first = listing(store, api);
+    await settle();
+    expect(served).toBe(1);
+    expect(cache.size).toBe(1);
+    first.stop();
+
+    await store.invalidate(tag('boards'));
+
+    // Gone straight away, rather than at the next reader's expense — and this
+    // works with `remember: 0`, which is the other half of the fix switched
+    // off.
+    expect(cache.size).toBe(0);
+    listing(store, api);
+    await settle();
+    expect(served).toBe(2);
+  });
+
+  it('leaves an entry about something else where it is', async () => {
+    capture();
+    const cache = createCacheClient({ ttl: 10_000 });
+    const store = createData({ caches: [cache], remember: 0 });
+    const api = createFetchClient({ cache });
+
+    const page = listing(store, api);
+    await settle();
+    page.stop();
+
+    await store.invalidate(tag('users'));
+
+    expect(cache.size).toBe(1);
+  });
+});
 
 describe('an invalidation outlives the resource that was watching', () => {
   it('reaches the next resource to declare that tag', async () => {

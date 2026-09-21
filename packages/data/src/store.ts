@@ -58,6 +58,15 @@ export interface DataRequest {
    */
   readonly mutating?: boolean;
   /**
+   * What this request has been said to be about, if anything.
+   *
+   * A cache may keep it beside the entry — as metadata, never as the key —
+   * so that an invalidation can throw the entry away instead of waiting for
+   * somebody to ask for it again. Identity stays what it was: the scope and
+   * the request (ADR-0022, ADR-0025).
+   */
+  readonly declared?: readonly Tag[];
+  /**
    * Where a client reports what this request is about, when it knows.
    *
    * A GraphQL document carries its own `@tag` and `@invalidates` directives,
@@ -133,6 +142,20 @@ export interface DataOptions {
   /** Where named resources are kept between visits. */
   readonly storage?: Storage;
   /**
+   * Caches to empty when something is invalidated.
+   *
+   * A cache given here is told which tags were invalidated, and drops the
+   * entries whose requests said they were about them — so a list nobody is
+   * watching does not keep a stale answer for anybody who walks back to it.
+   * The tags are metadata on the entry; identity is still the scope and the
+   * request (ADR-0025).
+   *
+   * A cache that is *not* given here is not touched, which is the right
+   * default for somebody else's: Apollo's and urql's caches are theirs, and
+   * `force` is how a run reaches past them.
+   */
+  readonly caches?: readonly Forgetful[];
+  /**
    * How long an invalidation is remembered for resources that did not exist
    * when it happened, in ms. Default 60 000; `0` switches it off.
    *
@@ -149,6 +172,16 @@ export interface DataOptions {
    * and short enough to be forgotten.
    */
   readonly remember?: number;
+}
+
+/**
+ * The part of a cache a store touches: what to forget, and nothing else.
+ *
+ * Declared structurally so that the store depends on no cache in particular —
+ * ours satisfies it, and so does thirty lines of somebody's own.
+ */
+export interface Forgetful {
+  forgetTagged(patterns: readonly Tag[]): void;
 }
 
 /** What was invalidated, and when. See {@link DataOptions.remember}. */
@@ -237,6 +270,13 @@ export function createData(options: DataOptions = {}): DataStore {
     },
     invalidate: async (...patterns: Tag[]): Promise<void> => {
       const waiting: Promise<unknown>[] = [];
+      // Thrown out of the caches that were handed over, so an answer that is
+      // now wrong is not waiting for whoever asks next. This is the precise
+      // half of the fix; `recent` below is the half that also reaches a cache
+      // we were not given.
+      for (const cache of options.caches ?? []) {
+        cache.forgetTagged(patterns);
+      }
       if (remember > 0) {
         // Kept for the resources that are not here yet: a list two pages away
         // is nobody's subscriber, and it is created — not reloaded — when you

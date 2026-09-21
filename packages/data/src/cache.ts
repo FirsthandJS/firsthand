@@ -36,9 +36,18 @@
  *   was meant to defeat.
  * - **Stays out of an action's way.** A `mutating` request is run and nothing
  *   else: not served from here, not shared with anybody, and not kept.
- * - **Forgets.** `forget(key)`, `forget()` for all of it, and the oldest entry
- *   goes when `max` is reached.
+ * - **Forgets.** `forget(key)`, `forget()` for all of it, `forgetTagged(…)`
+ *   for everything an invalidation was about, and the oldest entry goes when
+ *   `max` is reached.
+ *
+ * The last of those is the one worth explaining. An entry remembers what the
+ * request said it was about, and a store that is given this cache throws those
+ * entries away when it invalidates — so a list nobody is watching is not
+ * served a stale answer when somebody walks back to it. The tags are
+ * **metadata, never the key**: identity is still the scope and the request,
+ * which is what ADR-0022 is about and what this deliberately does not undo.
  */
+import { anyTagMatches, type Tag } from './tags.js';
 import type { DataRequest, Loader } from './store.js';
 
 /**
@@ -113,12 +122,23 @@ export interface CacheClient {
   peek(key: string): unknown;
   /** Forgets one key, or everything. */
   forget(key?: string): void;
+  /**
+   * Forgets every entry whose request said it was about one of these.
+   *
+   * What `store.invalidate` calls on a cache it was given. Matching is the
+   * tags' own rule — fewer variables match more — and an entry that never said
+   * what it was about is never matched, because nothing can be concluded about
+   * it.
+   */
+  forgetTagged(patterns: readonly Tag[]): void;
   /** How many entries are held, in flight included. */
   readonly size: number;
 }
 
 interface Entry {
   value: unknown;
+  /** What the request that produced this said it was about. Metadata only. */
+  tags: readonly Tag[];
   /** When it stops being fresh; `Infinity` for a write with no ttl. */
   expires: number;
   /** The run everybody is waiting for, while there is one. */
@@ -169,6 +189,7 @@ export function createCacheClient(options: CacheOptions = {}): CacheClient {
     write: (key: string, value: unknown): void => {
       keep(key, {
         value,
+        tags: [],
         expires: ttl === 0 ? Infinity : now() + ttl,
         inflight: null,
         controller: null,
@@ -183,6 +204,13 @@ export function createCacheClient(options: CacheOptions = {}): CacheClient {
         return;
       }
       drop(key);
+    },
+    forgetTagged: (patterns: readonly Tag[]): void => {
+      for (const [key, entry] of [...entries]) {
+        if (entry.tags.length > 0 && anyTagMatches(patterns, entry.tags)) {
+          drop(key);
+        }
+      }
     },
     read:
       <T>(key: string, produce: Loader<T>): Loader<T> =>
@@ -215,6 +243,9 @@ export function createCacheClient(options: CacheOptions = {}): CacheClient {
         const controller = new AbortController();
         const entry: Entry = {
           value: undefined,
+          // What the request has been declared to be about by now. A client
+          // declares before it looks here, which is what makes this possible.
+          tags: request.declared ?? [],
           expires: 0,
           inflight: null,
           controller,

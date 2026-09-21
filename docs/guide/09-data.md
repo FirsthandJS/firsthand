@@ -245,6 +245,20 @@ Everything carrying a matching tag runs again, with `force`. A component that
 has never heard of the action shows the new value, because the only thing
 connecting the two is the tag.
 
+**Hand the store your cache** and an invalidation empties it as well as
+reloading what is watching:
+
+```ts
+export const cache = createCacheClient({ ttl: 30_000 });
+provide(DataContext, createData({ caches: [cache] }));
+```
+
+The entries know what their requests were about, so the ones the invalidation
+named are dropped immediately. They are labels, not addresses: two call sites
+carrying one tag are still two entries, which is the distinction that keeps
+this from being the bug ADR-0022 removed. A cache you do not hand over — urql's,
+Apollo's — is untouched, and `force` is the only contact with it.
+
 **And the ones that are not there yet.** A list two pages away is nobody's
 subscriber: an invalidation reaches nothing, and walking back to it _creates_ a
 resource rather than reloading one — which would then be handed whatever the

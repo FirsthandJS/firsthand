@@ -120,6 +120,11 @@ export function useResource<T>(
       get force(): boolean {
         return forced;
       },
+      // Read after `tags()` by a cache that keeps them, which is every client
+      // in this project: they declare first and look in their cache second.
+      get declared(): readonly Tag[] {
+        return entry.tags;
+      },
       tags: declare,
     };
     const context: LoadContext = {
