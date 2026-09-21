@@ -85,7 +85,24 @@ export function on(
   options?: AddEventListenerOptions | true,
 ): void {
   if (options !== undefined || !DELEGATED.has(type)) {
-    node.addEventListener(type, handler, options === true ? undefined : options);
+    // Replacing, not adding. A handler that closes over a value belonging to
+    // one run of a render function is a new function on every run, and the
+    // delegated path below replaces by assignment — this one has to do the
+    // same, or forty runs would leave forty listeners behind.
+    //
+    // Keyed by the options as well as the type, because `onClick:native` and
+    // `onClick:once` on one element are two listeners that both belong there.
+    // Only the same attribute, attached again, replaces.
+    const host = node as unknown as HandlerHost;
+    const resolved = options === true ? undefined : options;
+    const slot = `${key(type)}$${resolved === undefined ? '' : Object.keys(resolved).sort().join(',')}`;
+    const previous = host[slot] as
+      { handler: (event: Event) => void; options: AddEventListenerOptions | undefined } | undefined;
+    if (previous !== undefined) {
+      node.removeEventListener(type, previous.handler, previous.options);
+    }
+    host[slot] = { handler, options: resolved };
+    node.addEventListener(type, handler, resolved);
     return;
   }
   (node as unknown as HandlerHost)[key(type)] = handler;

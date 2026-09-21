@@ -390,7 +390,12 @@ if (optional.length > 0) {
   }
 }
 
-const budget = 6 * 1024;
+// Raised from 6 kB when render functions arrived: a site store, the sweep
+// that disposes a branch the run has left, and the guarded writes are about
+// 0.35 kB gzip. They are separate exports, so an application that never
+// returns a render function does not pay for them — this figure is the
+// everything-imported one.
+const budget = 7 * 1024;
 const full = sizes[sizes.length - 1];
 if (full.gzip > budget) {
   console.error(`\nBundle budget exceeded: ${kb(full.gzip)} gzip against a ${kb(budget)} target.`);

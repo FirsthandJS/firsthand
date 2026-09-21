@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-09-21T11:42:21.641Z",
+  "measuredAt": "2026-09-21T21:06:56.555Z",
   "sizes": [
     {
       "module": "@firsthandjs/core",
@@ -9,15 +9,15 @@
     },
     {
       "module": "@firsthandjs/dom",
-      "minified": 10696,
-      "gzip": 4301,
-      "brotli": 3849
+      "minified": 12072,
+      "gzip": 4774,
+      "brotli": 4274
     },
     {
       "module": "@firsthandjs/dom/internal",
-      "minified": 10135,
-      "gzip": 4212,
-      "brotli": 3760
+      "minified": 11640,
+      "gzip": 4782,
+      "brotli": 4278
     },
     {
       "module": "@firsthandjs/jsx-runtime",
@@ -27,9 +27,9 @@
     },
     {
       "module": "full runtime (core + dom, everything imported)",
-      "minified": 16304,
-      "gzip": 6032,
-      "brotli": 5471
+      "minified": 17649,
+      "gzip": 6517,
+      "brotli": 5874
     }
   ],
   "optional": [

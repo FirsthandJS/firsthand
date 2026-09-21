@@ -13,8 +13,21 @@
 export const PROTOCOL_VERSION = 1;
 
 export { template, path } from './template.js';
-export { insert, applyChild, reconcile, part } from './insert.js';
-export type { DynamicChild, ChildSlot } from './insert.js';
+export {
+  insert,
+  applyChild,
+  reconcile,
+  part,
+  store,
+  site,
+  open,
+  close,
+  ran,
+  wrote,
+  cell,
+  writeChild,
+} from './insert.js';
+export type { DynamicChild, ChildSlot, Slot, Store } from './insert.js';
 export {
   setAttribute,
   setAttributeNS,
@@ -32,4 +45,4 @@ export { bind } from '@firsthandjs/core';
 // never turns on; the production copy of this module returns its argument.
 export { label } from './dev.js';
 export { list } from './list.js';
-export { createComponent, isComponent, COMPONENT } from './component.js';
+export { createComponent, isComponent, view, COMPONENT, VIEW } from './component.js';

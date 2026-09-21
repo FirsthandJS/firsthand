@@ -598,6 +598,19 @@ describe('supporting pieces', () => {
     expect(eventName('onPointerDown')).toBe('pointerdown');
   });
 
+  it('leaves out the files a project says are not its own', () => {
+    // How a project keeps a folder of another framework's components: what
+    // this compiler does not compile, it does not claim.
+    const plugin = firsthand({ packageName: 'demo', exclude: [/\/legacy\//] });
+    const source = `${IMPORTS}const A = component(() => <p>x</p>);`;
+    expect(plugin.transform(source, '/app/legacy/button.tsx')).toBeNull();
+    expect(plugin.transform(source, '/app/ui/button.tsx')?.code).toContain('_$template');
+
+    const only = firsthand({ packageName: 'demo', include: [/\/app\/ui\//] });
+    expect(only.transform(source, '/app/other/button.tsx')).toBeNull();
+    expect(only.transform(source, '/app/ui/button.tsx')?.code).toContain('_$template');
+  });
+
   it('provides a bundler plugin that only touches JSX modules', () => {
     const plugin = firsthand({ packageName: 'demo' });
     expect(plugin.name).toBe('firsthand');

@@ -23,3 +23,11 @@ export function devComponent(_owner: object, _name: string): void {
 export function label<T>(value: T, _kind: string, _name: string): T {
   return value;
 }
+
+export function devRan(_store: { name: string; busy?: boolean; quiet?: number }): void {
+  /* stripped in production */
+}
+
+export function devHandedNewFunction(_store: { name: string }, _value: unknown): void {
+  /* stripped in production */
+}

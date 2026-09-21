@@ -13,10 +13,19 @@ import {
 import type { ReadonlyProps } from '@firsthandjs/core';
 import { adapt } from './adapter.js';
 import { devComponent, devWarnOnce } from './dev.js';
-import { applyChild, type DynamicChild } from './insert.js';
+import { applyChild, part, type DynamicChild } from './insert.js';
 
 /** Marks a value as a Firsthand component; used by the JSX runtime and compiler. */
 export const COMPONENT: unique symbol = Symbol.for('firsthand.component');
+
+/**
+ * Marks a plain function that returns markup.
+ *
+ * `Symbol.for` rather than a local symbol: the mark has to survive a module
+ * boundary, so a view function compiled in one package is recognised in
+ * another that may hold its own copy of this module.
+ */
+export const VIEW: unique symbol = Symbol.for('firsthand.view');
 
 export type ComponentOptions = {
   /** Attach a shadow root to the element host. Implies `tag` (ADR-0007). */
@@ -42,7 +51,21 @@ export type AttributeCodec = (raw: string | null) => unknown;
  * be bound after it is placed — a route outlet, for instance.
  */
 export type View =
-  Node | string | number | boolean | null | undefined | DynamicChild | readonly View[];
+  Node | string | number | boolean | null | undefined | DynamicChild | readonly View[] | Render;
+
+/**
+ * A view that is evaluated as a whole, again, when something it read changes.
+ *
+ * This is what a setup returns when it has statements above its markup — an
+ * `if`, a value derived from several signals — and it is an ordinary function,
+ * which is the point: it is a reactive scope like `effect` and `computed`, one
+ * level up.
+ *
+ * ```tsx
+ * component(() => () => (signedIn.value ? <Page /> : <SignIn />));
+ * ```
+ */
+export type Render = () => View;
 
 /**
  * Props as a *caller* may write them.
@@ -143,6 +166,24 @@ export function isComponent(value: unknown): value is Component<never> {
 }
 
 /**
+ * Declares a plain function to be a view.
+ *
+ * A function that returns markup is a view, and a view is a reactive scope:
+ * `<Badge user={user} />` calls it where it stands, and calls it again when
+ * something it read changes. It has no setup, so it owns nothing that has to
+ * survive a run — `signal`, `effect` and their kind belong in a `component`.
+ *
+ * The compiler emits this for every module-level function it compiled markup
+ * into, so that a view imported from another module is still recognised as
+ * ours rather than handed to whatever adapter is installed. Inside one module
+ * the compiler resolves the call itself and this is never consulted.
+ */
+export function view<T extends (props: never) => unknown>(target: T): T {
+  (target as unknown as Record<symbol, boolean>)[VIEW] = true;
+  return target;
+}
+
+/**
  * Instantiates a component.
  *
  * `props` arrives exactly as the caller built it: object references are
@@ -161,6 +202,12 @@ export function createComponent<P>(target: Component<P>, props: P): View {
   // without a setup is not ours: a React component, say, which an installed
   // adapter can still render (see `adapter.ts`).
   if ((target as { setup?: unknown }).setup === undefined) {
+    if (VIEW in target) {
+      // A view is its own reactive scope, so the call is deferred into a part
+      // rather than made here: whatever it reads belongs to the view, not to
+      // whoever happened to be running when the element was created.
+      return part(() => (target as unknown as (props: P) => View)(props));
+    }
     return (adapt(target) as (props: never) => View)(props as never);
   }
   if (target.tag !== undefined) {

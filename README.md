@@ -25,7 +25,7 @@ handler is created once and always reads the current value.
 
 <!-- headline:start -->
 <!-- prettier-ignore-start -->
-The whole runtime is **5.89 kB gzip** with no production dependencies. On the
+The whole runtime is **6.36 kB gzip** with no production dependencies. On the
 render/update set it is **1.54× faster** than React 19.2.0 (geometric mean of 27
 scenarios, 95 % CI 1.23–2.09) — measured in the same browser session with
 byte-identical DOM verified before any timing, and with every scenario published,
@@ -351,10 +351,10 @@ different sample sizes would quietly weaken the confidence interval.
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
 | `@firsthandjs/core` | 6.50 kB | **2.36 kB** | 2.14 kB |
-| `@firsthandjs/dom` | 10.45 kB | **4.20 kB** | 3.76 kB |
-| `@firsthandjs/dom/internal` | 9.90 kB | **4.11 kB** | 3.67 kB |
+| `@firsthandjs/dom` | 11.79 kB | **4.66 kB** | 4.17 kB |
+| `@firsthandjs/dom/internal` | 11.37 kB | **4.67 kB** | 4.18 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
-| full runtime (core + dom, everything imported) | 15.92 kB | **5.89 kB** | 5.34 kB |
+| full runtime (core + dom, everything imported) | 17.24 kB | **6.36 kB** | 5.74 kB |
 
 
 Optional packages, downloaded only by an application that imports them:
@@ -466,7 +466,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 874 tests under Vitest and 90
+This repository is the demonstration: 937 tests under Vitest and 90
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all seven examples.
 <!-- prettier-ignore-end -->
