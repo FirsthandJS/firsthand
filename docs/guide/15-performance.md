@@ -107,9 +107,9 @@ order rotated.
 
 | | mount | update | heap |
 |---|---|---|---|
-| a site per expression | 29.10 ms | 10.420 ms | 13.8 MB |
-| one render function | **18.60 ms** | **7.670 ms** | **8.8 MB** |
-| | 1.56x | 1.36x | 1.57x |
+| a site per expression | 31.40 ms | 11.435 ms | 14.0 MB |
+| one render function | **20.70 ms** | **8.355 ms** | **8.8 MB** |
+| | 1.52x | 1.36x | 1.59x |
 
 <!-- prettier-ignore-end -->
 

@@ -15,7 +15,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { extname, join, resolve, dirname } from 'node:path';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cpus, platform, release } from 'node:os';
 import * as esbuild from 'esbuild';
@@ -68,22 +68,31 @@ const html =
   '<!doctype html><html><body><div id="app"></div>' +
   '<script type="module" src="./dist/harness.js"></script></body></html>';
 
+// Two files, named here rather than taken from the request: a benchmark has
+// no business turning a URL into a path on disk.
+const bundle = resolve(here, 'dist', 'harness.js');
+
 const server = createServer((request, response) => {
-  const url = (request.url === '/' ? '/index.html' : (request.url ?? '/')).split('?')[0];
-  if (url === '/index.html') {
+  const url = (request.url ?? '/').split('?')[0];
+  if (url === '/' || url === '/index.html') {
     response.writeHead(200, { 'content-type': MIME['.html'] });
     response.end(html);
     return;
   }
-  readFile(join(here, url))
-    .then((body) => {
-      response.writeHead(200, { 'content-type': MIME[extname(url)] ?? 'text/plain' });
-      response.end(body);
-    })
-    .catch(() => {
-      response.writeHead(404);
-      response.end('not found');
-    });
+  if (url === '/dist/harness.js') {
+    readFile(bundle)
+      .then((body) => {
+        response.writeHead(200, { 'content-type': MIME['.js'] });
+        response.end(body);
+      })
+      .catch(() => {
+        response.writeHead(500);
+        response.end('build missing');
+      });
+    return;
+  }
+  response.writeHead(404);
+  response.end('not found');
 });
 await new Promise((done) => server.listen(0, '127.0.0.1', done));
 const port = server.address().port;

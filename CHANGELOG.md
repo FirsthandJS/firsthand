@@ -116,10 +116,10 @@ compiler and both verified to render 20 000 nodes before timing:
 
 |                       | mount        | update       | heap       |
 | --------------------- | ------------ | ------------ | ---------- |
-| a site per expression | 29.10 ms     | 10.420 ms    | 13.8 MB    |
-| one render function   | **18.60 ms** | **7.670 ms** | **8.8 MB** |
+| a site per expression | 31.40 ms     | 11.435 ms    | 14.0 MB    |
+| one render function   | **20.70 ms** | **8.355 ms** | **8.8 MB** |
 
-1.56x, 1.36x and 1.57x, and most of it is arithmetic on effects: twenty
+1.52x, 1.36x and 1.59x, and most of it is arithmetic on effects: twenty
 subscriptions and twenty reads of one signal become one of each.
 
 The shape is the point, and it cuts both ways: twenty sites with twenty
