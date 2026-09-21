@@ -1,34 +1,36 @@
 # @firsthandjs/data-urql
 
-urql documents as loaders for [`@firsthandjs/data`](https://www.npmjs.com/package/@firsthandjs/data).
+urql as a client for [`@firsthandjs/data`](https://www.npmjs.com/package/@firsthandjs/data).
 
 ```
 npm install @firsthandjs/data-urql
 ```
 
-0.30 kB gzip. It has **no dependency on urql** and no peer dependency either —
+0.53 kB gzip. It has **no dependency on urql** and no peer dependency either —
 the two methods it uses are declared structurally. It was checked against
 `@urql/core` 6, which has no React dependency of its own.
 
 ```tsx
 import { Client, fetchExchange } from '@urql/core';
-import { urqlLoader } from '@firsthandjs/data-urql';
-import { useResource } from '@firsthandjs/data';
+import { createUrqlClient } from '@firsthandjs/data-urql';
+import { useAction, useResource } from '@firsthandjs/data';
 import InvoicesDocument from './invoices.gql';
+import PayDocument from './pay.gql';
 
-const billing = urqlLoader(
-  new Client({
-    url: '/graphql',
-    exchanges: [fetchExchange],
-    fetchOptions: () => ({ headers: { authorization: `Bearer ${session.token.value}` } }),
-  }),
+export const billing = createUrqlClient(
+  new Client({ url: '/graphql', exchanges: [fetchExchange] }),
+  // Read per request and untracked: the token may change, and a resource must
+  // not depend on it.
+  { headers: () => ({ authorization: `Bearer ${session.token.peek()}` }) },
 );
 
 function Invoices() {
-  const invoices = useResource((context) =>
-    billing(InvoicesDocument, { month: month.value })(context),
+  const invoices = useResource(({ request }) =>
+    billing.query(InvoicesDocument, { month: month.value })(request),
   );
-  return <List items={invoices.data.value?.invoices ?? []} />;
+  const pay = useAction((id: string, { request }) => billing.mutate(PayDocument, { id })(request));
+
+  return <List items={invoices.data.value?.invoices ?? []} onPay={(id) => void pay.run(id)} />;
 }
 ```
 
@@ -38,9 +40,7 @@ again and aborts the one in flight.
 ## Tags come out of the document
 
 `@firsthandjs/data/vite` reads `@tag` and `@invalidates` directives at build
-time and strips them, so what reaches urql is a plain GraphQL document. This
-package binds them against the variables of the call and declares them _before_
-the request goes out — so an invalidation arriving mid-flight still finds it.
+time and strips them, so what reaches urql is a plain GraphQL document.
 
 ```graphql
 query Invoices($month: String!) @tag(name: "invoices", vars: ["month"]) {
@@ -49,27 +49,7 @@ query Invoices($month: String!) @tag(name: "invoices", vars: ["month"]) {
     total
   }
 }
-```
 
-## The decision this package leaves to you: `cacheExchange`
-
-- **Without it,** urql is your transport and the resources are your state. One
-  source of truth.
-- **With it,** urql also caches — which is a real choice, not a default worth
-  inheriting from a helper. `force` is passed on as
-  `requestPolicy: 'network-only'`, so an invalidation reaches past that cache.
-
-If you want urql's cache to be the source of truth for an entity shown in many
-places at once, subscribe to it with `fromObservable` instead of loading it
-per call site. See [ADR-0022](https://github.com/firsthandjs/firsthand/blob/main/docs/adr/0022-resources-not-a-cache.md).
-
-## Mutations
-
-A document whose `kind` is `mutation` goes to `client.mutation`, and what it
-declares is its `@invalidates` directives — so an action hands the document's
-own declaration straight to the store:
-
-```graphql
 mutation Pay($id: ID!) @invalidates(name: "invoices") {
   pay(id: $id) {
     id
@@ -78,10 +58,22 @@ mutation Pay($id: ID!) @invalidates(name: "invoices") {
 }
 ```
 
-```tsx
-const pay = useAction((id: string, { signal, invalidates }) =>
-  billing(PayDocument, { id })({ signal, force: true, tags: invalidates }),
-);
-```
+`query` declares the `@tag` directives into the request before it goes out — so
+an invalidation arriving mid-flight still finds it — and `mutate` declares the
+`@invalidates`. Inside an action the request's tags _are_ the store's
+invalidation, so neither call site writes a tag at all.
 
-MIT licensed. See the [data guide](https://github.com/firsthandjs/firsthand/blob/main/docs/guide/09-data.md).
+## The decision this package leaves to you: `cacheExchange`
+
+- **Without it,** urql is your transport and the resources are your state. Pass
+  `cache: { ttl }` here if you want one anyway; it is the same cache the rest
+  of `@firsthandjs/data` uses, queries only, keyed by operation and variables.
+- **With it,** urql also caches — a real choice, not a default worth inheriting
+  from a helper. `force` is passed on as `requestPolicy: 'network-only'`, so an
+  invalidation reaches past it.
+
+What you should not have is both, because two caches over one piece of data
+disagree. If urql's cache should be the source of truth for an entity shown in
+many places, subscribe to it with `fromObservable` instead.
+
+MIT licensed. See the [data guide](https://github.com/firsthandjs/firsthand/blob/main/docs/guide/09-data.md#urql).

@@ -1,11 +1,12 @@
 # @firsthandjs/data
 
-[Reference index](../README.md#reference) · 2.81 kB gzip (1.70 kB with the
+[Reference index](../README.md#reference) · 3.65 kB gzip (2.56 kB with the
 `.gql` loader, which leaves the parser out) · depends on `@firsthandjs/dom`
 
-Resources, actions and invalidation: what is loaded, as reactive state, and
-when it has to be loaded again. Not a cache
-([ADR-0022](../adr/0022-resources-not-a-cache.md)). Guide:
+Two layers: **resources and actions**, which are reactive state and
+invalidation, and a **transport client** with the one cache
+([ADR-0022](../adr/0022-resources-not-a-cache.md),
+[ADR-0023](../adr/0023-one-cache-at-the-transport-edge.md)). Guide:
 [Data](../guide/09-data.md).
 
 ---
@@ -47,6 +48,30 @@ throws is a storage that has nothing: it can never break a resource.
 There is no `staleTime` and no `cacheTime`, because there is no cache. A
 request cache belongs to the transport, where it can be the only one.
 
+## The request
+
+```ts
+interface DataRequest {
+  /** Aborted when this run is superseded, or the resource goes away. */
+  readonly signal: AbortSignal;
+  /** True when this run was caused by an invalidation or by `reload()`. */
+  readonly force: boolean;
+  /** Where a client reports what the answer turned out to be about. */
+  readonly tags?: (...tags: Tag[]) => void;
+}
+
+type Loader<T> = (request: DataRequest) => Promise<T>;
+```
+
+What a loader hands a transport, and the whole of the contract between the two
+layers. `signal` ends a request nobody wants; `force` says a client may not
+answer from what it remembers; `tags` is the hole a GraphQL client reports its
+document's directives into — the resource's tags in a resource, the store's
+invalidation in an action.
+
+Every client in this project returns `Loader<T>` values, which is why a call
+site reads `api.get<User>('/users/7')(request)`.
+
 ## useResource
 
 ```ts
@@ -55,13 +80,11 @@ function useResource<T>(
   options?: ResourceOptions,
 ): Resource<T>;
 
-interface LoadContext {
-  /** Aborted when this run is superseded, or the resource goes away. */
-  readonly signal: AbortSignal;
+interface LoadContext extends DataRequest {
   /** Declares what this resource is about. **Replaces**; the last call wins. */
   readonly tags: (...tags: Tag[]) => void;
-  /** True when this run was caused by an invalidation or by `reload()`. */
-  readonly force: boolean;
+  /** `signal` and `force` as one object, to hand to a client. */
+  readonly request: DataRequest;
 }
 
 interface ResourceOptions {
@@ -88,8 +111,10 @@ build a header wants.
 Identity is the **call site**. Two call sites are two resources whatever their
 tags say; there is no key, no name and no variables object.
 
-`force` is the one place the layers touch: pass it on as `cache: 'reload'`,
-`fetchPolicy: 'network-only'` or `requestPolicy: 'network-only'`, or an
+`force` is the one place the layers touch, and handing `request` to a client is
+how it gets there: every client here drops what it has cached when it sees it.
+A loader written by hand translates it itself — `cache: 'reload'`,
+`fetchPolicy: 'network-only'`, `requestPolicy: 'network-only'` — or an
 invalidation will be answered out of a transport cache.
 
 An invalidation that arrives while a run is in flight is remembered and matched
@@ -105,6 +130,12 @@ interface ActionContext {
   readonly signal: AbortSignal;
   /** Declares what this changed. Replaces; may be called after the answer. */
   readonly invalidates: (...tags: Tag[]) => void;
+  /**
+   * The request to hand a client: `force` is always true, and its `tags` is
+   * `invalidates` — so a mutation document's `@invalidates` reaches the store
+   * with nothing to wire.
+   */
+  readonly request: DataRequest;
 }
 
 interface Action<I, R> {
@@ -164,18 +195,84 @@ Tags are for invalidation only. They may be coarse, they may overlap, and two
 unrelated resources may share one — none of which is dangerous, because nothing
 is looked up by them.
 
+## The cache
+
+```ts
+function createCacheClient(options?: CacheOptions): CacheClient;
+
+interface CacheOptions {
+  /** How long an answer is served again without asking, in ms. Default 0. */
+  readonly ttl?: number;
+  /** How many entries to keep; least recently read goes first. Default 100. */
+  readonly max?: number;
+  /** For tests: what `Date.now()` should be. */
+  readonly now?: () => number;
+}
+
+interface CacheClient {
+  /** Wraps a producer so its answer is kept under `key`. */
+  read<T>(key: string, produce: Loader<T>): Loader<T>;
+  /** Puts a value in by hand; with no `ttl` it stays until forgotten. */
+  write(key: string, value: unknown): void;
+  /** What is there, without running anything. `undefined` if stale. */
+  peek(key: string): unknown;
+  /** Forgets one key, or everything. */
+  forget(key?: string): void;
+  readonly size: number;
+}
+```
+
+One cache, at the transport edge, for two jobs: what a client fetched, and what
+an algorithm of yours computed. `createFetchClient` keeps its answers in one of
+these, and there is no second implementation hidden inside it.
+
+- **In flight is shared at any `ttl`**, including the default 0: two identical
+  requests overlapping in time is waste rather than staleness, so it needs no
+  configuration. Serving an _older_ answer is the separate decision, and that
+  is what `ttl` buys.
+- **`force` drops the entry**, which is how an invalidation reaches through.
+- **The producer gets a signal of the cache's own**, aborted only when every
+  waiter has gone — so one component leaving does not cancel a request another
+  is still waiting for.
+- **A failure is not kept**: the next caller asks again.
+
 ## fetch
 
 ```ts
-function json<T>(
-  input: string,
-  init?: JsonRequest,
-): (context: { signal: AbortSignal }) => Promise<T>;
+function createFetchClient(options?: FetchClientOptions): FetchClient;
+
+interface FetchClientOptions {
+  /** Prefixed to every relative path; an absolute URL is left alone. */
+  readonly baseUrl?: string;
+  /** A function is called per request and **untracked**, so a token may change. */
+  readonly headers?: HeadersInit | (() => HeadersInit);
+  /** `false` (default), options for a cache of its own, or a shared one. */
+  readonly cache?: false | CacheOptions | CacheClient;
+  /** Applied to every request: `credentials`, `mode`, `referrerPolicy`, … */
+  readonly init?: RequestInit;
+  /** The seam: wrap `fetch` to log, to retry, or to end a session on a 401. */
+  readonly fetch?: typeof globalThis.fetch;
+}
+
+interface FetchClient {
+  request<T>(url: string, init?: JsonRequest): Loader<T>;
+  get<T>(url: string, init?: JsonRequest): Loader<T>;
+  post<T>(url: string, init?: JsonRequest): Loader<T>;
+  put<T>(url: string, init?: JsonRequest): Loader<T>;
+  patch<T>(url: string, init?: JsonRequest): Loader<T>;
+  /** `delete` is a keyword in enough places to be worth avoiding. */
+  remove<T>(url: string, init?: JsonRequest): Loader<T>;
+  /** A copy with some options replaced; the cache is shared unless replaced. */
+  with(options: FetchClientOptions): FetchClient;
+  readonly cache: CacheClient | undefined;
+}
 
 interface JsonRequest extends Omit<RequestInit, 'body'> {
   readonly body?: BodyInit | null;
   /** Sent as JSON, with the content type the platform will not set for you. */
   readonly json?: unknown;
+  /** This call's cache key, or `false` for nowhere. */
+  readonly cacheKey?: string | false;
 }
 
 class FirsthandHttpError extends Error {
@@ -185,18 +282,23 @@ class FirsthandHttpError extends Error {
 }
 ```
 
-`json()` wires the abort signal through, throws `FirsthandHttpError` on a
-non-2xx status, and parses the body — an empty one, such as a 204, is
-`undefined` rather than a parse error.
+A small REST client on the browser's own `fetch`: a base URL, headers read per
+request, a failed status thrown, the abort signal wired through, and the shared
+cache. An empty body, such as a 204, is `undefined` rather than a parse error.
+
+Only `GET` and `HEAD` are cached, keyed by method and URL — a write is not
+identified by where it was sent. `cacheKey` says otherwise for a POST that
+reads, and `cacheKey: false` keeps one read out of the cache entirely. The
+platform's own `cache` option is untouched and still passed to `fetch`: that
+one is the HTTP cache, a different thing.
 
 `json:` is set apart from `body:` for one measured reason: `FormData`,
 `URLSearchParams` and `Blob` are labelled by the platform itself, while a
 stringified object is labelled `text/plain`. A `content-type` the caller sets
 is left alone. `fetch` **forbids a body on GET** and throws a `TypeError`.
 
-This is the platform, not a client: no base URL, no instance, no interceptor,
-no retry. Those belong to a client — and a loader takes any client, because it
-takes any function.
+No interceptors, no retries, no token refresh: `fetch` is the seam, and it is
+one function you can see.
 
 ## Documents
 
@@ -237,40 +339,45 @@ widens it, rather than producing `note(id: undefined)`.
 Parsing GraphQL is transport work, so nothing here sends a document: the helper
 packages below do, or four lines of your own.
 
-## Helper packages
+## The other clients
+
+Same shape, one per transport, each in its own package and each binding a
+client **you** built:
 
 ```ts
-function axiosLoader(instance: AxiosLike): <T>(config: AxiosRequest) => Loader<T>;
-function urqlLoader(
-  client: UrqlLike,
-): <T>(document: GraphQLDocument<T>, variables?: Variables) => Loader<T>;
-function apolloLoader(
-  client: ApolloLike,
+function createAxiosClient(instance: AxiosLike, options?: AxiosClientOptions): AxiosClient;
+function createUrqlClient(client: UrqlLike, options?: UrqlClientOptions): UrqlClient;
+function createApolloClient(
+  client: ApolloLike & WatchLike,
   parse: Parse,
-): <T>(document: GraphQLDocument<T>, variables?: Variables) => Loader<T>;
-function apolloObservable(
-  client: WatchLike,
-  parse: Parse,
-): <T>(
-  document: GraphQLDocument<T>,
-  variables?: Variables,
-) => readonly [ObservableLike<T>, BridgeOptions];
+  options?: ApolloClientOptions,
+): ApolloClient;
 ```
 
-| Package                    | gzip    | Binds                                   |
-| -------------------------- | ------- | --------------------------------------- |
-| `@firsthandjs/data-axios`  | 0.11 kB | One method, with the abort signal wired |
-| `@firsthandjs/data-urql`   | 0.30 kB | `query` / `mutation`, `force` → policy  |
-| `@firsthandjs/data-apollo` | 0.37 kB | `query` / `mutate` / `watchQuery`       |
+| Package                                                            |    gzip | Has                                            |
+| ------------------------------------------------------------------ | ------: | ---------------------------------------------- |
+| [`@firsthandjs/data-axios`](../../packages/data-axios/README.md)   | 0.47 kB | `request`, `get`/`post`/`put`/`patch`/`remove` |
+| [`@firsthandjs/data-urql`](../../packages/data-urql/README.md)     | 0.53 kB | `query`, `mutate`                              |
+| [`@firsthandjs/data-apollo`](../../packages/data-apollo/README.md) | 0.61 kB | `query`, `mutate`, `watch`                     |
 
-Each takes a client **you** built and declares the methods it uses
-structurally: no dependency, no peer dependency, no version to follow. Both
-GraphQL helpers are generic in the document's variables, so an operation with
-required variables cannot be called without them and what is passed is checked
-against the schema it was generated from. A query
-declares its `@tag` directives; a mutation declares its `@invalidates`, so
-`{ tags: invalidates }` inside an action wires the document straight to the
-store.
+Each takes `headers` (a function is read per request and untracked), `cache`
+(`false`, options, or a shared `CacheClient`), a per-transport options bag, and
+has `.with(...)` and `.cache` like the fetch client. None depends on the client
+it binds, not even as a peer: the two or three methods each uses are declared
+structurally, so there is no version to follow.
+
+The GraphQL clients are generic in the document's variables, so an operation
+with required variables cannot be called without them. `query` declares the
+document's `@tag` directives into the request and `mutate` declares its
+`@invalidates` — which inside an action is the store's invalidation, so a
+mutation wires itself.
+
+`watch` returns what `fromObservable` takes, for the case where Apollo's
+normalising cache should be the source of truth:
+
+```ts
+const user = fromObservable(...billing.watch(UserDocument, { id }));
+```
 
 ## @firsthandjs/data/vite
 

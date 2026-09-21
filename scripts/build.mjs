@@ -292,7 +292,7 @@ writeFileSync(
     '  createData, DataContext, useData, useInvalidate,',
     '  useResource, useAction, fromObservable, fromPromise,',
     '  tag, tagMatches, anyTagMatches, resolveTags,',
-    '  json, FirsthandHttpError,',
+    '  createCacheClient, createFetchClient, FirsthandHttpError,',
     "} from '../packages/data/src/index.js';",
   ].join('\n'),
 );

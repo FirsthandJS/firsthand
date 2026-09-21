@@ -18,9 +18,9 @@ import {
   resolveTags,
   useAction,
   useResource,
+  type DataRequest,
   type DocumentArguments,
   type GraphQLDocument,
-  type LoadContext,
   type Variables,
 } from '@firsthandjs/data';
 import UserQuery from './user.graphql';
@@ -38,17 +38,21 @@ const stored: User = { id: '1', name: 'Ada Lovelace' };
  * Stands in for a client, and checks what it was sent.
  *
  * This is the shape `@firsthandjs/data-urql` and `-apollo` have: a document and
- * its variables in, a loader out, with the document's tags declared before the
- * request goes.
+ * its variables in, a loader out, with what the document declares reported
+ * into the request — the resource's tags for a query, the store's invalidation
+ * for a mutation.
  */
 const send =
   <T, V extends Variables>(document: GraphQLDocument<T, V>, ...rest: DocumentArguments<V>) =>
-  ({ tags }: Pick<LoadContext, 'tags'>): Promise<T> => {
+  (request: DataRequest): Promise<T> => {
     const variables: Variables = rest[0] ?? {};
     const declared = document.kind === 'mutation' ? document.invalidates : document.tags;
-    tags(...resolveTags(declared, variables));
+    request.tags?.(...resolveTags(declared, variables));
     if (/@(tag|invalidates)/.test(document.source)) {
-      return Promise.reject(new Error(`a cache directive reached the server:\n${document.source}`));
+      return Promise.reject(
+        new Error(`a cache directive reached the server:
+${document.source}`),
+      );
     }
     if (document.kind === 'mutation') {
       stored.name = String((variables as { name: unknown }).name);
@@ -59,9 +63,11 @@ const send =
 
 const Profile = component(() => {
   // No type arguments: each document carries its own result and variables.
-  const user = useResource((context) => send(UserQuery, { id: '1' })(context));
-  const rename = useAction((name: string, { invalidates }) =>
-    send(RenameUser, { id: '1', name })({ tags: invalidates }),
+  const user = useResource(({ request }) => send(UserQuery, { id: '1' })(request));
+  // Nothing wires the invalidation: the document says what it changes, and the
+  // action's request is where that lands.
+  const rename = useAction((name: string, { request }) =>
+    send(RenameUser, { id: '1', name })(request),
   );
 
   return (

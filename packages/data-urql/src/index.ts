@@ -1,5 +1,5 @@
 /**
- * urql, as loaders for `@firsthandjs/data`.
+ * urql, as a client for `@firsthandjs/data`.
  *
  * It takes a client you built and touches two of its methods. Your exchanges,
  * your authentication, your retry policy stay where they are — including, and
@@ -10,31 +10,37 @@
  *
  * ```ts
  * import { Client, fetchExchange } from '@urql/core';
- * import { urqlLoader } from '@firsthandjs/data-urql';
+ * import { createUrqlClient } from '@firsthandjs/data-urql';
  *
- * const billing = urqlLoader(
- *   new Client({
- *     url: '/graphql',
- *     exchanges: [fetchExchange],
- *     fetchOptions: () => ({ headers: { authorization: `Bearer ${token.value}` } }),
- *   }),
+ * export const billing = createUrqlClient(
+ *   new Client({ url: '/graphql', exchanges: [fetchExchange] }),
+ *   // Read per request and untracked: the token may change, and a resource
+ *   // must not depend on it.
+ *   { headers: () => ({ authorization: `Bearer ${token.value}` }) },
  * );
  *
- * const invoices = useResource((context) => billing(InvoicesDocument, { month: month.value })(context));
+ * const invoices = useResource(({ request }) =>
+ *   billing.query(InvoicesDocument, { month: month.value })(request),
+ * );
  * ```
  *
  * There is no dependency on urql here, and no peer dependency either: the
- * shape below is declared structurally, so this package has no opinion about
+ * shapes below are declared structurally, so this package has no opinion about
  * which version you run. It was checked against `@urql/core` 6, which has no
  * React dependency of its own.
  */
 import {
+  createCacheClient,
   resolveTags,
+  type CacheClient,
+  type CacheOptions,
+  type DataRequest,
   type DocumentArguments,
   type GraphQLDocument,
-  type LoadContext,
+  type Loader,
   type Variables,
 } from '@firsthandjs/data';
+import { untrack } from '@firsthandjs/core';
 
 /** What urql gives back: a wonka source with a promise on it. */
 export interface UrqlResult<T> {
@@ -56,45 +62,131 @@ export interface UrqlLike {
   ): { toPromise(): Promise<UrqlResult<unknown>> };
 }
 
-/**
- * Binds a urql client so a `.gql` document can be a resource's loader.
- *
- * The tags come from the document's directives, bound against the variables of
- * this call, and are declared before the request goes out — so an invalidation
- * sent while it is in flight still finds it.
- *
- * `force` becomes `requestPolicy: 'network-only'`, which is what makes an
- * invalidation reach past urql's cache if you kept one.
- */
-export function urqlLoader(client: UrqlLike) {
-  // Generic in the variables as well as the result: an operation with required
-  // variables then cannot be called without them, and what is passed is checked
-  // against the schema the document was generated from.
-  return <T, V extends Variables>(document: GraphQLDocument<T, V>, ...rest: DocumentArguments<V>) =>
-    async ({ tags, force, signal }: LoadContext): Promise<T> => {
-      const variables: Variables = rest[0] ?? {};
-      // A mutation is not a resource, so its `@tag` slot is empty and its
-      // `@invalidates` directives are what it is about. Passing `tags:
-      // invalidates` in an action then wires the document's own declaration
-      // straight through to the store.
-      const declared = document.kind === 'mutation' ? document.invalidates : document.tags;
-      tags(...resolveTags(declared, variables));
-      // Wrapped rather than taken off the client: a method separated from its
-      // object loses `this`, and urql's does use it.
-      const send = (source: string, vars: Variables, options: Record<string, unknown>) =>
-        document.kind === 'mutation'
-          ? client.mutation(source, vars, options)
-          : client.query(source, vars, options);
-      const result = await send(document.source, variables, {
-        fetchOptions: { signal },
-        requestPolicy: force ? 'network-only' : 'cache-first',
-      }).toPromise();
-      if (result.error !== undefined) {
-        // Unchanged: a client's own error is more useful than one of ours, and
-        // it is what lands in the resource's `error`.
-        // eslint-disable-next-line @typescript-eslint/only-throw-error -- urql's CombinedError
-        throw result.error;
-      }
-      return result.data as T;
+export interface UrqlClientOptions {
+  /**
+   * Headers for every request, sent through urql's `fetchOptions`. A function
+   * is called **per request and untracked**, which is what lets a token change
+   * without making every resource depend on it.
+   */
+  readonly headers?: Record<string, string> | (() => Record<string, string>);
+  /**
+   * A cache in front of urql: `false` (the default, because urql has one of
+   * its own if you kept `cacheExchange`), options for a cache of this client's
+   * own, or a `CacheClient` shared with the rest of the application. Queries
+   * only, keyed by operation and variables.
+   */
+  readonly cache?: false | CacheOptions | CacheClient;
+  /** Merged into urql's operation context for every request. */
+  readonly context?: Record<string, unknown>;
+}
+
+export interface UrqlClient {
+  /**
+   * A query, as a loader. Declares the document's `@tag` directives before the
+   * request goes out, so an invalidation sent while it is in flight finds it.
+   */
+  query<T, V extends Variables>(
+    document: GraphQLDocument<T, V>,
+    ...rest: DocumentArguments<V>
+  ): Loader<T>;
+  /**
+   * A mutation, as a loader. Declares the document's `@invalidates` directives
+   * into the request — which inside an action is the store's `invalidates`, so
+   * the document's own declaration reaches the store with nothing to wire.
+   */
+  mutate<T, V extends Variables>(
+    document: GraphQLDocument<T, V>,
+    ...rest: DocumentArguments<V>
+  ): Loader<T>;
+  /** A copy with some options replaced. The cache is shared unless replaced. */
+  with(options: UrqlClientOptions): UrqlClient;
+  readonly cache: CacheClient | undefined;
+}
+
+export function createUrqlClient(client: UrqlLike, options: UrqlClientOptions = {}): UrqlClient {
+  const cache =
+    options.cache === undefined || options.cache === false
+      ? undefined
+      : 'read' in options.cache
+        ? options.cache
+        : createCacheClient(options.cache);
+
+  const send = async <T>(
+    kind: 'query' | 'mutation',
+    source: string,
+    variables: Variables,
+    request: DataRequest,
+  ): Promise<T> => {
+    // Untracked: a header function reads a token, and a token is not something
+    // a resource may depend on — writing it would re-send every request that
+    // built a header from it, including on the way out of a sign-out.
+    const headers =
+      typeof options.headers === 'function' ? untrack(options.headers) : options.headers;
+    const context = {
+      ...options.context,
+      fetchOptions: {
+        signal: request.signal,
+        ...(headers === undefined ? {} : { headers }),
+      },
+      // What makes an invalidation reach past urql's own cache, if you kept one.
+      requestPolicy: request.force ? 'network-only' : 'cache-first',
     };
+    // Wrapped rather than taken off the client: a method separated from its
+    // object loses `this`, and urql's does use it.
+    const sent =
+      kind === 'mutation'
+        ? client.mutation(source, variables, context)
+        : client.query(source, variables, context);
+    const result = await sent.toPromise();
+    if (result.error !== undefined) {
+      // Unchanged: a client's own error is more useful than one of ours, and
+      // it is what lands in the resource's `error`.
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- urql's CombinedError
+      throw result.error;
+    }
+    return result.data as T;
+  };
+
+  const run =
+    <T, V extends Variables>(
+      kind: 'query' | 'mutation',
+      document: GraphQLDocument<T, V>,
+      rest: DocumentArguments<V>,
+    ): Loader<T> =>
+    async (request: DataRequest): Promise<T> => {
+      const variables: Variables = rest[0] ?? {};
+      // A query says what it is about; a mutation says what it changed. In a
+      // resource the first lands on the resource's tags, in an action the
+      // second lands on the store's invalidation — one call, because the
+      // request carries whichever of the two it is.
+      request.tags?.(
+        ...resolveTags(kind === 'mutation' ? document.invalidates : document.tags, variables),
+      );
+      if (cache === undefined || kind === 'mutation') {
+        return await send<T>(kind, document.source, variables, request);
+      }
+      const key = `${document.operation}(${JSON.stringify(variables)})`;
+      return await cache.read<T>(key, (shared) =>
+        send<T>(kind, document.source, variables, shared),
+      )(request);
+    };
+
+  const bound: UrqlClient = {
+    cache,
+    query: <T, V extends Variables>(
+      document: GraphQLDocument<T, V>,
+      ...rest: DocumentArguments<V>
+    ): Loader<T> => run('query', document, rest),
+    mutate: <T, V extends Variables>(
+      document: GraphQLDocument<T, V>,
+      ...rest: DocumentArguments<V>
+    ): Loader<T> => run('mutation', document, rest),
+    with: (overrides: UrqlClientOptions): UrqlClient =>
+      createUrqlClient(client, {
+        ...options,
+        ...overrides,
+        cache: overrides.cache ?? cache ?? false,
+      }),
+  };
+  return bound;
 }

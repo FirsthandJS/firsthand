@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/i18n",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Makes i18next (or any translation function) reactive in Firsthand.",
   "license": "MIT",
   "type": "module",
@@ -19,7 +19,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@firsthandjs/core": "0.5.0"
+    "@firsthandjs/core": "0.6.0"
   },
   "engines": {
     "node": ">=20.11.0"

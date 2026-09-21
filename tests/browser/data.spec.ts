@@ -21,11 +21,12 @@ test('loads a list and a detail, and follows the selection', async ({ page }) =>
   await expect(page.locator('#name')).toHaveText('Grace Hopper');
   await expect(page.locator(log)).toHaveText(['users', 'user:1', 'user:2']);
 
-  // Back again. It asks again — there is no cache here, and a request cache
-  // belongs to the transport, which this page does not have.
+  // Back again, and nothing reaches the server: the cache sits at the
+  // transport, in front of the pretend API, and the resource knows nothing
+  // about it.
   await page.getByRole('button', { name: 'Ada Lovelace' }).click();
   await expect(page.locator('#name')).toHaveText('Ada Lovelace');
-  await expect(page.locator(log)).toHaveText(['users', 'user:1', 'user:2', 'user:1']);
+  await expect(page.locator(log)).toHaveText(['users', 'user:1', 'user:2']);
 });
 
 test('one action reloads two resources that know nothing about each other', async ({ page }) => {
@@ -48,6 +49,18 @@ test('one action reloads two resources that know nothing about each other', asyn
   await expect(page.locator(log)).toHaveCount(5);
   const entries = await page.locator(log).allTextContents();
   expect(entries.slice(2).sort()).toEqual(['rename:1', 'user:1', 'users']);
+});
+
+test('an invalidation reaches through the transport cache', async ({ page }) => {
+  await page.goto('/data/');
+  await expect(page.locator('#name')).toHaveText('Ada Lovelace');
+  await expect(page.locator(log)).toHaveCount(2);
+
+  // A cached read would otherwise answer out of the very memory the
+  // invalidation was meant to defeat, and the rename would not be on screen.
+  await page.getByRole('button', { name: 'Rename' }).click();
+  await expect(page.locator('#name')).not.toHaveText('Ada Lovelace');
+  await expect(page.locator(log)).toHaveCount(5);
 });
 
 test('keeps the old value on screen while reloading', async ({ page }) => {

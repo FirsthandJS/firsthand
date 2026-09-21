@@ -1,5 +1,5 @@
 /**
- * Apollo Client, as loaders for `@firsthandjs/data`.
+ * Apollo Client, as a client for `@firsthandjs/data`.
  *
  * It takes a client you built and touches three of its methods. Your links,
  * your authentication, your uploads stay where they are — and so does the
@@ -12,80 +12,50 @@
  *   - **Apollo as transport.** `fetchPolicy: 'no-cache'`, or the `force` this
  *     package passes on, and the resources are your state. One source of
  *     truth.
- *   - **Apollo as the store.** Use `apolloObservable` instead: one write in
- *     Apollo's cache updates every view of that entity at once, which is what
- *     a per-call-site resource cannot do. Also one source of truth.
+ *   - **Apollo as the store.** Use `watch` instead: one write in Apollo's
+ *     cache updates every view of that entity at once, which is what a
+ *     per-call-site resource cannot do. Also one source of truth.
  *
  * What is not on the list is both at once (ADR-0022).
+ *
+ * ```ts
+ * import { gql } from '@apollo/client';
+ * import { createApolloClient } from '@firsthandjs/data-apollo';
+ *
+ * export const billing = createApolloClient(apollo, gql, {
+ *   // Read per request and untracked: the token may change, and a resource
+ *   // must not depend on it.
+ *   headers: () => ({ authorization: `Bearer ${token.value}` }),
+ * });
+ *
+ * const invoices = useResource(({ request }) =>
+ *   billing.query(InvoicesDocument, { month: month.value })(request),
+ * );
+ * ```
  *
  * There is no dependency on Apollo here, and no peer dependency either: the
  * shapes below are declared structurally, so this package has no opinion about
  * which version you run, and nothing to follow when that version changes.
  */
 import {
+  createCacheClient,
   resolveTags,
+  type BridgeOptions,
+  type CacheClient,
+  type CacheOptions,
+  type DataRequest,
   type DocumentArguments,
   type GraphQLDocument,
-  type LoadContext,
+  type Loader,
+  type ObservableLike,
   type Variables,
 } from '@firsthandjs/data';
+import { untrack } from '@firsthandjs/core';
 
 /** The part of an Apollo client this package uses. Nothing else. */
 export interface ApolloLike {
   query(options: Record<string, unknown>): Promise<{ data: unknown }>;
   mutate(options: Record<string, unknown>): Promise<{ data?: unknown }>;
-}
-
-/**
- * How to turn a document's source into whatever Apollo wants.
- *
- * Apollo takes a parsed `DocumentNode`, which means `gql` from `@apollo/client`
- * or `parse` from `graphql` — your copy of it, not ours, since two copies of
- * `graphql` in one application is its own kind of afternoon.
- */
-export type Parse = (source: string) => unknown;
-
-/**
- * Binds an Apollo client so a `.gql` document can be a resource's loader.
- *
- * ```ts
- * import { gql } from '@apollo/client';
- * import { apolloLoader } from '@firsthandjs/data-apollo';
- *
- * const billing = apolloLoader(apollo, gql);
- *
- * const invoices = useResource((context) => billing(InvoicesDocument, { month: month.value })(context));
- * ```
- *
- * The tags come from the document's directives, declared before the request
- * goes out. `force` becomes `fetchPolicy: 'network-only'`, which is what makes
- * an invalidation reach past Apollo's cache.
- */
-export function apolloLoader(client: ApolloLike, parse: Parse) {
-  // Generic in the variables as well as the result: an operation with required
-  // variables then cannot be called without them, and what is passed is checked
-  // against the schema the document was generated from.
-  return <T, V extends Variables>(document: GraphQLDocument<T, V>, ...rest: DocumentArguments<V>) =>
-    async ({ tags, force }: LoadContext): Promise<T> => {
-      const variables: Variables = rest[0] ?? {};
-      // A mutation is not a resource, so its `@tag` slot is empty and its
-      // `@invalidates` directives are what it is about. Passing `tags:
-      // invalidates` in an action then wires the document's own declaration
-      // straight through to the store.
-      const declared = document.kind === 'mutation' ? document.invalidates : document.tags;
-      tags(...resolveTags(declared, variables));
-      const parsed = parse(document.source);
-      if (document.kind === 'mutation') {
-        const result = await client.mutate({ mutation: parsed, variables });
-        return result.data as T;
-      }
-      const result = await client.query({
-        query: parsed,
-        variables,
-        fetchPolicy: force ? 'network-only' : 'cache-first',
-      });
-      return result.data as T;
-    };
 }
 
 /** A watched query: what Apollo pushes when its cache changes. */
@@ -100,31 +70,175 @@ export interface WatchLike {
 }
 
 /**
- * A document as something that pushes, for `fromObservable`.
+ * How to turn a document's source into whatever Apollo wants.
  *
- * This is the shape to reach for when the same entity is shown in many places
- * and must stay consistent: Apollo's cache is then the one source of truth,
- * and every view of it updates from the same write at the same moment.
- *
- * ```ts
- * const user = fromObservable(...apolloObservable(apollo, gql)(UserDocument, { id }));
- * ```
+ * Apollo takes a parsed `DocumentNode`, which means `gql` from `@apollo/client`
+ * or `parse` from `graphql` — your copy of it, not ours, since two copies of
+ * `graphql` in one application is its own kind of afternoon.
  */
-export function apolloObservable(client: WatchLike, parse: Parse) {
-  return <T, V extends Variables>(
+export type Parse = (source: string) => unknown;
+
+export interface ApolloClientOptions {
+  /**
+   * Headers for every request, sent through Apollo's per-operation context. A
+   * function is called **per request and untracked**, which is what lets a
+   * token change without making every resource depend on it.
+   */
+  readonly headers?: Record<string, string> | (() => Record<string, string>);
+  /**
+   * A cache in front of Apollo: `false` (the default, because Apollo has one
+   * of its own and two caches over the same data disagree), options for a
+   * cache of this client's own, or a `CacheClient` shared with the rest of the
+   * application. Queries only.
+   */
+  readonly cache?: false | CacheOptions | CacheClient;
+  /** Merged into the options of every query and mutation. */
+  readonly options?: Record<string, unknown>;
+}
+
+export interface ApolloClient {
+  /**
+   * A query, as a loader. Declares the document's `@tag` directives before the
+   * request goes out; `force` becomes `fetchPolicy: 'network-only'`, which is
+   * what makes an invalidation reach past Apollo's cache.
+   */
+  query<T, V extends Variables>(
     document: GraphQLDocument<T, V>,
     ...rest: DocumentArguments<V>
-  ) => {
-    const watched = client.watchQuery({ query: parse(document.source), variables: rest[0] ?? {} });
-    return [
-      {
-        subscribe: (observer: { next?: (value: T) => void; error?: (error: unknown) => void }) =>
-          watched.subscribe({
-            next: (result) => observer.next?.(result.data as T),
-            ...(observer.error === undefined ? {} : { error: observer.error }),
-          }),
-      },
-      { reload: () => watched.refetch() },
-    ] as const;
+  ): Loader<T>;
+  /**
+   * A mutation, as a loader. Declares the document's `@invalidates` directives
+   * into the request — which inside an action is the store's `invalidates`, so
+   * the document's own declaration reaches the store with nothing to wire.
+   */
+  mutate<T, V extends Variables>(
+    document: GraphQLDocument<T, V>,
+    ...rest: DocumentArguments<V>
+  ): Loader<T>;
+  /**
+   * A watched query, for `fromObservable`: Apollo's cache as the one source of
+   * truth, so every view of an entity updates from the same write.
+   *
+   * ```ts
+   * const user = fromObservable(...billing.watch(UserDocument, { id }));
+   * ```
+   */
+  watch<T, V extends Variables>(
+    document: GraphQLDocument<T, V>,
+    ...rest: DocumentArguments<V>
+  ): readonly [ObservableLike<T>, BridgeOptions];
+  /** A copy with some options replaced. The cache is shared unless replaced. */
+  with(options: ApolloClientOptions): ApolloClient;
+  readonly cache: CacheClient | undefined;
+}
+
+export function createApolloClient(
+  client: ApolloLike & WatchLike,
+  parse: Parse,
+  options: ApolloClientOptions = {},
+): ApolloClient {
+  const cache =
+    options.cache === undefined || options.cache === false
+      ? undefined
+      : 'read' in options.cache
+        ? options.cache
+        : createCacheClient(options.cache);
+
+  // Untracked: a header function reads a token, and a token is not something a
+  // resource may depend on — writing it would re-send every request that built
+  // a header from it, including on the way out of a sign-out.
+  const context = (): Record<string, unknown> => {
+    const headers =
+      typeof options.headers === 'function' ? untrack(options.headers) : options.headers;
+    return headers === undefined ? {} : { context: { headers } };
   };
+
+  const send = async <T>(
+    kind: 'query' | 'mutation',
+    document: GraphQLDocument<T, Variables>,
+    variables: Variables,
+    request: DataRequest,
+  ): Promise<T> => {
+    const parsed = parse(document.source);
+    if (kind === 'mutation') {
+      const result = await client.mutate({
+        ...options.options,
+        ...context(),
+        mutation: parsed,
+        variables,
+      });
+      return result.data as T;
+    }
+    const result = await client.query({
+      ...options.options,
+      ...context(),
+      query: parsed,
+      variables,
+      fetchPolicy: request.force ? 'network-only' : 'cache-first',
+    });
+    return result.data as T;
+  };
+
+  const run =
+    <T, V extends Variables>(
+      kind: 'query' | 'mutation',
+      document: GraphQLDocument<T, V>,
+      rest: DocumentArguments<V>,
+    ): Loader<T> =>
+    async (request: DataRequest): Promise<T> => {
+      const variables: Variables = rest[0] ?? {};
+      // A query says what it is about; a mutation says what it changed. The
+      // request carries whichever of the two it belongs to.
+      request.tags?.(
+        ...resolveTags(kind === 'mutation' ? document.invalidates : document.tags, variables),
+      );
+      const document_ = document as GraphQLDocument<T, Variables>;
+      if (cache === undefined || kind === 'mutation') {
+        return await send<T>(kind, document_, variables, request);
+      }
+      const key = `${document.operation}(${JSON.stringify(variables)})`;
+      return await cache.read<T>(key, (shared) => send<T>(kind, document_, variables, shared))(
+        request,
+      );
+    };
+
+  const bound: ApolloClient = {
+    cache,
+    query: <T, V extends Variables>(
+      document: GraphQLDocument<T, V>,
+      ...rest: DocumentArguments<V>
+    ): Loader<T> => run('query', document, rest),
+    mutate: <T, V extends Variables>(
+      document: GraphQLDocument<T, V>,
+      ...rest: DocumentArguments<V>
+    ): Loader<T> => run('mutation', document, rest),
+    watch: <T, V extends Variables>(
+      document: GraphQLDocument<T, V>,
+      ...rest: DocumentArguments<V>
+    ): readonly [ObservableLike<T>, BridgeOptions] => {
+      const watched = client.watchQuery({
+        ...options.options,
+        ...context(),
+        query: parse(document.source),
+        variables: rest[0] ?? {},
+      });
+      return [
+        {
+          subscribe: (observer: { next?: (value: T) => void; error?: (error: unknown) => void }) =>
+            watched.subscribe({
+              next: (result) => observer.next?.(result.data as T),
+              ...(observer.error === undefined ? {} : { error: observer.error }),
+            }),
+        },
+        { reload: () => watched.refetch() },
+      ] as const;
+    },
+    with: (overrides: ApolloClientOptions): ApolloClient =>
+      createApolloClient(client, parse, {
+        ...options,
+        ...overrides,
+        cache: overrides.cache ?? cache ?? false,
+      }),
+  };
+  return bound;
 }

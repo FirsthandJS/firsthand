@@ -22,10 +22,41 @@ import { devQuery } from './dev.js';
 
 export type Status = 'idle' | 'loading' | 'success' | 'error';
 
-/** What a loader is given. */
-export interface LoadContext {
+/**
+ * What a loader hands to a transport: everything a request needs to be sent
+ * once, aborted, and — when it matters — sent *again*.
+ *
+ * The two travel together because they answer the same question. `signal` ends
+ * a request that is no longer wanted; `force` says this run exists *because*
+ * something was invalidated, so a transport cache that answers from its own
+ * memory would make that invalidation silently pointless. Every client in this
+ * project takes this object and honours both.
+ */
+export interface DataRequest {
   /** Aborted when this run is superseded, or the resource goes away. */
   readonly signal: AbortSignal;
+  /**
+   * True when this run was caused by an invalidation or by `reload()`.
+   *
+   * A client must then skip whatever it has cached and replace it with the
+   * answer — which is what makes an invalidation reach all the way down.
+   */
+  readonly force: boolean;
+  /**
+   * Where a client reports what this request is about, when it knows.
+   *
+   * A GraphQL document carries its own `@tag` and `@invalidates` directives,
+   * so a client can declare them without the call site repeating them. In a
+   * resource this is the resource's `tags`; in an action it is the store's
+   * `invalidates` — the same hole, filled with whichever of the two the
+   * request belongs to. Optional, because a request written by hand may have
+   * nothing to say.
+   */
+  readonly tags?: (...tags: Tag[]) => void;
+}
+
+/** What a loader is given. */
+export interface LoadContext extends DataRequest {
   /**
    * Declares what this resource is about. **Replaces**: call it before the
    * first `await` when you know, again after it when only the server does, and
@@ -33,15 +64,10 @@ export interface LoadContext {
    */
   readonly tags: (...tags: Tag[]) => void;
   /**
-   * True when this run was caused by an invalidation or by `reload()`.
-   *
-   * It is the one place the layers touch. A transport cache would otherwise
-   * hand back the answer that was just invalidated, and the invalidation would
-   * be silently pointless — so pass it on: `cache: force ? 'reload' : 'default'`
-   * for `fetch`, `fetchPolicy: force ? 'network-only' : 'cache-first'` for
-   * Apollo, `requestPolicy` for urql.
+   * The two above as one object, to hand to a client:
+   * `api.get<User>('/users/7')(request)`.
    */
-  readonly force: boolean;
+  readonly request: DataRequest;
 }
 
 /** What an action is given. */
@@ -53,7 +79,15 @@ export interface ActionContext {
    * is the case where only the server knows what was touched.
    */
   readonly invalidates: (...tags: Tag[]) => void;
+  /**
+   * The request to hand to a client. `force` is always true here: an action
+   * changes something, so nothing it sends may be answered from a cache.
+   */
+  readonly request: DataRequest;
 }
+
+/** What a client hands back: a request waiting for the context to send it. */
+export type Loader<T> = (request: DataRequest) => Promise<T>;
 
 export interface Resource<T> {
   readonly data: ReadonlyCell<T | undefined>;

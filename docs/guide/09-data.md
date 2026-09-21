@@ -9,13 +9,38 @@
 npm install @firsthandjs/data
 ```
 
-Two things an application does with a server: it **loads** something and keeps
-it as reactive state, and it **changes** something and says what it changed.
-Those are `useResource` and `useAction`, and between them sits one idea —
-**tags**, which say what a piece of state is _about_.
+Signals and computeds cover everything an application can work out for itself,
+now: read a value, derive another, and the screen follows. **This chapter is
+about everything else** — the values that are not there yet when the component
+runs, and that the reactive graph cannot produce on its own because they come
+from somewhere outside it.
+
+A server is the most common source by far, and every example here uses one. It
+is not the only one: a worker, IndexedDB, a WebSocket, the Geolocation API, a
+computation too expensive to repeat are all the same shape. Something out
+there has a value; you want it in here, as reactive state, with a way to say
+"that is out of date now".
+
+There are two ways data comes in, and the difference is who starts:
+
+- **You ask.** A [resource](#resources) runs a function and keeps its answer;
+  an [action](#actions) changes something and says what it changed. This is
+  most of it.
+- **It tells you.** A [source that pushes](#sources-that-push) — a subscription,
+  a socket, a normalising client's cache — becomes a resource through
+  `fromObservable`, and updates arrive without anybody asking.
 
 ```tsx
-import { DataContext, createData, json, tag, useAction, useResource } from '@firsthandjs/data';
+import {
+  DataContext,
+  createData,
+  createFetchClient,
+  tag,
+  useAction,
+  useResource,
+} from '@firsthandjs/data';
+
+const api = createFetchClient({ baseUrl: '/api' });
 
 const App = component(() => {
   provide(DataContext, createData());
@@ -23,18 +48,14 @@ const App = component(() => {
 });
 
 const Profile = component<{ id: number }>((props) => {
-  const user = useResource(({ signal, tags }) => {
+  const user = useResource(({ request, tags }) => {
     tags(tag('user', { id: props.id }));
-    return json<User>(`/api/users/${String(props.id)}`)({ signal });
+    return api.get<User>(`/users/${String(props.id)}`)(request);
   });
 
-  const rename = useAction(async (name: string, { signal, invalidates }) => {
-    const updated = await json<User>(`/api/users/${String(props.id)}`, {
-      method: 'PATCH',
-      json: { name },
-    })({ signal });
+  const rename = useAction((name: string, { request, invalidates }) => {
     invalidates(tag('user', { id: props.id }), tag('users'));
-    return updated;
+    return api.patch<User>(`/users/${String(props.id)}`, { json: { name } })(request);
   });
 
   return (
@@ -48,43 +69,57 @@ const Profile = component<{ id: number }>((props) => {
 });
 ```
 
-No key, no cache key, no query name, no variables object. Read on for why that
-is the design rather than an omission.
+## Two layers, and where caching sits
 
-## What this is, and what it is not
+The example above has two halves, and keeping them apart is the one idea worth
+taking from this chapter.
 
-**It is not a cache.** A cache is defined by a second lookup for the same thing
-finding the first one's result, and that needs _identity_ — a key, a name,
-something two call sites agree on. Every form of that is a thing to forget or
-to collide on, and deriving it implicitly (from tags, say) silently serves one
-resource's data to another. That was a measured bug in the package this one
-replaces, and removing the concept removed the class.
+**The reactivity layer** is `useResource`, `useAction` and tags. It knows _who
+is watching what_, _what state that is in_ — loading, loaded, failed — and
+_when it has to run again_. It knows nothing about URLs, methods or GraphQL.
 
-A resource belongs to its **call site**. Two call sites are two resources,
-whatever their tags say.
+**The transport layer** is the client: `createFetchClient`, or Axios, urql,
+Apollo. It knows how to send one request and come back with an answer, and
+nothing about components.
 
-| Layer         | Owns                                     | Who                                     |
-| ------------- | ---------------------------------------- | --------------------------------------- |
-| Normalisation | one entity, one truth, everywhere        | Apollo, urql-graphcache                 |
-| Request cache | not asking twice                         | those clients, the browser's HTTP cache |
-| **Resources** | **reactive state, status, invalidation** | **this package**                        |
+Between them is one object. A loader is handed a **request** — an abort signal,
+and whether this run must go past whatever is remembered — and gives back a
+promise. That is the entire contract, which is why a loader can be any function
+at all: a `fetch`, a worker message, an algorithm that never leaves the page.
 
-Deduplication and response caching sit one layer down, where the knowledge of
-what is _the same thing_ actually lives. If you want them, you already have
-them: `cache: 'default'` on `fetch` is the HTTP cache, `cacheExchange` is
-urql's, `InMemoryCache` is Apollo's. If you do not, you do not pay for them.
+```
+useResource(…)  ─ reactivity ────  what is watched, what state, when again
+      │
+      │  request: { signal, force }
+      ▼
+api.get('/users/7')  ─ transport ─  how it is sent, and what is remembered
+```
 
-The full reasoning, with the alternatives that were rejected, is in
-[ADR-0022](../adr/0022-resources-not-a-cache.md).
+**Caching belongs to the transport**, and that is a deliberate choice rather
+than an accident of layering. A cache answers "have I got this already?", which
+needs to know when two things are _the same thing_ — a URL, an operation, a
+key. In the reactivity layer that knowledge does not exist: a resource belongs
+to its call site, and two call sites are two resources even when they ask for
+exactly the same thing. Down at the transport, identity is right there in the
+request.
+
+So: the client caches, and `force` is how an invalidation reaches through it.
+If you bring Apollo or urql you already have a cache and should use theirs; if
+you bring nothing, [`createCacheClient`](#the-cache) is ours. What you should
+not have is two, because two caches over one piece of data disagree, and the
+disagreement is a bug nobody can reproduce.
+
+[ADR-0022](../adr/0022-resources-not-a-cache.md) and
+[ADR-0023](../adr/0023-one-cache-at-the-transport-edge.md) have the full
+reasoning and the alternatives that were rejected.
 
 ## Resources
 
-A loader is **any function returning a promise**: `fetch`, Axios, a GraphQL
-client, a worker, IndexedDB, an algorithm that never leaves the browser.
+A loader is **any function returning a promise**, and it is given the request:
 
 ```tsx
-const rows = useResource(({ signal }) =>
-  json<Row[]>(`/api/rows?page=${String(page.value)}`)({ signal }),
+const rows = useResource(({ request }) =>
+  api.get<Row[]>(`/rows?page=${String(page.value)}`)(request),
 );
 ```
 
@@ -96,17 +131,17 @@ again and aborts what was in flight. That is the same rule as `effect`, and for
 the same reason: nothing is declared, so nothing can be forgotten.
 
 ```tsx
-const rows = useResource(({ signal }) => {
+const rows = useResource(({ request }) => {
   const query = search.value; // read here → a dependency
   const size = pageSize.peek(); // read with peek() → not a dependency
-  return json<Row[]>(`/api/rows?q=${query}&n=${String(size)}`)({ signal });
+  return api.get<Row[]>(`/rows?q=${query}&n=${String(size)}`)(request);
 });
 ```
 
-Reading a token to build a header therefore makes the token a dependency, which
-on a sign-out would send every watched request again without one. `peek()` is
-the answer — or a client that reads it for you, which is what every helper
-package below does.
+A token read to build a header would be a dependency too — and writing it on a
+sign-out would re-send every request without one. Every client in this chapter
+reads its headers for you, untracked, so this is a mistake you have to go out
+of your way to make.
 
 ### What it exposes
 
@@ -134,10 +169,9 @@ user.dispose(); // stop early; otherwise the component's scope does this
 An action takes an input, does something, and says what it changed:
 
 ```tsx
-const publish = useAction(async (id: string, { signal, invalidates }) => {
-  const post = await json<Post>(`/api/posts/${id}/publish`, { method: 'POST' })({ signal });
+const publish = useAction((id: string, { request, invalidates }) => {
   invalidates(tag('post', { id }), tag('posts'));
-  return post;
+  return api.post<Post>(`/posts/${id}/publish`)(request);
 });
 
 <button disabled={publish.running.value} onClick={() => void publish.run(id)}>
@@ -150,8 +184,9 @@ resolves with `undefined`. An `onClick` that forgets to `await` cannot produce
 an unhandled rejection.
 
 An action's body is **untracked** — it runs from an event handler, and what it
-reads on the way is nobody's dependency. It exposes `data`, `error`, `status`
-and `running`.
+reads on the way is nobody's dependency. Its request always carries
+`force: true`: an action changes something, so nothing it sends may be answered
+out of a cache. It exposes `data`, `error`, `status` and `running`.
 
 ## Tags
 
@@ -165,9 +200,9 @@ So **fewer variables match more**. `tag('user')` means every user — the right
 answer for "I changed something and I do not know which one".
 `tag('user', { id: 7 })` means that one.
 
-Because tags are not identity, they may be coarse, they may overlap, and two
-unrelated resources may share one. Nothing breaks; the worst case is a reload
-you did not need.
+Tags are for invalidation only. Nothing is ever looked up by them, so they may
+be coarse, they may overlap, and two unrelated resources may share one; the
+worst case is a reload you did not need.
 
 ### Declare them where you know them
 
@@ -176,18 +211,22 @@ it used to be about. So call it before the `await` when the client knows, and
 after it when only the server does:
 
 ```tsx
-const user = useResource(async ({ signal, tags }) => {
+const user = useResource(async ({ request, tags }) => {
   tags(tag('user', { id: props.id })); // known now
-  const loaded = await json<User>(`/api/users/${String(props.id)}`)({ signal });
+  const loaded = await api.get<User>(`/users/${String(props.id)}`)(request);
   tags(tag('user', { id: loaded.id }), tag('org', { id: loaded.orgId })); // known now
   return loaded;
 });
 ```
 
-The late case is real: you ask for `/api/users/me`, and only the answer says
-which user that was. An invalidation arriving while the request is still out is
+The late case is real: you ask for `/users/me`, and only the answer says which
+user that was. An invalidation arriving while the request is still out is
 remembered and matched again when the tags appear, so a run that was overtaken
 goes again rather than leaving a stale answer on the screen.
+
+With GraphQL you usually declare nothing at all: the document carries its own
+`@tag` and `@invalidates` directives, and the client reports them for you.
+[Documents](#graphql-documents) has the detail.
 
 ### Invalidating by hand
 
@@ -200,26 +239,59 @@ Everything carrying a matching tag runs again, with `force`. A component that
 has never heard of the action shows the new value, because the only thing
 connecting the two is the tag.
 
-## `force`: reaching past a transport cache
+## The cache
 
-A loader is told **why** it is running. `force` is `true` when the run was
-caused by an invalidation or by `reload()`. It is the one place the layers
-touch — without it, a transport cache would hand back the answer that was just
-invalidated, and the invalidation would be silently pointless.
+One cache, at the transport edge, for two jobs: what a client fetched, and what
+an algorithm of yours computed.
+
+```ts
+import { createCacheClient } from '@firsthandjs/data';
+
+export const cache = createCacheClient({ ttl: 30_000, max: 200 });
+```
+
+| Option | Means                                                              | Default |
+| ------ | ------------------------------------------------------------------ | ------- |
+| `ttl`  | How long an answer is served again without asking, in ms           | `0`     |
+| `max`  | How many entries to keep; the least recently read is evicted first | `100`   |
+
+**With no `ttl` it still shares what is in flight.** Ten components asking for
+the same thing at the same moment make one request and all get its answer —
+that is waste removed, not staleness introduced, which is why it needs no
+configuration. Serving an _older_ answer is the separate decision, and that is
+what `ttl` buys.
+
+Hand it to a client, and it caches reads:
+
+```ts
+const api = createFetchClient({ baseUrl: '/api', cache });
+```
+
+Or use it directly, with no client anywhere — the case where the slow thing is
+yours:
 
 ```tsx
-useResource(({ signal, force }) =>
-  json<User>('/api/users/5', { cache: force ? 'reload' : 'default' })({ signal }),
+const report = useResource(({ request }) =>
+  cache.read(`report:${month.value}`, () => buildReport(month.value))(request),
 );
 ```
 
-`fetchPolicy: force ? 'network-only' : 'cache-first'` for Apollo,
-`requestPolicy` for urql — the helper packages do this for you.
+`read(key, produce)` runs `produce` only when there is nothing fresh under that
+key, shares one run between callers that overlap, and — the part that matters —
+**drops the entry when the request says `force`**. So an invalidated resource
+asks again for real, rather than being answered out of the memory the
+invalidation was meant to defeat.
+
+The rest of it: `write(key, value)` to put something in by hand (a value pushed
+from a socket, a first page rendered on the server), `peek(key)` to look
+without running anything, `forget(key)` and `forget()` — which is what a
+sign-out calls, along with `store.clear()`.
 
 ## Keeping a value between visits
 
-Persistence is the one thing that needs a name, because a name is what survives
-a reload and a call site does not. It is opt-in for exactly that reason:
+The cache is memory for this page view. A value that should survive a reload is
+a different thing, and it is the one thing that needs a name, because a call
+site does not survive a reload and a name does:
 
 ```tsx
 provide(
@@ -238,43 +310,95 @@ const boards = useResource(loadBoards, { persist: 'boards' });
 
 The stored value appears immediately with `loading` still `true`, and is
 replaced when the loader answers. A storage that throws is a storage that has
-nothing — it can never break a resource. `store.clear()` empties it, which is
-what a sign-out calls.
+nothing — it can never break a resource.
 
-## Transport: bring your own client
+## The transport: pick a client
 
-### `fetch`
+Every client here is made the same way — `create…Client(…)` — configured once
+with a base URL, headers and a cache, specialised with `.with(…)`, and
+overridable per call.
 
-`json()` is the platform with the three things a resource needs from it: the
-abort signal wired through, a failed status thrown as `FirsthandHttpError`, and
-the body parsed.
+### fetch
 
-```ts
-json<User>('/api/users/7'); // GET
-json<Note>('/api/notes', { method: 'POST', json: { title } }); // JSON body
-json<Upload>('/api/files', { method: 'POST', body: formData }); // multipart
-json<Session>('/api/session', { method: 'POST', body: new URLSearchParams(form) });
-```
+**`createFetchClient` is a small REST client built on the browser's own
+`fetch`.** It is what you use when the answer to "which HTTP client?" is "none,
+the platform is fine" — and it gives you the five things you would otherwise
+write by hand in every project:
 
-`json:` exists for one measured reason: a stringified object is a string, so
-`fetch` labels it `text/plain`. `FormData`, `URLSearchParams` and `Blob` are
-labelled by the platform itself, boundary and all, so they go in `body` and
-nothing here would improve on them. Every other `RequestInit` option —
-`headers`, `credentials`, `mode`, `cache`, `keepalive` — passes straight
-through, so custom headers, including authentication, are ordinary options:
+- a **base URL**, so call sites carry paths;
+- **headers per request**, so a token that changes is the current one;
+- a **failed status thrown** as `FirsthandHttpError`, so nothing checks
+  `response.ok`;
+- the **abort signal** wired through, so a superseded request stops;
+- the shared **cache**, which `force` reaches through.
 
 ```ts
-json<Me>('/api/me', { headers: { authorization: `Bearer ${token.peek()}` } });
+import { createFetchClient } from '@firsthandjs/data';
+
+export const api = createFetchClient({
+  baseUrl: '/api',
+  headers: () => ({ authorization: `Bearer ${session.token.value}` }),
+  cache: { ttl: 30_000 },
+});
 ```
+
+```ts
+api.get<User>('/users/7');
+api.post<Note>('/notes', { json: { title } });
+api.put<Note>('/notes/7', { json: note });
+api.patch<Note>('/notes/7', { json: { title } });
+api.remove<void>('/notes/7');
+api.request<Row[]>('/rows', { method: 'REPORT' }); // the general form
+```
+
+Each returns a loader — a function waiting for the request — so a call site is
+`api.get<User>('/users/7')(request)`.
+
+Bodies: `json:` takes an object and sends it as JSON _with the content type the
+platform will not set for you_ (a stringified object is a string, so `fetch`
+labels it `text/plain`). Everything the platform does label itself —
+`FormData`, `URLSearchParams`, `Blob` — goes in `body:` untouched, boundary and
+all.
+
+```ts
+api.post('/files', { body: formData });
+api.post('/session', { body: new URLSearchParams(form) });
+```
+
+Every other `RequestInit` option passes straight through: `headers`,
+`credentials`, `mode`, `cache`, `keepalive`, `signal` excepted — that one comes
+from the request.
 
 > `fetch` **forbids a body on GET**: it throws a `TypeError` rather than
 > sending one. An endpoint that wants a body wants `POST`.
 
-There is no base URL here, no instance, no interceptor and no retry, and there
-will not be. Those belong to a client — and a loader takes any client, because
-it takes any function.
+Per call you can override the caching — `cacheKey: 'search:ada'` for a POST
+that reads, `cacheKey: false` for the read that must never be remembered — and
+`api.with({ baseUrl: '/admin' })` makes a variation that keeps everything else,
+cache included.
+
+The seam for everything a client library would do with plugins is `fetch`
+itself:
+
+```ts
+export const api = createFetchClient({
+  fetch: async (input, init) => {
+    const response = await fetch(input, init);
+    if (response.status === 401) {
+      session.end(); // one place, visible, yours
+    }
+    return response;
+  },
+});
+```
+
+There are deliberately no interceptors, no retry and no token refresh: at three
+of those a pipeline starts to earn its keep, and at that point you want Axios,
+which is the next section.
 
 ### Axios
+
+📦 [`@firsthandjs/data-axios`](../../packages/data-axios/README.md)
 
 ```bash
 npm install @firsthandjs/data-axios
@@ -282,28 +406,31 @@ npm install @firsthandjs/data-axios
 
 ```ts
 import axios from 'axios';
-import { axiosLoader } from '@firsthandjs/data-axios';
+import { createAxiosClient } from '@firsthandjs/data-axios';
 
-const api = axios.create({ baseURL: '/api' });
-api.interceptors.request.use((config) => {
-  config.headers.authorization = `Bearer ${token.peek()}`;
-  return config;
+const instance = axios.create({ baseURL: '/api' });
+instance.interceptors.response.use(undefined, retryOnce);
+
+export const api = createAxiosClient(instance, {
+  headers: () => ({ authorization: `Bearer ${session.token.peek()}` }),
+  cache: { ttl: 30_000 },
 });
-
-export const load = axiosLoader(api);
 ```
 
 ```tsx
-const profile = useResource(({ tags, ...rest }) => {
+const profile = useResource(({ request, tags }) => {
   tags(tag('profile', { id: props.id }));
-  return load<Profile>({ url: `/profiles/${props.id}` })(rest);
+  return api.get<Profile>(`/profiles/${props.id}`)(request);
 });
 ```
 
-The helper touches one method and wires the abort signal. Your base URL,
-interceptors, authentication and retries stay on the instance you built.
+The instance stays yours — base URL, interceptors, retries, transformers. The
+client adds the abort signal, the per-request headers and the cache, and
+touches exactly one Axios method.
 
 ### urql
+
+📦 [`@firsthandjs/data-urql`](../../packages/data-urql/README.md)
 
 ```bash
 npm install @firsthandjs/data-urql @urql/core
@@ -311,28 +438,30 @@ npm install @firsthandjs/data-urql @urql/core
 
 ```ts
 import { Client, fetchExchange } from '@urql/core';
-import { urqlLoader } from '@firsthandjs/data-urql';
+import { createUrqlClient } from '@firsthandjs/data-urql';
 
-export const billing = urqlLoader(
-  new Client({
-    url: '/graphql',
-    exchanges: [fetchExchange],
-    fetchOptions: () => ({ headers: { authorization: `Bearer ${token.peek()}` } }),
-  }),
+export const billing = createUrqlClient(
+  new Client({ url: '/graphql', exchanges: [fetchExchange] }),
+  { headers: () => ({ authorization: `Bearer ${session.token.peek()}` }) },
 );
 ```
 
 ```tsx
-const invoices = useResource((context) =>
-  billing(InvoicesDocument, { month: month.value })(context),
+const invoices = useResource(({ request }) =>
+  billing.query(InvoicesDocument, { month: month.value })(request),
 );
+
+const pay = useAction((id: string, { request }) => billing.mutate(PayDocument, { id })(request));
 ```
 
-Keeping `cacheExchange` is a decision worth making on purpose: without it, urql
-is your transport and the resources are your state; with it, urql also caches —
-and `force` is what reaches past it.
+Nothing declares tags at either call site: the documents do, and the client
+reports them into the request. Whether you keep `cacheExchange` is your
+decision — with it urql caches and `force` reaches past it; without it urql is
+pure transport and our cache is available instead.
 
 ### Apollo
+
+📦 [`@firsthandjs/data-apollo`](../../packages/data-apollo/README.md)
 
 ```bash
 npm install @firsthandjs/data-apollo @apollo/client
@@ -340,35 +469,37 @@ npm install @firsthandjs/data-apollo @apollo/client
 
 ```ts
 import { gql } from '@apollo/client';
-import { apolloLoader, apolloObservable } from '@firsthandjs/data-apollo';
+import { createApolloClient } from '@firsthandjs/data-apollo';
 
-export const billing = apolloLoader(apollo, gql);
+export const billing = createApolloClient(apollo, gql, {
+  headers: () => ({ authorization: `Bearer ${session.token.peek()}` }),
+});
 ```
 
-Apollo's `InMemoryCache` is a _normalising_ cache, which is a different thing
-from a store of resources. Two ways to run them together, and only two:
+Apollo's `InMemoryCache` is a _normalising_ cache — a different thing from a
+store of resources — so there are two ways to run them together, and only two:
 
-- **Apollo as transport** — the resources are your state, and `force` becomes
-  `network-only`.
-- **Apollo as the store** — `apolloObservable` with `fromObservable`, so one
+- **Apollo as transport.** The resources are your state, and `force` becomes
+  `fetchPolicy: 'network-only'`.
+- **Apollo as the store.** `billing.watch(...)` with `fromObservable`, so one
   write in its cache updates every view of that entity at once:
 
 ```tsx
-const user = fromObservable(...apolloObservable(apollo, gql)(UserDocument, { id: props.id }));
+const user = fromObservable(...billing.watch(UserDocument, { id: props.id }));
 ```
 
-None of the three helper packages depends on the client it binds, not even as a
-peer: the handful of methods each uses is declared structurally. They have no
-version to follow, and nothing to break when yours changes.
+None of the three packages depends on the client it binds, not even as a peer:
+the handful of methods each uses is declared structurally. They have no version
+to follow, and nothing to break when yours changes.
 
 ### More than one API
 
-There is nothing to configure. A second API is a second client and a second
-loader, and one component may read from both:
+There is nothing to configure. A second API is a second client, and one
+component may read from both:
 
 ```tsx
-const invoices = useResource((context) => billing(InvoicesDocument)(context));
-const products = useResource(({ signal }) => json<Product[]>('/catalog/products')({ signal }));
+const invoices = useResource(({ request }) => billing.query(InvoicesDocument)(request));
+const products = useResource(({ request }) => catalog.get<Product[]>('/products')(request));
 ```
 
 Tags are one namespace, so two servers that both have a `user` want distinct
@@ -412,15 +543,10 @@ mutation UpdateNote($id: ID!, $body: String!)
   document before it is sent, the way Apollo strips `@connection`. A malformed
   one is a build error.
 
-A query's `@tag` directives are declared before the request goes out; a
-mutation's `@invalidates` are what it is about, so an action hands the
-document's own declaration straight to the store:
-
-```tsx
-const save = useAction((input: Input, { signal, invalidates }) =>
-  billing(UpdateNoteDocument, input)({ signal, force: true, tags: invalidates }),
-);
-```
+A query's `@tag` directives are declared before the request goes out, so an
+invalidation arriving mid-flight still finds it. A mutation's `@invalidates`
+are what it changed — and since an action's request _is_ the store's
+invalidation, `billing.mutate(Doc, vars)(request)` needs nothing further.
 
 ### The loader and the types
 
@@ -446,7 +572,8 @@ generates: {
 ```
 
 The second output writes one `declare module '*/notes.gql'` per operation, so
-**no call site carries a type argument**. Rename a field in the schema, re-run
+**no call site carries a type argument** and an operation with required
+variables cannot be called without them. Rename a field in the schema, re-run
 codegen, and everything that used it stops compiling.
 
 Without the plugin, `parseGraphQL(source)` does the same at runtime — at the
@@ -454,23 +581,30 @@ cost of shipping the parser, which the loader path leaves out of the bundle.
 
 ## Sources that push
 
-When the same entity appears in twenty places and all of them must stay
-consistent, a per-call-site resource is the wrong shape — and a normalising
-client already solves it. `fromObservable` makes its observable a resource:
+Everything above is you asking. The other half is a source that tells you:
+a WebSocket, an `EventSource`, an RxJS stream, or a normalising client's cache
+when the same entity appears in twenty places and all of them must agree.
 
 ```tsx
 const user = fromObservable(source, { reload: () => watched.refetch() });
 ```
 
-The contract is the smallest one every client satisfies: `subscribe` with a
-`next` and an `error`, returning an unsubscribe function or something carrying
-one. Apollo, urql, RxJS and TanStack's `QueryObserver` all do. `fromPromise` is
-the other end of the range: a promise, with no tags and no dependencies.
+The contract is the smallest one every such source satisfies: `subscribe` with
+a `next` and an `error`, returning an unsubscribe function or something
+carrying one. Apollo, urql, RxJS and TanStack's `QueryObserver` all do, and so
+does fifteen lines around a `WebSocket`.
+
+What you get back is an ordinary `Resource`: the same `data`, `status`,
+`loading` and `error` cells, so a component cannot tell — and should not care —
+which of the two kinds it was given.
+
+`fromPromise(factory)` is the small end of the same idea: a promise, with no
+tags and no dependencies.
 
 ## Testing
 
-A loader is a function, so there is nothing framework-specific to mock. Three
-levels, in order of preference:
+A loader is a function and a client is a value, so there is nothing
+framework-specific to mock. Three levels, in order of preference:
 
 **The network.** [MSW](https://mswjs.io) intercepts `fetch`, so the component,
 the loader and the client all run for real:
@@ -479,11 +613,8 @@ the loader and the client all run for real:
 server.use(http.get('/api/users/7', () => HttpResponse.json({ id: 7, name: 'Ada' })));
 ```
 
-**The module.** If your loaders live in `api.ts`, replace that:
-
-```ts
-vi.mock('./api', () => ({ readUser: vi.fn().mockResolvedValue({ id: 7, name: 'Ada' }) }));
-```
+**The client.** It is a plain object; a test can hand over one of its own, or
+narrow the real one with `api.with({ fetch: fakeFetch, cache: false })`.
 
 **The store.** `createData()` is an ordinary value, so a test provides its own —
 with a `storage` stub when persistence is what is under test. `store.size` says
@@ -501,28 +632,10 @@ tags are the thing worth seeing: they are the answer to "why did this reload?".
 
 ## What it deliberately does not do
 
-Retries, backoff, token refresh, request de-duplication, normalisation,
-optimistic cache surgery, pagination helpers, Suspense-style integration. Each
-belongs to a transport or to an application's own policy, and each would be
-paid for by every application that does not need it.
-
-## Coming from `@firsthandjs/query`
-
-| Was                                            | Is                                                         |
-| ---------------------------------------------- | ---------------------------------------------------------- |
-| `createQueryClient({ staleTime })`             | `createData({ storage })` — no `staleTime`, no `cacheTime` |
-| `useQuery(() => ({ tags, variables, fetch }))` | `useResource(({ signal, tags }) => …)`                     |
-| `useMutation({ mutate, invalidates })`         | `useAction(async (input, { signal, invalidates }) => …)`   |
-| `variables: { page }`                          | read `page.value` inside the loader                        |
-| `query.fetching`                               | `resource.loading`                                         |
-| `status === 'pending'`                         | `status === 'loading'`                                     |
-| `useGraphQL(Document, vars)`                   | `useResource((c) => client(Document, vars)(c))`            |
-| `createGraphQLTransport({ url })`              | your urql or Apollo client, or `json()`                    |
-| `createGraphQLApi(transport)`                  | a second loader                                            |
-
-The cache is gone, which means a second component asking for the same thing
-asks the server. If that matters, put a cache in the transport — where it can
-be the only one.
+Retries, backoff, token refresh, request queues, normalisation, optimistic
+cache surgery, pagination helpers, Suspense-style integration. Each belongs to
+a transport or to an application's own policy, and each would be paid for by
+every application that does not need it.
 
 ---
 

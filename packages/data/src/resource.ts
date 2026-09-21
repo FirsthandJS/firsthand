@@ -22,6 +22,7 @@ import {
   fail,
   succeed,
   type ActionContext,
+  type DataRequest,
   type DataStore,
   type LoadContext,
   type Resource,
@@ -91,20 +92,20 @@ export function useResource<T>(
       entry.status.value = 'loading';
     }
 
-    const context: LoadContext = {
-      signal: controller.signal,
-      force,
-      tags: (...next: Tag[]) => {
-        // Replaces. A run says what it is about; it does not accumulate what
-        // it used to be about.
-        entry.tags = next;
-        // And the race this closes: an invalidation that arrived while this
-        // run was in flight could not match tags that did not exist yet.
-        if (entry.pending.length > 0 && anyTagMatches(entry.pending, next)) {
-          entry.superseded = true;
-        }
-      },
+    const declare = (...next: Tag[]): void => {
+      // Replaces. A run says what it is about; it does not accumulate what
+      // it used to be about.
+      entry.tags = next;
+      // And the race this closes: an invalidation that arrived while this
+      // run was in flight could not match tags that did not exist yet.
+      if (entry.pending.length > 0 && anyTagMatches(entry.pending, next)) {
+        entry.superseded = true;
+      }
     };
+    // The request a client is handed: what to abort with, why it is running,
+    // and where to report what it turned out to be about.
+    const request: DataRequest = { signal: controller.signal, force, tags: declare };
+    const context: LoadContext = { ...request, request, tags: declare };
 
     return load(context)
       .then(async (value): Promise<T | undefined> => {
@@ -222,12 +223,19 @@ export function useAction<I, R>(
       try {
         // Untracked: an action runs from an event handler, and what it reads
         // on the way is nobody's dependency.
+        const invalidates = (...tags: Tag[]): void => {
+          invalidating = tags;
+        };
         const result = await untrack(() =>
           run(input, {
             signal: current.signal,
-            invalidates: (...tags: Tag[]) => {
-              invalidating = tags;
-            },
+            invalidates,
+            // An action changes something, so nothing it sends may be answered
+            // out of a cache: `force` is not a choice here. `tags` is the
+            // store's invalidation, so a client that knows what a mutation
+            // changed — a document with `@invalidates` — reports it without
+            // the call site repeating it.
+            request: { signal: current.signal, force: true, tags: invalidates },
           }),
         );
         if (current.signal.aborted || entry.disposed) {

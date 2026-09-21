@@ -4,6 +4,110 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-09-21
+
+### Added
+
+- **One cache, at the transport edge — and it is one you can use without a
+  server.** 0.5.0 said caching belongs to the transport and left a hole: an
+  application on plain `fetch` had no transport to put one in, so every mount
+  was a request.
+
+  `createCacheClient({ ttl, max })` fills it, and the same object does both
+  jobs. `createFetchClient` keeps its answers in one of these; an algorithm of
+  yours uses the identical `read`:
+
+  ```ts
+  const cache = createCacheClient({ ttl: 30_000 });
+  const api = createFetchClient({ baseUrl: '/api', cache });
+
+  const report = useResource(({ request }) =>
+    cache.read(`report:${month.value}`, () => buildReport(month.value))(request),
+  );
+  ```
+
+  There is no second implementation hidden inside the fetch client. **With no
+  `ttl` it still shares what is in flight** — ten components asking at once make
+  one request — because two identical requests overlapping in time is waste
+  rather than staleness, and needs no configuration. The producer runs under a
+  signal of the cache's own, aborted only when _every_ waiter has gone, so one
+  component leaving cannot cancel a request another is still waiting for.
+
+- **The request is one object, and it is what reaches the transport.** A loader
+  is handed `{ signal, force, tags? }` and hands it to a client:
+
+  ```tsx
+  const user = useResource(({ request, tags }) => {
+    tags(tag('user', { id: props.id }));
+    return api.get<User>(`/users/${props.id}`)(request);
+  });
+  ```
+
+  `signal` and `force` travel together because they answer the same question —
+  is this request still wanted, and may its answer come from memory. Before
+  this, `force` was a flag every call site had to remember to translate into
+  `cache: 'reload'` or `fetchPolicy: 'network-only'`; a forgotten translation
+  made an invalidation **silently** pointless. Now every client honours it, and
+  the cache drops the entry.
+
+  `tags` is the third, optional, member: where a client reports what the answer
+  turned out to be about. In a resource that is the resource's tags; in an
+  action it is the store's invalidation — so a GraphQL mutation wires its own
+  `@invalidates` with nothing at the call site:
+
+  ```tsx
+  const pay = useAction((id: string, { request }) => billing.mutate(PayDocument, { id })(request));
+  ```
+
+### Changed
+
+- **Every transport is a client now, made the same way.** 0.5.0 shipped
+  `json(url)` for fetch and `xLoader(instance)` for the rest, which is three
+  shapes for one idea. All four are `create…Client(…)`: configured once with a
+  base URL, headers and a cache, specialised with `.with(…)`, overridden per
+  call, and each exposing its `.cache`.
+
+  | Was                             | Is                                                     |
+  | ------------------------------- | ------------------------------------------------------ |
+  | `json(url, init)`               | `createFetchClient(options).get(url, init)`            |
+  | `axiosLoader(instance)(config)` | `createAxiosClient(instance, options).request(config)` |
+  | `urqlLoader(client)(doc, vars)` | `createUrqlClient(client, options).query(doc, vars)`   |
+  | `apolloLoader(client, gql)(…)`  | `createApolloClient(client, gql, options).query(…)`    |
+  | `apolloObservable(client, gql)` | `createApolloClient(client, gql).watch(…)`             |
+  | `({ signal }) => …`             | `({ request }) => client…(request)`                    |
+  | `init.cache` (ours)             | `init.cacheKey`; `cache` is the platform's again       |
+
+  `createFetchClient` is a small REST client on the browser's own `fetch`: base
+  URL, `get`/`post`/`put`/`patch`/`remove`/`request`, a failed status thrown,
+  the abort signal wired through, and the cache. `json:` still labels the one
+  body the platform gets wrong, and `body:` still leaves alone the ones it
+  labels itself.
+
+- **A token that changes is handled by the clients, not by documentation.**
+  `headers` may be a function; it is called per request (so the current token
+  is sent) and **untracked** (so no resource depends on the token). The bug
+  that motivates this was measured in 0.4.1: writing a token on sign-out
+  re-sent every request that had built a header from it — without one.
+
+- **`@firsthandjs/query` is deprecated on npm**, pointing at
+  `@firsthandjs/data`. It was replaced in 0.5.0 and has not been published
+  since 0.4.1.
+
+### Documentation
+
+- The [data guide](docs/guide/09-data.md) opens with what the chapter is
+  actually about — data that comes from outside the reactive graph, of which a
+  server is the commonest example and not the only one — names the two ways it
+  arrives (you ask; it tells you) with links to both, and replaces the old
+  "what it is not" section with the one distinction that matters: the
+  reactivity layer, the transport layer, and where caching sits between them.
+  The `fetch` section now says what it _is_ before justifying any of it.
+- Each transport section links its package README, and the reference page has
+  the cache, the request and all four clients.
+- [ADR-0023](docs/adr/0023-one-cache-at-the-transport-edge.md) records the
+  decision, the rejected alternatives (including `force` as a function) and the
+  measured cost: 0.84 kB gzip for the cache and the fetch client together.
+
 ## [0.5.0] - 2026-09-21
 
 ### Changed
@@ -627,6 +731,7 @@ strictReactivity: false })` restores the previous behaviour.
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.6.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.6.0
 [0.5.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.5.0
 [0.4.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.4.1
 [0.4.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.4.0

@@ -1,84 +1,102 @@
 /**
- * The Apollo binding, against a stub of the three methods it touches.
+ * The Apollo client, against a stub of the three methods it touches.
  */
 import { describe, expect, it } from 'vitest';
-import { parseGraphQL, tag } from '@firsthandjs/data';
-import {
-  apolloLoader,
-  apolloObservable,
-  type ApolloLike,
-  type WatchLike,
-} from '@firsthandjs/data-apollo';
+import { signal } from '@firsthandjs/core';
+import { parseGraphQL, tag, type DataRequest, type Tag } from '@firsthandjs/data';
+import { createApolloClient, type ApolloLike, type WatchLike } from '@firsthandjs/data-apollo';
 
-const context = { signal: new AbortController().signal, force: false, tags: () => {} };
+const ask = (force = false): DataRequest => ({
+  signal: new AbortController().signal,
+  force,
+});
 const parse = (source: string): unknown => ({ parsed: source });
 
-function stub(answer: unknown = { ok: true }) {
-  const seen: { method: string; options: Record<string, unknown> }[] = [];
+/** A request that records what the client said it was about. */
+function asking(): { request: DataRequest; declared: Tag[] } {
+  const declared: Tag[] = [];
   return {
-    seen,
-    client: {
-      query: (options: Record<string, unknown>) => {
-        seen.push({ method: 'query', options });
-        return Promise.resolve({ data: answer });
-      },
-      mutate: (options: Record<string, unknown>) => {
-        seen.push({ method: 'mutate', options });
-        return Promise.resolve({ data: answer });
-      },
-    } as unknown as ApolloLike,
+    declared,
+    request: {
+      signal: new AbortController().signal,
+      force: false,
+      tags: (...tags: Tag[]) => declared.push(...tags),
+    },
   };
 }
 
-describe('apolloLoader', () => {
+function stub(answer: unknown = { ok: true }) {
+  const seen: { method: string; options: Record<string, unknown> }[] = [];
+  const watchers: { observer: Record<string, unknown>; refetches: number }[] = [];
+  const client = {
+    query: (options: Record<string, unknown>) => {
+      seen.push({ method: 'query', options });
+      return Promise.resolve({ data: answer });
+    },
+    mutate: (options: Record<string, unknown>) => {
+      seen.push({ method: 'mutate', options });
+      return Promise.resolve({ data: answer });
+    },
+    watchQuery: (options: Record<string, unknown>) => {
+      seen.push({ method: 'watchQuery', options });
+      const watcher = { observer: {}, refetches: 0 };
+      watchers.push(watcher);
+      return {
+        subscribe: (observer: Record<string, unknown>) => {
+          watcher.observer = observer;
+          return { unsubscribe: () => undefined };
+        },
+        refetch: () => {
+          watcher.refetches += 1;
+          return Promise.resolve();
+        },
+      };
+    },
+  } as unknown as ApolloLike & WatchLike;
+  return { seen, watchers, client };
+}
+
+describe('createApolloClient', () => {
   it('sends a query through `query` and a mutation through `mutate`', async () => {
     const { seen, client } = stub();
-    const load = apolloLoader(client, parse);
+    const api = createApolloClient(client, parse);
 
-    await load(parseGraphQL('query Ok { ok }'))(context);
-    await load(parseGraphQL('mutation Go { go }'))(context);
+    await api.query(parseGraphQL('query Ok { ok }'))(ask());
+    await api.mutate(parseGraphQL('mutation Go { go }'))(ask());
 
     expect(seen.map((entry) => entry.method)).toEqual(['query', 'mutate']);
   });
 
-  it('declares the tags the document carries', async () => {
+  it('declares what a query is about, bound to the variables', async () => {
     const { client } = stub();
-    const declared: unknown[] = [];
-    // Typed as the codegen would type it, which is what makes the variables of
-    // the call checkable at all.
+    const { request, declared } = asking();
     const document = parseGraphQL<unknown, { id: number }>(
       'query User($id: ID!) @tag(name: "user", id: $id) { user { id } }',
     );
 
-    await apolloLoader(client, parse)(document, { id: 5 })({
-      ...context,
-      tags: (...tags) => declared.push(...tags),
-    });
+    await createApolloClient(client, parse).query(document, { id: 5 })(request);
 
     expect(declared).toEqual([tag('user', { id: 5 })]);
   });
 
-  it("declares a mutation's `@invalidates`, so an action can pass them straight on", async () => {
+  it("declares a mutation's `@invalidates`, which in an action is the store's", async () => {
     const { client } = stub();
-    const declared: unknown[] = [];
+    const { request, declared } = asking();
     const document = parseGraphQL<unknown, { id: number }>(
       'mutation Rename($id: ID!) @invalidates(name: "user", id: $id) @invalidates(name: "users") { rename(id: $id) { id } }',
     );
 
-    await apolloLoader(client, parse)(document, { id: 5 })({
-      ...context,
-      tags: (...tags) => declared.push(...tags),
-    });
+    await createApolloClient(client, parse).mutate(document, { id: 5 })(request);
 
     expect(declared).toEqual([tag('user', { id: 5 }), tag('users')]);
   });
 
-  it('turns `force` into the policy that reaches past the cache', async () => {
+  it('turns `force` into the policy that reaches past Apollo’s cache', async () => {
     const { seen, client } = stub();
-    const load = apolloLoader(client, parse)(parseGraphQL('query Ok { ok }'));
+    const load = createApolloClient(client, parse).query(parseGraphQL('query Ok { ok }'));
 
-    await load(context);
-    await load({ ...context, force: true });
+    await load(ask());
+    await load(ask(true));
 
     expect(seen.map((entry) => entry.options['fetchPolicy'])).toEqual([
       'cache-first',
@@ -89,55 +107,93 @@ describe('apolloLoader', () => {
   it('parses with the function it was given, not one of its own', async () => {
     const { seen, client } = stub();
 
-    await apolloLoader(client, parse)(parseGraphQL('query Ok { ok }'))(context);
+    await createApolloClient(client, parse).query(parseGraphQL('query Ok { ok }'))(ask());
 
     expect(seen[0]?.options['query']).toEqual({ parsed: 'query Ok { ok }' });
   });
-});
 
-describe('apolloObservable', () => {
+  it('reads headers per request, so a token that changes is the current one', async () => {
+    const { seen, client } = stub();
+    const token = signal('first');
+    const api = createApolloClient(client, parse, {
+      headers: () => ({ authorization: `Bearer ${token.value}` }),
+      options: { errorPolicy: 'all' },
+    });
+
+    await api.query(parseGraphQL('query Ok { ok }'))(ask());
+    token.value = 'second';
+    await api.mutate(parseGraphQL('mutation Go { go }'))(ask());
+
+    expect(seen[0]?.options['context']).toEqual({ headers: { authorization: 'Bearer first' } });
+    expect(seen[1]?.options['context']).toEqual({ headers: { authorization: 'Bearer second' } });
+    expect(seen[0]?.options['errorPolicy']).toBe('all');
+  });
+
+  it('caches a query when it was given a cache, and never a mutation', async () => {
+    const { seen, client } = stub();
+    const api = createApolloClient(client, parse, { cache: { ttl: 10_000 } });
+    const document = parseGraphQL<unknown, { id: number }>('query User($id: ID!) { user { id } }');
+
+    await api.query(document, { id: 1 })(ask());
+    await api.query(document, { id: 1 })(ask());
+    expect(seen).toHaveLength(1);
+
+    await api.query(document, { id: 1 })(ask(true));
+    expect(seen).toHaveLength(2);
+
+    await api.mutate(parseGraphQL('mutation Go { go }'))(ask());
+    await api.mutate(parseGraphQL('mutation Go { go }'))(ask());
+    expect(seen).toHaveLength(4);
+  });
+
+  it('has no cache unless it was asked for one, because Apollo has its own', () => {
+    const { client } = stub();
+    expect(createApolloClient(client, parse).cache).toBeUndefined();
+  });
+
+  it('makes a variation that keeps what it did not replace, cache included', async () => {
+    const { seen, client } = stub();
+    const api = createApolloClient(client, parse, {
+      headers: { 'x-app': 'notes' },
+      cache: { ttl: 1000 },
+    });
+    const traced = api.with({ options: { errorPolicy: 'ignore' } });
+
+    await traced.query(parseGraphQL('query Ok { ok }'))(ask());
+
+    expect(seen[0]?.options['context']).toEqual({ headers: { 'x-app': 'notes' } });
+    expect(seen[0]?.options['errorPolicy']).toBe('ignore');
+    expect(traced.cache).toBe(api.cache);
+  });
+
+  it('keeps having no cache when a variation adds none', () => {
+    const { client } = stub();
+    expect(createApolloClient(client, parse).with({ options: {} }).cache).toBeUndefined();
+  });
+
   it('bridges a watched query, and reloads through it', async () => {
-    let push: ((value: { data: string }) => void) | undefined;
-    let refetched = 0;
-    const client = {
-      watchQuery: () => ({
-        subscribe: (observer: { next?: (value: { data: string }) => void }) => {
-          push = observer.next;
-          return { unsubscribe: () => {} };
-        },
-        refetch: () => {
-          refetched++;
-          return Promise.resolve();
-        },
-      }),
-    } as unknown as WatchLike;
+    const { watchers, client } = stub();
+    const [source, options] = createApolloClient(client, parse).watch(
+      parseGraphQL<unknown, { id: number }>('query User($id: ID!) { user { id } }'),
+      { id: 1 },
+    );
+    const seen: unknown[] = [];
+    source.subscribe({ next: (value) => seen.push(value) });
 
-    const [source, options] = apolloObservable(client, parse)(parseGraphQL('query Ok { ok }'));
-    const seen: string[] = [];
-    source.subscribe({ next: (value) => seen.push(value as string) });
-    push?.({ data: 'from the cache' });
-    await options.reload();
+    (watchers[0]?.observer['next'] as (value: { data: unknown }) => void)({ data: { user: 1 } });
+    await options.reload?.();
 
-    expect(seen).toEqual(['from the cache']);
-    expect(refetched).toBe(1);
+    expect(seen).toEqual([{ user: 1 }]);
+    expect(watchers[0]?.refetches).toBe(1);
   });
 
   it('passes an error handler through when there is one', () => {
-    let fail: ((error: unknown) => void) | undefined;
-    const client = {
-      watchQuery: () => ({
-        subscribe: (observer: { error?: (error: unknown) => void }) => {
-          fail = observer.error;
-          return { unsubscribe: () => {} };
-        },
-        refetch: () => Promise.resolve(),
-      }),
-    } as unknown as WatchLike;
-
-    const [source] = apolloObservable(client, parse)(parseGraphQL('query Ok { ok }'));
+    const { watchers, client } = stub();
+    const [source] = createApolloClient(client, parse).watch(parseGraphQL('query Ok { ok }'));
     const seen: unknown[] = [];
     source.subscribe({ error: (error) => seen.push(error) });
-    fail?.(new Error('gone'));
+
+    (watchers[0]?.observer['error'] as (error: unknown) => void)(new Error('gone'));
 
     expect(seen).toHaveLength(1);
   });
