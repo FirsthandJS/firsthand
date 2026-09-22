@@ -229,6 +229,48 @@ Anything else is a refactor that has not been done yet. `scripts/check-architect
 counts the disables and prints them, so the number is visible rather than
 discovered.
 
+## 6. What the limits cost
+
+Not nothing, and the number belongs here rather than in somebody's memory.
+
+**Module boundaries are free.** `scripts/build.mjs` bundles each package with
+esbuild, so a cross-module call inside a package is concatenated away before it
+ships. Splitting a file costs nothing at runtime, which is what makes the
+splits on this page safe to do.
+
+**Extracted functions are not free.** esbuild's minifier does not inline, so
+every function pulled out of another is a function object in the bundle.
+Bringing `packages/dom` under the function and complexity limits cost
+**0.25 kB gzip** — measured by building the same tree twice with only
+`packages/dom/src` and its tests moving, everything else held constant:
+
+| Build                             | full runtime (core + dom) |
+| --------------------------------- | ------------------------- |
+| `packages/dom` as on `main`       | 7.22 kB gzip              |
+| the refactor                      | 7.47 kB gzip              |
+| the budget in `scripts/build.mjs` | 7.50 kB gzip              |
+
+That is 3 % of the runtime for the readability of the twelve functions that
+were over the limits, and it leaves **about thirty bytes of headroom**. The
+next change to the browser runtime will have to find room, and the honest place
+to find it is here: a disable under §5 on the specific functions that pay for
+it, with the number. Raising the budget quietly is the one answer that is not
+allowed, because the budget is the claim the README makes.
+
+### Measuring this correctly
+
+A trap worth writing down, because it cost two red CI runs. These numbers come
+from the `full runtime` entry, which is the only one that _bundles_
+`@firsthandjs/core` rather than marking it external — so it resolves
+`@firsthandjs/core` through `node_modules`. In a `git worktree` whose
+`node_modules` was linked to another checkout's, that resolves to **the other
+checkout's packages**, and every full-runtime figure is measured against
+somebody else's working tree. Every per-package figure is right, which is what
+makes it hard to notice: only the one number that matters is wrong.
+
+Run `npm ci` in the worktree. If a local build and CI disagree on the full
+runtime and agree on everything else, this is why.
+
 ## 7. The one file that does not meet these rules
 
 `packages/core/src/core.ts` is 561 statements against a limit of 300, and

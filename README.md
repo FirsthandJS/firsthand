@@ -401,7 +401,7 @@ different sample sizes would quietly weaken the confidence interval.
 | `@firsthandjs/dom` | 13.61 kB | **5.36 kB** | 4.82 kB |
 | `@firsthandjs/dom/internal` | 14.21 kB | **5.70 kB** | 5.14 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
-| full runtime (core + dom, everything imported) | 20.25 kB | **7.47 kB** | 6.76 kB |
+| full runtime (core + dom, everything imported) | 20.24 kB | **7.47 kB** | 6.75 kB |
 
 
 Optional packages, downloaded only by an application that imports them:
