@@ -319,7 +319,7 @@ function emitChildPart(entry: ChildEntry, isLast: boolean, cursor: Cursor, host:
     t.cloneNode(self),
     // A list part is already a thunk that owns its rows; wrapping it would
     // rebuild the whole list on every evaluation.
-    entry.kind === 'list' ? expression : thunk(expression),
+    entry.kind === 'list' ? throughCell(expression as t.CallExpression, host) : thunk(expression),
   ];
   if (marker !== null) {
     args.push(marker);
@@ -330,6 +330,48 @@ function emitChildPart(entry: ChildEntry, isLast: boolean, cursor: Cursor, host:
   // part is created. The thunk runs on every update, which is where a
   // breakpoint on that expression is expected to stop.
   pushOnce(build, expressionStatement(t.callExpression(runtime(state, 'insert'), args)));
+}
+
+/**
+ * A keyed list whose data belongs to the run, made once and fed afterwards.
+ *
+ * The list is created inside the `if (_new$)` block, so its source thunk would
+ * close over the first run's value and never see another. The value goes
+ * through a cell instead — declared where the navigation is, so it is written
+ * on every run — and the list reads the cell. Writing a cell wakes exactly what
+ * read it, so a run that produces the same data reconciles nothing.
+ *
+ * Left alone when the data is not the run's: then the source thunk is already
+ * live, and a cell would be a signal in the way of a read.
+ */
+function throughCell(call: t.CallExpression, host: Host): t.Expression {
+  const { build, state } = host;
+  const source = call.arguments[0];
+  if (build.run === null || !t.isExpression(source) || !dependsOnRun(source, build.run, build.at)) {
+    return call;
+  }
+  const run = build.run;
+  const holder = build.name('_data$');
+  build.statements.push(
+    t.variableDeclaration('const', [
+      t.variableDeclarator(
+        holder,
+        t.callExpression(runtime(state, 'cell'), [
+          t.cloneNode(run.store),
+          t.numericLiteral(run.next()),
+          // The source as `rewriteKeyedMaps` wrote it: a thunk over the data.
+          // Called here, so what the cell holds is the array rather than a
+          // function that would be a new identity on every run.
+          t.callExpression(source, []),
+        ]),
+      ),
+    ]),
+  );
+  call.arguments[0] = t.arrowFunctionExpression(
+    [],
+    t.memberExpression(t.cloneNode(holder), t.identifier('value')),
+  );
+  return call;
 }
 
 /** Whether this element needs a variable: it has parts, or a descendant does. */

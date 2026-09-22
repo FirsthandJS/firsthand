@@ -344,12 +344,34 @@ export function canRetain(node: t.JSXElement, build: Build): boolean {
       t.isJSXExpressionContainer(child) &&
       !t.isJSXEmptyExpression(child.expression) &&
       isKeyedList(child.expression) &&
-      dependsOnRun(child.expression, build.run, build.at)
+      listHoldsRunValue(child.expression as t.CallExpression, build)
     ) {
       return false;
     }
   }
   return true;
+}
+
+/**
+ * Whether keeping a keyed list would freeze one run's value inside it.
+ *
+ * A list is made once and reconciles afterwards, so anything it closes over is
+ * closed over for the life of the site. Its **data** is not a problem: the
+ * emitter routes a run-owned source through a cell the run writes, which is how
+ * every other run-owned value reaches something that outlives the run
+ * (`cell`, ADR-0026). Its **key function and its row** are, because those are
+ * called with the row rather than with the run, and a run local inside one
+ * would stay at whatever the first run saw.
+ *
+ * Before this, any keyed list over a run local refused the whole site, and the
+ * enclosing template was rebuilt on every run — every row of it, losing
+ * component state and DOM identity. That is issue #40, and it fired on the
+ * shape people actually write: compute at the top of the run, render below.
+ */
+function listHoldsRunValue(call: t.CallExpression, build: Build): boolean {
+  // `list(source, keyOf, row)`, as `rewriteKeyedMaps` emits it. The first
+  // argument is the data and is handled by the emitter; the rest are not.
+  return call.arguments.slice(1).some((argument) => dependsOnRun(argument, build.run, build.at));
 }
 
 /** A spread or a `ref` the run owns: made once by its nature, so not kept. */
