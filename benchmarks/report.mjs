@@ -29,7 +29,7 @@ const fastest = (scenario) => {
   const runnerUp = rest.reduce((a, b) => (scenario[a].median <= scenario[b].median ? a : b));
   const margin = scenario[runnerUp].median / scenario[best].median;
   // A margin that rounds to nothing is a tie, not a win.
-  return margin < 1.005 ? 'level' : `${name(best)} ${margin.toFixed(2)}×`;
+  return margin < 1.005 ? 'too close to call' : `${name(best)} ${margin.toFixed(2)}×`;
 };
 
 if (markdown) {

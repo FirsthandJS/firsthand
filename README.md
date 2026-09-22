@@ -294,10 +294,10 @@ milliseconds; every scenario is here, including the ones Firsthand loses.
 | --- | ---: | ---: | ---: | ---: | :--- |
 | `mount-1k` | 34.50 ms | 39.50 ms | 35.50 ms | 37.20 ms | Firsthand 1.03× |
 | `mount-10k` | 396.70 ms | 617.40 ms | 409.70 ms | 432.60 ms | Firsthand 1.03× |
-| `replace-1k` | 39.70 ms | 52.60 ms | 39.60 ms | 47.20 ms | level |
+| `replace-1k` | 39.70 ms | 52.60 ms | 39.60 ms | 47.20 ms | too close to call |
 | `replace-10k` | 436.20 ms | 768.60 ms | 441.80 ms | 518.60 ms | Firsthand 1.01× |
 | `update-every-10th-1k` | 7.70 ms | 8.60 ms | 7.40 ms | 11.30 ms | Solid 1.04× |
-| `update-every-10th-10k` | 83.40 ms | 94.60 ms | 83.40 ms | 121.60 ms | level |
+| `update-every-10th-10k` | 83.40 ms | 94.60 ms | 83.40 ms | 121.60 ms | too close to call |
 | `select-row` ~ | 0.40 ms | 0.50 ms | 0.70 ms | 3.50 ms | Firsthand 1.25× |
 | `append-1k-to-1k` | 38.30 ms | 44.10 ms | 42.60 ms | 48.20 ms | Firsthand 1.11× |
 | `append-1k-to-10k` | 75.20 ms | 76.70 ms | 85.80 ms | 110.90 ms | Firsthand 1.02× |
@@ -311,14 +311,14 @@ milliseconds; every scenario is here, including the ones Firsthand loses.
 | `prepend-1k-to-10k` | 68.40 ms | 88.10 ms | 83.90 ms | 111.20 ms | Firsthand 1.23× |
 | `update-single-row-10k` | 31.20 ms | 35.80 ms | 27.50 ms | 65.70 ms | Solid 1.13× |
 | `conditional-branch-switch-1k` | 14.10 ms | 17.80 ms | 13.20 ms | 12.70 ms | Vue 1.04× |
-| `deep-tree-mount` | 1.00 ms | 1.40 ms | 1.00 ms | 1.10 ms | level |
-| `context-change-1` ~ | 0.10 ms | 0.20 ms | 0.10 ms | 0.10 ms | level |
+| `deep-tree-mount` | 1.00 ms | 1.40 ms | 1.00 ms | 1.10 ms | too close to call |
+| `context-change-1` ~ | 0.10 ms | 0.20 ms | 0.10 ms | 0.10 ms | too close to call |
 | `context-change-100` | 1.10 ms | 1.20 ms | 1.20 ms | 1.30 ms | Firsthand 1.09× |
 | `context-change-10k` | 119.60 ms | 133.40 ms | 115.10 ms | 143.20 ms | Solid 1.04× |
 | `rapid-updates-1k-unbatched` ~ | 0.60 ms | 2.40 ms | 0.70 ms | 2.50 ms | Firsthand 1.17× |
-| `rapid-updates-1k-batched` ~ | 0.10 ms | 0.30 ms | 0.20 ms | 0.10 ms | level |
-| `portal-update` ~ | 0.20 ms | 0.10 ms | 0.10 ms | 0.10 ms | level |
-| `input-event-latency` ~ | 0.20 ms | 0.20 ms | 0.10 ms | 0.10 ms | level |
+| `rapid-updates-1k-batched` ~ | 0.10 ms | 0.30 ms | 0.20 ms | 0.10 ms | too close to call |
+| `portal-update` ~ | 0.20 ms | 0.10 ms | 0.10 ms | 0.10 ms | too close to call |
+| `input-event-latency` ~ | 0.20 ms | 0.20 ms | 0.10 ms | 0.10 ms | too close to call |
 
 | Against | Geometric mean of the per-scenario ratios | 95 % bootstrap CI | Claimable |
 | --- | ---: | :---: | :--- |
@@ -326,10 +326,15 @@ milliseconds; every scenario is here, including the ones Firsthand loses.
 | Solid 1.9.15 | **1.040×** | 0.925–1.162 | **no** — the interval includes 1.0 |
 | Vue 3.5.43 | **1.336×** | 1.087–1.647 | yes — the interval excludes 1.0 |
 
-A ratio above 1.0 means Firsthand is faster by that factor. Where the interval
-includes 1.0 the two are level as far as this suite can tell, and this project
-publishes that rather than rounding it into a claim. Firsthand was the fastest
-of the 4, or level with whoever was, in 16 of 27 scenarios in this run.
+**Fastest** names the winner of the row and its margin over the next one, or
+says *too close to call* where that margin is under half a percent — at a tenth
+of a millisecond that is the timer, not the framework.
+
+A ratio above 1.0 in the table below means Firsthand is faster by that factor.
+Where the interval includes 1.0 the two are level as far as this suite can
+tell, and this project publishes that rather than rounding it into a claim.
+Firsthand was the fastest of the 4, or tied with whoever was, in 16 of 27
+scenarios in this run.
 
 Rows marked `~` had a median absolute deviation above 10 % of the median on
 at least one side — usually a garbage collection landing inside some of the

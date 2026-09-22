@@ -50,7 +50,7 @@ const fastest = (scenario, among = frameworks) => {
   const margin = scenario[runnerUp].median / scenario[best].median;
   // A margin that rounds to nothing is a tie, and calling a winner on it would
   // be reading the timer's resolution as a result.
-  return margin < 1.005 ? 'level' : `${label(best)} ${margin.toFixed(2)}×`;
+  return margin < 1.005 ? 'too close to call' : `${label(best)} ${margin.toFixed(2)}×`;
 };
 
 /**
@@ -217,10 +217,15 @@ ${scenarioRows}
 | --- | ---: | :---: | :--- |
 ${aggregateRows}
 
-A ratio above 1.0 means Firsthand is faster by that factor. Where the interval
-includes 1.0 the two are level as far as this suite can tell, and this project
-publishes that rather than rounding it into a claim. Firsthand was the fastest
-of the ${frameworks.length}, or level with whoever was, in ${wins} of ${bench.scenarios.length} scenarios in this run.
+**Fastest** names the winner of the row and its margin over the next one, or
+says *too close to call* where that margin is under half a percent — at a tenth
+of a millisecond that is the timer, not the framework.
+
+A ratio above 1.0 in the table below means Firsthand is faster by that factor.
+Where the interval includes 1.0 the two are level as far as this suite can
+tell, and this project publishes that rather than rounding it into a claim.
+Firsthand was the fastest of the ${frameworks.length}, or tied with whoever was, in ${wins} of ${bench.scenarios.length}
+scenarios in this run.
 ${
   anyUnstable
     ? [
