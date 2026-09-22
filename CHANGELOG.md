@@ -58,6 +58,15 @@ All notable changes to this project are documented here. The format follows
   in the core describes the scope; the first `provide`, `signal`, `onCleanup`
   or `catchError` makes it. Worth a sixth of a server render.
 
+- **A new benchmark, and a decision it made.** `npm run bench:deep` measures
+  one label changed in ten thousand rows, with the clock stopped before and
+  after the browser is made to lay the page out again. It says two things.
+  The scenario is **94 % layout** — the framework's share is under two
+  milliseconds either way. And `deepSignal` already does for this what a store
+  does: 0.008 ms against 1.850 ms, at 1.6× the cost of mounting. So the answer
+  to the one scenario Firsthand loses is a tool that already exists, not a new
+  list API.
+
 - **A keyed list reads its keys once per pass, not once per row.** Reading a
   key must not subscribe the list to whatever the key function touches, which
   is as true of ten thousand keys read together as of one read alone — but a
