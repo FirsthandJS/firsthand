@@ -25,7 +25,7 @@ import { transform } from '../../packages/compiler/dist/index.js';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
 
-const VARIANTS = ['Parts', 'Run'];
+const VARIANTS = ['Parts', 'Run', 'Hoisted'];
 const COUNT = 1000;
 const WARMUP = 3;
 const REPEATS = 11;

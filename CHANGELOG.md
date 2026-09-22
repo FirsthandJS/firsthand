@@ -58,6 +58,15 @@ All notable changes to this project are documented here. The format follows
   in the core describes the scope; the first `provide`, `signal`, `onCleanup`
   or `catchError` makes it. Worth a sixth of a server render.
 
+- **A third variant in `bench:runs`, and a number that was an estimate.** The
+  performance guide said hoisting a run's site lookups was worth "about 20 %"
+  on the strength of a hand-written stand-in. It now says 1.21× on the update
+  path and 1.36× on the heap, because a third variant measures it in the same
+  session, through the same published protocol, against the same twenty sites
+  — and it says what doing it would take: only the sites a run reaches
+  unconditionally can be hoisted, because the sweep that disposes what a run
+  did not reach uses those very lookups to know.
+
 - **A new benchmark, and a decision it made.** `npm run bench:deep` measures
   one label changed in ten thousand rows, with the clock stopped before and
   after the browser is made to lay the page out again. It says two things.

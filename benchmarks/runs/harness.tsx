@@ -6,7 +6,18 @@
  */
 import { batch, createRoot } from '@firsthandjs/core';
 import { component, signal, type Signal } from '@firsthandjs/dom';
-import { createComponent, insert } from '@firsthandjs/dom/internal';
+import {
+  applyChild,
+  createComponent,
+  insert,
+  site,
+  store as makeStore,
+  template,
+  type Slot,
+} from '@firsthandjs/dom/internal';
+
+/** The same markup the compiler hoists for the two variants above. */
+const hoistedTemplate = template(`<div>${'<span></span>'.repeat(20)}</div>`);
 
 type Person = { name: string; score: number; flag: boolean };
 
@@ -69,11 +80,63 @@ export const Run = component<{ readonly data: Signal<Person> }>((props) => () =>
   );
 });
 
+/**
+ * The same run, with its sites and its navigation taken once.
+ *
+ * Written by hand against the published protocol — there is no benchmark-only
+ * runtime — to measure what the compiler would gain by hoisting. Today it
+ * emits `site(store, i)` per write and re-walks twenty `nextSibling` steps on
+ * every pass, even though the element it walks is the one it walked last time.
+ *
+ * This is the same twenty sites, the same template and the same writes, with
+ * both taken once per instance instead of once per run.
+ */
+/**
+ * What `writeChild` does, minus the lookup this variant has already done.
+ *
+ * The same comparison and the same `applyChild`, through the published
+ * protocol: what is being measured is the lookup and the navigation, so
+ * everything else has to be the same work.
+ */
+function write(slot: Slot, parent: Node, value: string): void {
+  if (value === slot.text) {
+    return;
+  }
+  slot.text = value;
+  slot.node = applyChild(parent, null, slot.node ?? null, value);
+}
+
+const Hoisted = component<{ readonly data: Signal<Person> }>((props) => {
+  const store = makeStore('Hoisted');
+  let cells: Node[] | null = null;
+  let root: Node | null = null;
+  let slots: Slot[] | null = null;
+
+  return () => {
+    const person = props.data.value;
+    if (root === null) {
+      root = hoistedTemplate();
+      slots = Array.from({ length: 20 }, (_, i) => site(store, i));
+      const found: Node[] = [];
+      let node = root.firstChild as Node;
+      for (let i = 0; i < 20; i++) {
+        found.push(node);
+        node = node.nextSibling as Node;
+      }
+      cells = found;
+    }
+    for (let i = 0; i < 20; i++) {
+      write((slots as Slot[])[i] as Slot, (cells as Node[])[i] as Node, field(person, i));
+    }
+    return root;
+  };
+});
+
 const rows: Signal<Person>[] = [];
 let disposer: (() => void) | null = null;
 
 globalThis.runsHarness = {
-  mount(which: 'Parts' | 'Run', count: number) {
+  mount(which: 'Parts' | 'Run' | 'Hoisted', count: number) {
     if (disposer !== null) {
       disposer();
     }
@@ -83,7 +146,7 @@ globalThis.runsHarness = {
     for (let i = 0; i < count; i++) {
       rows.push(signal({ name: 'row ' + String(i), score: i % 97, flag: i % 2 === 0 }));
     }
-    const target = which === 'Parts' ? Parts : Run;
+    const target = which === 'Parts' ? Parts : which === 'Run' ? Run : Hoisted;
     const start = performance.now();
     let stop: () => void = () => undefined;
     createRoot((dispose) => {
