@@ -245,25 +245,16 @@ type Found = {
  * strings and comments are, so that a `@tag` inside one is left alone.
  */
 function scan(source: string): Found {
-  const tags: TagTemplate[] = [];
-  const invalidates: TagTemplate[] = [];
+  const into: Directives = { tags: [], invalidates: [] };
   let stripped = '';
   let at = 0;
+  /** How much of the source has been copied into `stripped` so far. */
   let kept = 0;
 
   while (at < source.length) {
-    const character = source[at];
-    if (character === '"') {
-      at = endOfString(source, at);
-      continue;
-    }
-    if (character === '#') {
-      const newline = source.indexOf('\n', at);
-      at = newline === -1 ? source.length : newline;
-      continue;
-    }
-    if (character !== '@') {
-      at++;
+    const skipped = skipPast(source, at);
+    if (skipped !== null) {
+      at = skipped;
       continue;
     }
     const directive = DIRECTIVE.exec(source.slice(at));
@@ -271,30 +262,7 @@ function scan(source: string): Found {
       at++;
       continue;
     }
-
-    let end = at + directive[0].length;
-    let args = '';
-    // Whitespace between the directive name and its arguments is legal.
-    let probe = end;
-    while (probe < source.length && /\s/.test(source[probe] as string)) {
-      probe++;
-    }
-    if (source[probe] === '(') {
-      const close = endOfArguments(source, probe);
-      args = source.slice(probe + 1, close - 1);
-      end = close;
-    }
-
-    const vars = parseArguments(args, directive[1] as string);
-    const named = vars['name'];
-    if (named === undefined || !('literal' in named) || typeof named.literal !== 'string') {
-      throw new FirsthandDirectiveError(
-        `@${directive[1] as string} needs a literal name, as in @${directive[1] as string}(name: "user", id: $id)`,
-      );
-    }
-    delete vars['name'];
-    (directive[1] === 'tag' ? tags : invalidates).push({ name: named.literal, vars });
-
+    const end = takeDirective(source, at, directive, into);
     // The whitespace in front of the directive goes with it, so that removing
     // one leaves the document as if it had never been written rather than
     // dotted with double spaces and blank lines.
@@ -307,7 +275,68 @@ function scan(source: string): Found {
     at = end;
   }
 
-  return { tags, invalidates, stripped: stripped + source.slice(kept) };
+  return { ...into, stripped: stripped + source.slice(kept) };
+}
+
+/** What a scan collects, before the stripped document is put beside it. */
+type Directives = { tags: TagTemplate[]; invalidates: TagTemplate[] };
+
+/**
+ * Where to continue from when the character at `at` begins something whose
+ * insides are not the scanner's business, or `null` when it does not.
+ *
+ * A `@tag` inside a string or a comment is text, and this is the whole reason
+ * the scanner reads those two shapes at all.
+ */
+function skipPast(source: string, at: number): number | null {
+  const character = source[at];
+  if (character === '"') {
+    return endOfString(source, at);
+  }
+  if (character === '#') {
+    const newline = source.indexOf('\n', at);
+    return newline === -1 ? source.length : newline;
+  }
+  return character === '@' ? null : at + 1;
+}
+
+/**
+ * Reads one directive and its arguments into `found`, and says where it ends.
+ *
+ * Throws when it has no literal name: with the `@firsthandjs/data/vite` loader
+ * that happens at build time, which is where a typo in a cache instruction
+ * should be found.
+ */
+function takeDirective(
+  source: string,
+  at: number,
+  directive: RegExpExecArray,
+  into: Directives,
+): number {
+  const kind = directive[1] as string;
+  let end = at + directive[0].length;
+  let args = '';
+  // Whitespace between the directive name and its arguments is legal.
+  let probe = end;
+  while (probe < source.length && /\s/.test(source[probe] as string)) {
+    probe++;
+  }
+  if (source[probe] === '(') {
+    const close = endOfArguments(source, probe);
+    args = source.slice(probe + 1, close - 1);
+    end = close;
+  }
+
+  const vars = parseArguments(args, kind);
+  const named = vars['name'];
+  if (named === undefined || !('literal' in named) || typeof named.literal !== 'string') {
+    throw new FirsthandDirectiveError(
+      `@${kind} needs a literal name, as in @${kind}(name: "user", id: $id)`,
+    );
+  }
+  delete vars['name'];
+  (kind === 'tag' ? into.tags : into.invalidates).push({ name: named.literal, vars });
+  return end;
 }
 
 /**

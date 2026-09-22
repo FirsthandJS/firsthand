@@ -7,8 +7,10 @@
  * same thing lives (ADR-0022).
  */
 export { createData, DataContext, useData, useInvalidate } from './resource.js';
-export { useResource, useAction, fromObservable, fromPromise } from './resource.js';
-export type { Action, ObservableLike, BridgeOptions, ResourceOptions } from './resource.js';
+export { useResource, fromObservable, fromPromise } from './resource.js';
+export { useAction } from './action.js';
+export type { Action } from './action.js';
+export type { ObservableLike, BridgeOptions, ResourceOptions } from './resource.js';
 export type {
   ActionContext,
   DataOptions,

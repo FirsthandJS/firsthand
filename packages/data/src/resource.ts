@@ -12,7 +12,6 @@ import {
   effect,
   isRendering,
   onCleanup,
-  untrack,
   useContext,
   type Dispose,
 } from '@firsthandjs/core';
@@ -99,182 +98,11 @@ export function useResource<T>(
   const release = store.hold(entry);
   devQuery('created', options.persist ?? '(call site)', []);
 
-  entry.run = (force: boolean): Promise<T | undefined> => {
-    if (entry.disposed) {
-      return Promise.resolve(undefined);
-    }
-    entry.controller?.abort();
-    const controller = new AbortController();
-    entry.controller = controller;
-    entry.pending = [];
-    entry.superseded = false;
-    entry.loading.value = true;
-    if (entry.data.peek() === undefined) {
-      entry.status.value = 'loading';
-    }
+  const loading: Loading<T> = { entry, store, persist: options.persist };
+  entry.run = (force: boolean): Promise<T | undefined> => runOnce(loading, load, force);
 
-    /** Raised when the run turns out to be about something recently invalidated. */
-    let forced = force;
-    /**
-     * Whether a client has already asked why this is running.
-     *
-     * A client that declares its tags *before* it reads `force` gets the
-     * corrected answer and looks in its cache with it. One that cannot — a
-     * loader that only learns what it fetched from the reply — reads `force`
-     * first, and by the time `tags()` arrives the cache has already answered.
-     * Raising the flag then changes nothing, so the run is marked instead.
-     */
-    let asked = false;
-
-    const declare = (...next: Tag[]): void => {
-      // Replaces. A run says what it is about; it does not accumulate what
-      // it used to be about.
-      entry.tags = next;
-      // And the case a resource cannot see for itself: an invalidation that
-      // happened while nothing was watching this. The tags are only known now,
-      // which is why `force` is read rather than copied — a client asks for it
-      // after it has declared them and before it asks its cache.
-      if (!forced && store.missed(entry, next)) {
-        forced = true;
-        // Too late to be honoured: the answer in hand is the one that was
-        // invalidated. Nothing else can tell — the cache entry it came from
-        // carries no tags, because they did not exist when it was written.
-        if (asked) {
-          entry.superseded = true;
-        }
-      }
-      // And the race this closes: an invalidation that arrived while this
-      // run was in flight could not match tags that did not exist yet.
-      if (entry.pending.length > 0 && anyTagMatches(entry.pending, next)) {
-        entry.superseded = true;
-      }
-    };
-    // The request a client is handed: what to abort with, why it is running,
-    // and where to report what it turned out to be about. `force` is a getter
-    // because declaring the tags can raise it — see `declare` above.
-    const request: DataRequest = {
-      signal: controller.signal,
-      get force(): boolean {
-        asked = true;
-        return forced;
-      },
-      // Read after `tags()` by a cache that keeps them, which is every client
-      // in this project: they declare first and look in their cache second.
-      get declared(): readonly Tag[] {
-        return entry.tags;
-      },
-      tags: declare,
-    };
-    const context: LoadContext = {
-      signal: controller.signal,
-      get force(): boolean {
-        asked = true;
-        return forced;
-      },
-      request,
-      tags: declare,
-    };
-
-    const running = load(context)
-      .then(async (value): Promise<T | undefined> => {
-        if (controller.signal.aborted || entry.disposed) {
-          return undefined;
-        }
-        entry.controller = null;
-        succeed(entry, value);
-        if (!entry.superseded) {
-          // A run with these tags has answered: an invalidation about them has
-          // been acted on, and is not owed to the next resource that appears.
-          // A superseded run has not — its answer predates the invalidation,
-          // and the debt is paid by the run that follows.
-          store.settled(entry.tags);
-        }
-        if (options.persist !== undefined) {
-          try {
-            store.storage?.write?.(options.persist, value);
-          } catch {
-            // Storage never breaks a resource.
-          }
-        }
-        if (entry.superseded) {
-          // It was invalidated while it was out. Go again, and this time the
-          // tags are known.
-          entry.superseded = false;
-          return entry.run(true);
-        }
-        return value;
-      })
-      .catch((error: unknown): undefined => {
-        if (controller.signal.aborted || entry.disposed) {
-          return undefined;
-        }
-        entry.controller = null;
-        fail(entry, error);
-        return undefined;
-      });
-    // Held so a server render can wait for it. Cleared when it is this run
-    // that finished: a run that started another has already replaced it.
-    entry.inflight = running;
-    // No rejection handler: the chain above ends in a `catch`, so this
-    // promise settles with a value or not at all.
-    void running.then(() => {
-      if (entry.inflight === running) {
-        entry.inflight = null;
-      }
-    });
-    return running;
-  };
-
-  // Shown before anything has been loaded, when there is something to show.
-  const persist = options.persist;
-  const storage = store.storage;
-  if (persist !== undefined && storage?.read !== undefined) {
-    // Read now rather than in a microtask. A storage that answers straight
-    // away — the one a server render fills, or one a page was seeded with —
-    // then has its answer *during* the render rather than after it, which is
-    // what makes the markup carry data at all.
-    let stored: unknown;
-    try {
-      // Called on the storage, not lifted off it: an adapter is allowed to be
-      // an object with state, and a method taken off one loses it.
-      stored = storage.read(persist);
-    } catch {
-      // A storage that cannot answer is a storage that has nothing.
-      stored = undefined;
-    }
-    if (isThenable(stored)) {
-      void (async (): Promise<void> => {
-        try {
-          seed(entry, await stored);
-        } catch {
-          // As above: a rejected read is an empty one.
-        }
-      })();
-    } else {
-      seed(entry, stored);
-    }
-  }
-
-  if (isRendering()) {
-    // A server render has no effects — there is no later for one to run in —
-    // but it does have data, and the loader is what produces it. So the run
-    // is started here instead, once, and `store.settle()` is what waits for
-    // it. Nothing re-runs it, so there is nothing for tracking to buy.
-    //
-    // Unless the answer is already in hand: a second pass over a storage the
-    // first pass filled has what it came for, and asking again would be one
-    // request per pass for the same page.
-    if (entry.data.peek() === undefined) {
-      void entry.run(false);
-    } else {
-      entry.loading.value = false;
-    }
-  } else {
-    // The loader runs inside an effect, so what it reads is what it depends on.
-    effect(() => {
-      void entry.run(false);
-    });
-  }
+  seedFromStorage(entry, store, options.persist);
+  startLoading(entry);
 
   onCleanup(() => {
     entry.disposed = true;
@@ -286,90 +114,225 @@ export function useResource<T>(
   return expose(entry, release);
 }
 
-export type Action<I, R> = {
-  readonly data: Resource<R>['data'];
-  readonly error: Resource<R>['error'];
-  readonly status: Resource<R>['status'];
-  readonly running: Resource<R>['loading'];
-  /** Runs it. Never rejects: failure is reported through `error`. */
-  run(input: I): Promise<R | undefined>;
+/** One resource, and the two things every step of a run needs beside it. */
+type Loading<T> = {
+  entry: Held<T>;
+  store: DataStore;
+  /** The name its last value is kept under, if it has one. */
+  persist: string | undefined;
 };
 
 /**
- * Changes something, and says what it changed.
+ * One run of a resource.
  *
- * ```tsx
- * const rename = useAction(async (input: Rename, { signal, invalidates }) => {
- *   const changed = await patch(input, signal);
- *   invalidates(...changed.tags); // the server knows which user that was
- *   return changed.user;
- * });
- * ```
+ * Whatever was in flight is aborted first: a run that has been replaced is a
+ * run nobody is waiting for.
  */
-export function useAction<I, R>(
-  run: (input: I, context: ActionContext) => Promise<R>,
-): Action<I, R> {
-  const store = useData();
-  const entry = createHeld<R>(store, undefined);
-  let controller: AbortController | null = null;
+function runOnce<T>(
+  loading: Loading<T>,
+  load: (context: LoadContext) => Promise<T>,
+  force: boolean,
+): Promise<T | undefined> {
+  const { entry, store } = loading;
+  if (entry.disposed) {
+    return Promise.resolve(undefined);
+  }
+  entry.controller?.abort();
+  const controller = new AbortController();
+  entry.controller = controller;
+  entry.pending = [];
+  entry.superseded = false;
+  entry.loading.value = true;
+  if (entry.data.peek() === undefined) {
+    entry.status.value = 'loading';
+  }
 
-  onCleanup(() => {
-    entry.disposed = true;
-    controller?.abort();
-  });
-
-  return {
-    data: entry.data,
-    error: entry.error,
-    status: entry.status,
-    running: entry.loading,
-    run: async (input: I): Promise<R | undefined> => {
-      controller?.abort();
-      controller = new AbortController();
-      const current = controller;
-      let invalidating: Tag[] = [];
-      entry.loading.value = true;
-      entry.status.value = 'loading';
-
-      try {
-        // Untracked: an action runs from an event handler, and what it reads
-        // on the way is nobody's dependency.
-        const invalidates = (...tags: Tag[]): void => {
-          invalidating = tags;
-        };
-        const result = await untrack(() =>
-          run(input, {
-            signal: current.signal,
-            invalidates,
-            // An action changes something, so nothing it sends may be
-            // answered out of a cache (`force`) or kept in one (`mutating`).
-            // `tags` is the store's invalidation, so a client that knows what
-            // a mutation changed — a document with `@invalidates` — reports it
-            // without the call site repeating it.
-            request: {
-              signal: current.signal,
-              force: true,
-              mutating: true,
-              tags: invalidates,
-            },
-          }),
-        );
-        if (current.signal.aborted || entry.disposed) {
-          return undefined;
-        }
-        succeed(entry, result);
-        if (invalidating.length > 0) {
-          await store.invalidate(...invalidating);
-        }
-        return result;
-      } catch (error: unknown) {
-        if (current.signal.aborted || entry.disposed) {
-          return undefined;
-        }
-        fail(entry, error);
+  const running = load(contextFor(entry, store, controller, force))
+    .then(async (value): Promise<T | undefined> => answered(loading, controller, value))
+    .catch((error: unknown): undefined => {
+      if (controller.signal.aborted || entry.disposed) {
         return undefined;
       }
+      entry.controller = null;
+      fail(entry, error);
+      return undefined;
+    });
+  // Held so a server render can wait for it. Cleared when it is this run that
+  // finished: a run that started another has already replaced it.
+  entry.inflight = running;
+  // No rejection handler: the chain above ends in a `catch`, so this promise
+  // settles with a value or not at all.
+  void running.then(() => {
+    if (entry.inflight === running) {
+      entry.inflight = null;
+    }
+  });
+  return running;
+}
+
+/** The run answered, unless it was replaced or dropped while it was out. */
+async function answered<T>(
+  loading: Loading<T>,
+  controller: AbortController,
+  value: T,
+): Promise<T | undefined> {
+  const { entry, store, persist } = loading;
+  if (controller.signal.aborted || entry.disposed) {
+    return undefined;
+  }
+  entry.controller = null;
+  succeed(entry, value);
+  if (!entry.superseded) {
+    // A run with these tags has answered: an invalidation about them has been
+    // acted on, and is not owed to the next resource that appears. A
+    // superseded run has not — its answer predates the invalidation, and the
+    // debt is paid by the run that follows.
+    store.settled(entry.tags);
+  }
+  if (persist !== undefined) {
+    try {
+      store.storage?.write?.(persist, value);
+    } catch {
+      // Storage never breaks a resource.
+    }
+  }
+  if (entry.superseded) {
+    // It was invalidated while it was out. Go again, and this time the tags
+    // are known.
+    entry.superseded = false;
+    return entry.run(true);
+  }
+  return value;
+}
+
+/**
+ * Whatever storage already has, shown before anything has been loaded.
+ *
+ * Read now rather than in a microtask. A storage that answers straight away —
+ * the one a server render fills, or one a page was seeded with — then has its
+ * answer *during* the render rather than after it, which is what makes the
+ * markup carry data at all.
+ */
+function seedFromStorage<T>(entry: Held<T>, store: DataStore, persist: string | undefined): void {
+  const storage = store.storage;
+  if (persist === undefined || storage?.read === undefined) {
+    return;
+  }
+  let stored: unknown;
+  try {
+    // Called on the storage, not lifted off it: an adapter is allowed to be an
+    // object with state, and a method taken off one loses it.
+    stored = storage.read(persist);
+  } catch {
+    // A storage that cannot answer is a storage that has nothing.
+    stored = undefined;
+  }
+  if (!isThenable(stored)) {
+    seed(entry, stored);
+    return;
+  }
+  void (async (): Promise<void> => {
+    try {
+      seed(entry, await stored);
+    } catch {
+      // As above: a rejected read is an empty one.
+    }
+  })();
+}
+
+/**
+ * Starts the loader, in whichever way this render allows.
+ *
+ * A server render has no effects — there is no later for one to run in — but
+ * it does have data, and the loader is what produces it. So the run is started
+ * directly, once, and `store.settle()` is what waits for it; nothing re-runs
+ * it, so there is nothing for tracking to buy. Unless the answer is already in
+ * hand: a second pass over a storage the first pass filled has what it came
+ * for, and asking again would be one request per pass for the same page.
+ */
+function startLoading<T>(entry: Held<T>): void {
+  if (!isRendering()) {
+    // The loader runs inside an effect, so what it reads is what it depends on.
+    effect(() => {
+      void entry.run(false);
+    });
+    return;
+  }
+  if (entry.data.peek() === undefined) {
+    void entry.run(false);
+  } else {
+    entry.loading.value = false;
+  }
+}
+
+/**
+ * What a loader is handed: what to abort with, why it is running, and where to
+ * report what it turned out to be about.
+ *
+ * `force` is a getter because declaring the tags can raise it. A client that
+ * declares its tags *before* it reads `force` gets the corrected answer and
+ * looks in its cache with it. One that cannot — a loader that only learns what
+ * it fetched from the reply — reads `force` first, and by the time `tags()`
+ * arrives the cache has already answered; raising the flag then changes
+ * nothing, so the run is marked superseded instead.
+ */
+function contextFor<T>(
+  entry: Held<T>,
+  store: DataStore,
+  controller: AbortController,
+  force: boolean,
+): LoadContext {
+  /** Raised when the run turns out to be about something recently invalidated. */
+  let forced = force;
+  /** Whether a client has already asked why this is running. */
+  let asked = false;
+
+  const declare = (...next: Tag[]): void => {
+    // Replaces. A run says what it is about; it does not accumulate what it
+    // used to be about.
+    entry.tags = next;
+    // And the case a resource cannot see for itself: an invalidation that
+    // happened while nothing was watching this. The tags are only known now,
+    // which is why `force` is read rather than copied — a client asks for it
+    // after it has declared them and before it asks its cache.
+    if (!forced && store.missed(entry, next)) {
+      forced = true;
+      // Too late to be honoured: the answer in hand is the one that was
+      // invalidated. Nothing else can tell — the cache entry it came from
+      // carries no tags, because they did not exist when it was written.
+      if (asked) {
+        entry.superseded = true;
+      }
+    }
+    // And the race this closes: an invalidation that arrived while this run
+    // was in flight could not match tags that did not exist yet.
+    if (entry.pending.length > 0 && anyTagMatches(entry.pending, next)) {
+      entry.superseded = true;
+    }
+  };
+  const why = (): boolean => {
+    asked = true;
+    return forced;
+  };
+  const request: DataRequest = {
+    signal: controller.signal,
+    get force(): boolean {
+      return why();
     },
+    // Read after `tags()` by a cache that keeps them, which is every client in
+    // this project: they declare first and look in their cache second.
+    get declared(): readonly Tag[] {
+      return entry.tags;
+    },
+    tags: declare,
+  };
+  return {
+    signal: controller.signal,
+    get force(): boolean {
+      return why();
+    },
+    request,
+    tags: declare,
   };
 }
 

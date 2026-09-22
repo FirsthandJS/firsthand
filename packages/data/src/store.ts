@@ -301,9 +301,7 @@ function missed(state: StoreState, entry: Held, tags: readonly Tag[]): boolean {
   }
   const since = Date.now() - state.remember;
   state.recent = state.recent.filter((one) => one.at >= since);
-  return state.recent.some(
-    (one) => one.at > entry.answeredAt && anyTagMatches(one.patterns, tags),
-  );
+  return state.recent.some((one) => one.at > entry.answeredAt && anyTagMatches(one.patterns, tags));
 }
 
 /**
