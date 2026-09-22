@@ -141,3 +141,35 @@ export function devHandedNewFunction(store: { name: string }, value: unknown): v
       'If the handler does not depend on the run, define it in the setup.',
   );
 }
+
+/**
+ * Reports markup a server sent that is not the markup this run describes.
+ *
+ * Only the element's own attributes are compared, and only in development:
+ * what is inside it may already have been hydrated, and parsing the template
+ * to compare more is the cost hydration exists to avoid. That is enough to
+ * name the mistake, which is always the same mistake — a view that renders
+ * one thing on a server and another in a browser, from props or state that
+ * differ between them.
+ */
+export function devHydrationMismatch(node: Element, html: string): void {
+  const template = document.createElement('template');
+  template.innerHTML = html;
+  const expected = template.content.firstElementChild;
+  if (expected === null) {
+    return;
+  }
+  for (const attribute of expected.attributes) {
+    const found = node.getAttribute(attribute.name);
+    if (found !== attribute.value) {
+      devWarn(
+        `Hydration found <${node.tagName.toLowerCase()} ${attribute.name}=` +
+          `"${found ?? ''}"> where this render describes "${attribute.value}". ` +
+          'The markup is kept as the server sent it, because static markup is ' +
+          'never written again. Render the same thing on both sides, or render ' +
+          'this part in the browser only.',
+      );
+      return;
+    }
+  }
+}

@@ -34,3 +34,4 @@ performance or semantics are affected.
 | [0024](0024-an-invalidation-outlives-its-reader.md)              | An invalidation outlives the resource that was watching        | accepted                                            |
 | [0025](0025-tags-as-cache-metadata.md)                           | Tags as cache metadata, never as cache identity                | accepted                                            |
 | [0026](0026-a-function-is-a-reactive-scope.md)                   | A function is a reactive scope, one level up                   | accepted                                            |
+| [0027](0027-server-rendering-and-hydration.md)                   | Server rendering as a second compiler target, hydration adopts | accepted                                            |

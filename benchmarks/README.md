@@ -152,6 +152,43 @@ of `app/firsthand.tsx`, `app/react.jsx`, `app/solid.jsx` and `app/vue.js`. If an
 of them stops producing the same DOM, the equality phase will say so before a
 number is produced.
 
+## Server rendering and hydration
+
+The other half of the job, and its own two runners:
+
+```bash
+npm run bench:ssr       # rendering to markup, in Node
+npm run bench:hydrate   # taking that markup over, in Chromium
+```
+
+They keep the rules above, applied to a server:
+
+- **The output is compared before anything is timed.** Each framework's markup
+  is stripped of the bookkeeping it needs for its own hydration — comments,
+  `data-hk`, `data-v-…` — and what is left has to be identical: same elements,
+  same classes, same order, same text. A framework that rendered less cannot
+  look faster.
+- **Interleaved in one process**, warmed up, medians over repetitions.
+- **Production builds on every side.** This is worth stating because getting it
+  wrong was worth a factor of three here: the first hydration numbers were a
+  _development_ build of Firsthand against production rivals, and
+  `devHydrationMismatch` alone was 13 % of the run. Both runners apply the
+  published build's `dev.js` → `dev.prod.ts` swap and the same pure-call
+  annotations.
+- **Hydratable output on both sides.** Solid is compiled with
+  `hydratable: true` and Firsthand emits its region markers, because markup a
+  browser cannot take over is not the thing this is about.
+- **Cross-origin isolated**, for the hydration run, so the clock reads in 5 µs
+  steps rather than Chromium's clamped 100 µs.
+
+React is measured for rendering and not for hydration: `hydrateRoot` schedules
+its work rather than doing it, so a number taken the same way would be the time
+to _start_ hydrating. Leaving it out is more honest than reporting it as
+something it is not.
+
+Results go to `results/ssr.json` and `results/hydration.json`, and into the
+README from there.
+
 ## Micro-benchmarks
 
 Some questions are about Firsthand's own defaults rather than about anyone
@@ -161,7 +198,29 @@ else, so they live apart from the comparison:
 npm run bench:reconcilers   # which keyed reconciler to ship (ADR-0010)
 npm run bench:micro         # element host cost, delegated vs direct events
 npm run bench:profile       # what allocates, and where the self time goes
+npm run bench:deep          # an array in a signal against `deepSignal`
+npm run bench:ic            # whether `.value` goes megamorphic (R2)
 ```
+
+`bench:deep` is the one that answers a question about the comparison itself.
+`update-single-row-10k` is the scenario Firsthand loses, and the reason looked
+structural: the table keeps its rows in a `signal<Row[]>`, so changing one
+label is a new array of ten thousand, while Solid's implementation keeps its
+rows in a store and changes one nested signal. It measures both ways, with the
+clock stopped before _and_ after the browser is made to lay the page out
+again:
+
+| 10 000 rows, one label changed |   mount |  update | update, without layout |
+| ------------------------------ | ------: | ------: | ---------------------: |
+| `signal<Row[]>`                | 26.6 ms | 33.7 ms |               1.850 ms |
+| `deepSignal`                   | 43.6 ms | 32.3 ms |           **0.008 ms** |
+
+Two things follow, and both are worth knowing before optimising anything. The
+scenario is **94 % layout**: the framework's share of it is under two
+milliseconds either way, and no list API can win back what the browser spends
+laying out ten thousand rows. And Firsthand already has the fine-grained
+answer — `deepSignal` does for this what a store does, at 231× less work per
+update, in exchange for 1.6× on mount.
 
 Each writes its own file under `results/`. None of them feeds an aggregate,
 because none of them is a comparison.

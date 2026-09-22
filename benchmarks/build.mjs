@@ -74,7 +74,7 @@ const firsthandSources = {
  * that are. A profile that points at code nobody runs is worse than no
  * profile.
  */
-const productionDev = {
+export const productionDev = {
   name: 'firsthand-production-dev',
   setup(build) {
     build.onResolve({ filter: /(^|\/)dev\.js$/ }, (args) => ({
@@ -84,7 +84,7 @@ const productionDev = {
 };
 
 /** The hooks the published build annotates as pure, so their calls go too. */
-const pureDevHooks = [
+export const pureDevHooks = [
   'devWarn',
   'devWarnOnce',
   'devWarnRenderedObject',
@@ -98,6 +98,7 @@ const pureDevHooks = [
   'devRoot',
   'devRunning',
   'devPart',
+  'devHydrationMismatch',
 ];
 
 const firsthandCompiler = {

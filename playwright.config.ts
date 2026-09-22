@@ -30,6 +30,14 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,
     },
+    {
+      // The SSR example, built and served the way it would be deployed. What
+      // hydration does can only be seen in a browser that was handed markup.
+      command: 'node tests/browser/ssr-server.mjs',
+      url: 'http://127.0.0.1:4175',
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+    },
   ],
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

@@ -11,9 +11,41 @@ import {
   type Signal,
 } from '@firsthandjs/core';
 import { devHandedNewFunction, devPart, devRan, devWarnRenderedObject } from './dev.js';
+import { hydration, type Claimed } from './claim.js';
 
 /** What a child part currently owns in the DOM. */
 export type ChildSlot = Node | Node[] | null;
+
+/**
+ * How deep we are inside something whose nodes are being thrown away anyway.
+ *
+ * A part removes what it inserted when its scope is disposed, because usually
+ * nothing else will. A list row is the exception: its nodes are removed by the
+ * reconciler, in one go, and everything the row's own parts put *inside* those
+ * nodes goes with them. Removing each of those first is work with no effect —
+ * measured at 15 ms of the 46 ms it took to clear ten thousand rows, and the
+ * same whether it happens before or after the rows are detached.
+ *
+ * So the list says so, and the parts inside it believe it. Nothing else sets
+ * this: a part whose parent might outlive it still cleans up after itself.
+ */
+let discarding = 0;
+
+/**
+ * Runs `body` with the parts inside it excused from removing their nodes.
+ *
+ * The caller is promising that the nodes those parts wrote into are about to
+ * be removed wholesale. `list` is the only caller, and `reconcile` is the
+ * promise it is keeping.
+ */
+export function discard(body: () => void): void {
+  discarding++;
+  try {
+    body();
+  } finally {
+    discarding--;
+  }
+}
 
 const TEXT_NODE = 3;
 
@@ -22,6 +54,17 @@ function isNode(value: object): value is Node {
 }
 
 const PART: unique symbol = Symbol('firsthand.part');
+
+/**
+ * Marks an array as nodes, in order, with nothing to unpack.
+ *
+ * `applyChild` accepts arrays of anything — nested arrays, thunks, strings,
+ * dynamic children — so it walks what it is given and builds a flat list of
+ * nodes out of it. A keyed list has already done that walk: it has the nodes,
+ * it made the array, and nobody else can reach it. Walking it again is one
+ * allocation and ten thousand steps for a list of ten thousand rows.
+ */
+export const FLAT: unique symbol = Symbol('firsthand.flat');
 
 /**
  * A dynamic child inside an array, carrying the scope it was written in.
@@ -201,6 +244,28 @@ export function writeChild(
   value: unknown,
 ): void {
   const slot = site(store, index);
+  if (slot.node === undefined && hydration.current !== null) {
+    // The first run of a render function over markup the server already sent.
+    // The site starts out owning what is there, so the comparisons below find
+    // the value already written and the run writes nothing.
+    const claimed = hydration.current.claim(parent, marker);
+    if (claimed !== null) {
+      if (typeof value === 'object' && value !== null && isDynamicChild(value)) {
+        // The child's anchor is the client's own — markup has no way to
+        // express one — so hydration puts it in place and hands the region to
+        // the `insert` below, which is where the child was going to come from
+        // anyway.
+        slot.last = value;
+        hydration.current.keep(slot, parent, value.anchor, claimed);
+        runWithOwner(value.owner, () => {
+          insert(parent, value.thunk, value.anchor);
+        });
+        return;
+      }
+      slot.node = claimed.nodes;
+      slot.text = claimed.text;
+    }
+  }
   const type = typeof value;
   if (type === 'string' || type === 'number') {
     const text = String(value);
@@ -230,7 +295,19 @@ export function writeChild(
  * The thunk is evaluated once inside a tracking scope; if it read nothing
  * reactive, no effect is retained (ADR-0009).
  */
-export function insert(parent: Node, value: unknown, marker: Node | null = null): void {
+export function insert(
+  parent: Node,
+  value: unknown,
+  marker: Node | null = null,
+  /**
+   * A region already claimed, handed down rather than looked up.
+   *
+   * The compiler never passes this. It is how a part that turns out to
+   * produce another part gives the markup it claimed to the part that will
+   * actually own it — see the `function` branch below.
+   */
+  seed?: Claimed | null,
+): void {
   if (typeof value !== 'function') {
     applyChild(parent, marker, null, value);
     return;
@@ -246,7 +323,22 @@ export function insert(parent: Node, value: unknown, marker: Node | null = null)
    * updates.
    */
   let written: string | undefined;
-  bind(() => {
+  // What the server already put here. The first run then finds the value it
+  // produces already on the page — the same text, or the very nodes it just
+  // adopted — and writes nothing.
+  const claimed =
+    seed !== undefined
+      ? seed
+      : hydration.current === null
+        ? null
+        : hydration.current.claim(parent, marker);
+  /** Whether the run in progress is the one that found the markup in place. */
+  let adopting = claimed !== null;
+  if (claimed !== null) {
+    current = claimed.nodes;
+    written = claimed.text;
+  }
+  const body = (): void => {
     const next = (value as () => unknown)();
     const type = typeof next;
     if (type === 'string' || type === 'number') {
@@ -269,16 +361,38 @@ export function insert(parent: Node, value: unknown, marker: Node | null = null)
       // selected it. Evaluating it inline instead would make the conditional
       // depend on the list's data, and every change to that data would rebuild
       // every row — which is exactly what the benchmark caught.
+      if (adopting) {
+        // A component whose setup returned a render function, over markup a
+        // server sent. What was claimed belongs to that function's part, not
+        // to this one — handed over rather than cleared, which is the
+        // difference between adopting the page and rebuilding it.
+        current = null;
+        insert(parent, next, marker, claimed);
+        return;
+      }
       current = clear(current);
-      insert(parent, next, marker);
+      insert(parent, next, marker, null);
       return;
     }
     current = applyChild(parent, marker, current, next);
-  });
+  };
+  if (claimed === null) {
+    bind(body);
+  } else {
+    // The first run happens inside the region, so that a `template()` reached
+    // from here adopts this child's nodes rather than the next child's.
+    // `current` is what produced the claim a moment ago, so it is still here.
+    (hydration.current as NonNullable<typeof hydration.current>).within(claimed.region, () => {
+      bind(body);
+    });
+  }
+  adopting = false;
   // A dynamic child owns the nodes it inserted, so disposing the scope that
   // created it removes them — including the nodes a nested part inserted.
+  // Unless somebody above is removing the whole subtree already: see
+  // `discard`.
   onCleanup(() => {
-    current = clear(current);
+    current = discarding > 0 ? null : clear(current);
   });
 }
 
@@ -296,7 +410,7 @@ export function applyChild(
     // about it once it had a value would go quiet exactly when someone is
     // asking why the node is empty.
     devPart(parent, 'text');
-    return clear(current);
+    return clearIn(parent, marker, current);
   }
   if (type === 'string' || type === 'number') {
     // Devtools attribute this write to the effect that is running, which is how
@@ -314,11 +428,25 @@ export function applyChild(
     return applyChild(parent, marker, current, (value as () => unknown)());
   }
   if (Array.isArray(value)) {
+    if (FLAT in value) {
+      // Nodes already, in order. The only thing left is to put them in place.
+      const rows = value as unknown as Node[];
+      if (rows.length === 0) {
+        return clearIn(parent, marker, current);
+      }
+      reconcile(
+        parent,
+        marker,
+        current === null ? [] : Array.isArray(current) ? current : [current],
+        rows,
+      );
+      return rows;
+    }
     const next: Node[] = [];
     const dynamic: DynamicChild[] = [];
     flatten(value, next, dynamic);
     if (next.length === 0) {
-      return clear(current);
+      return clearIn(parent, marker, current);
     }
     reconcile(
       parent,
@@ -392,6 +520,31 @@ function detach(node: Node): void {
   if (owner !== null) {
     owner.removeChild(node);
   }
+}
+
+/**
+ * Empties a child slot that is everything its parent has.
+ *
+ * Removing ten thousand rows one at a time is ten thousand mutations, each one
+ * a chance for the engine to do bookkeeping it is about to throw away. When
+ * the slot *is* the parent's content — no marker after it, nothing beside it —
+ * the platform has one call that says so, and it is what clearing a table
+ * actually costs: `removeChild` was 85 % of that scenario before this.
+ *
+ * Falls back to removing them one by one whenever the slot is anything less
+ * than the whole, including when a node has been moved out from under it.
+ */
+function clearIn(parent: Node, marker: Node | null, current: ChildSlot): null {
+  if (
+    marker === null &&
+    Array.isArray(current) &&
+    current.length > 1 &&
+    parent.childNodes.length === current.length
+  ) {
+    (parent as Element).textContent = '';
+    return null;
+  }
+  return clear(current);
 }
 
 function clear(current: ChildSlot): null {

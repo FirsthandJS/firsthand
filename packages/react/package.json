@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/react",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Render React components inside Firsthand, for component libraries like MUI.",
   "license": "MIT",
   "type": "module",
@@ -25,8 +25,8 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@firsthandjs/core": "0.8.0",
-    "@firsthandjs/dom": "0.8.0"
+    "@firsthandjs/core": "0.9.0",
+    "@firsthandjs/dom": "0.9.0"
   },
   "engines": {
     "node": ">=20.11.0"

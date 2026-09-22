@@ -131,6 +131,30 @@ export type CacheClient = {
    * it.
    */
   forgetTagged(patterns: readonly Tag[]): void;
+  /**
+   * Everything answered so far, as plain data.
+   *
+   * What a server sends to the browser with the page. Resources have no keys
+   * — a resource belongs to its call site, which is the whole of ADR-0022 —
+   * but the transport's cache does, so this is where handing an answer from
+   * one process to another can be done at all. Entries still in flight are
+   * left out: there is nothing to hand over yet.
+   *
+   * ```ts
+   * const state = cache.dump();           // on the server
+   * cache.seed(state);                    // in the browser, before render
+   * ```
+   */
+  dump(): Record<string, unknown>;
+  /**
+   * Puts answers a server produced in, as if they had been `write`n.
+   *
+   * They stay until something forgets them, so the first render in the
+   * browser is served from here rather than asking again.
+   */
+  seed(entries: Record<string, unknown>): void;
+  /** Resolves once nothing this cache is running is still out. */
+  settle(passes?: number): Promise<void>;
   /** How many entries are held, in flight included. */
   readonly size: number;
 };
@@ -162,6 +186,18 @@ export function createCacheClient(options: CacheOptions = {}): CacheClient {
     entries.delete(key);
   };
 
+  /** An answer somebody handed over, rather than one a producer returned. */
+  const put = (key: string, value: unknown): void => {
+    keep(key, {
+      value,
+      tags: [],
+      expires: ttl === 0 ? Infinity : now() + ttl,
+      inflight: null,
+      controller: null,
+      waiting: 0,
+    });
+  };
+
   const keep = (key: string, entry: Entry): void => {
     entries.delete(key);
     entries.set(key, entry);
@@ -179,6 +215,40 @@ export function createCacheClient(options: CacheOptions = {}): CacheClient {
     get size(): number {
       return entries.size;
     },
+    dump: (): Record<string, unknown> => {
+      const out: Record<string, unknown> = {};
+      for (const [key, entry] of entries) {
+        // Freshness is not asked about. This is a handover, not a read: the
+        // answers were produced by the render that is being sent, and with the
+        // default `ttl` of 0 they are stale the moment they arrive — which
+        // would make a dump of a default cache empty, which is useless. What
+        // is left out is what has no answer yet.
+        if (entry.inflight === null) {
+          out[key] = entry.value;
+        }
+      }
+      return out;
+    },
+    seed: (values: Record<string, unknown>): void => {
+      for (const key in values) {
+        put(key, values[key]);
+      }
+    },
+    settle: async (passes = 10): Promise<void> => {
+      for (let pass = 0; pass < passes; pass++) {
+        const waiting: Promise<unknown>[] = [];
+        for (const entry of entries.values()) {
+          if (entry.inflight !== null) {
+            waiting.push(entry.inflight);
+          }
+        }
+        if (waiting.length === 0) {
+          return;
+        }
+        // A producer that fails is still a producer that finished.
+        await Promise.all(waiting.map(async (one) => one.catch(() => undefined)));
+      }
+    },
     peek: (key: string): unknown => {
       const entry = entries.get(key);
       if (entry === undefined || entry.expires <= now()) {
@@ -186,16 +256,7 @@ export function createCacheClient(options: CacheOptions = {}): CacheClient {
       }
       return entry.value;
     },
-    write: (key: string, value: unknown): void => {
-      keep(key, {
-        value,
-        tags: [],
-        expires: ttl === 0 ? Infinity : now() + ttl,
-        inflight: null,
-        controller: null,
-        waiting: 0,
-      });
-    },
+    write: put,
     forget: (key?: string): void => {
       if (key === undefined) {
         for (const held of [...entries.keys()]) {

@@ -27,6 +27,7 @@ packages/
   core/         reactive graph + owner/scope tree + context      (no DOM imports)
   dom/          DOM parts, templates, lists, portals, host adapter
   jsx-runtime/  jsx/jsxs/jsxDEV + Fragment (runtime fallback path)
+  server/       the same components, rendered to markup           (server only)
   compiler/     TSX -> template + parts transform (build time only)
   testing/      test helpers (flush, mount harness, leak probes)
   deep/         reactivity that follows an object all the way down (optional)
@@ -40,6 +41,9 @@ packages/
   i18n/         a translation function, made reactive            (optional)
   devtools/     reads the graph the runtime already keeps    (development only)
 ```
+
+`server` runs on a server: it depends on `core`, never imports `dom` and never
+touches a `document`, so nothing about it is in any browser's download.
 
 `deep`, `router`, `data`, `styled`, `react` and `i18n` are optional in the
 sense that matters: an application that does not import them does not download
@@ -95,7 +99,27 @@ on(node, type, handler, opts?)    -> delegated or direct listener
 bind(thunk)                       -> keeps an effect only if the thunk read something
 list(itemsThunk, keyFn, renderFn) -> keyed list part, returns a node thunk
 createComponent(Component, props) -> instantiate; isComponent / COMPONENT
+first(node) / next(node)          -> template navigation for a hydratable build
 ```
+
+There is a second surface, `@firsthandjs/server/internal`, carrying its own
+`PROTOCOL_VERSION`. The compiler emits against it when asked for server output
+(ADR-0027): the same traversal and the same attribute rules, landing in a
+runtime that builds a string rather than a tree.
+
+```
+ssr(parts, ...values)             -> the static chunks and the values between
+child(value)                      -> one child position, escaped unless it is markup
+createComponent(Component, props) -> instantiate, with the scope deferred
+spread(values)                    -> the generic attribute path
+setAttribute / setBoolean / setProperty / setClass / setStyle
+escapeText / escapeAttribute      -> what the compiler inlines at build time
+```
+
+Two surfaces, one set of semantics. That is a promise, and promises rot, so it
+is kept by measurement rather than by care: `packages/server/test/parity.test.ts`
+renders every shape the compiler can emit both ways and compares the resulting
+trees.
 
 ---
 

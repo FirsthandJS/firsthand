@@ -42,6 +42,14 @@ const SCENARIOS = [
   { id: 'update-single-row-1k', setup: [['create', 1000]], op: ['updateOne', 500], repeat: 200 },
   { id: 'select-row-1k', setup: [['create', 1000]], op: ['select', 500], repeat: 200 },
   { id: 'swap-rows-1k', setup: [['create', 1000]], op: ['swap', 0], repeat: 100 },
+  // The two the benchmark loses to Solid, so the profiler can say why.
+  { id: 'clear-10k', setup: [['create', 10000]], op: ['clear', 0], repeat: 10 },
+  {
+    id: 'update-single-row-10k',
+    setup: [['create', 10000]],
+    op: ['updateOne', 5000],
+    repeat: 100,
+  },
   {
     id: 'rapid-signal-writes',
     mode: 'counter',

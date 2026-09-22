@@ -26,7 +26,7 @@ export type {
 export type { Owner } from './core.js';
 
 /** Internal surface used by `@firsthandjs/dom`; not part of the public contract. */
-export { createEffect, bind } from './effect.js';
+export { createEffect, bind, setRendering, isRendering } from './effect.js';
 export { devEnterSetup, devExitSetup } from './dev.js';
 export {
   Cell,
@@ -36,4 +36,6 @@ export {
   handleError,
   own,
   setOwner,
+  deferOwner,
+  restoreOwner,
 } from './core.js';

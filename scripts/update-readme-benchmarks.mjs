@@ -23,6 +23,13 @@ const bundle = JSON.parse(
 /** The 100 000-row run is optional: it is a separate, much slower invocation. */
 const heavyPath = resolve(root, 'benchmarks/results/latest-heavy.json');
 const heavy = existsSync(heavyPath) ? JSON.parse(readFileSync(heavyPath, 'utf8')) : null;
+/** Server rendering and hydration, each its own runner. */
+const read = (name) => {
+  const path = resolve(root, `benchmarks/results/${name}.json`);
+  return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null;
+};
+const ssr = read('ssr');
+const hydration = read('hydration');
 
 const START = '<!-- benchmark:start -->';
 const END = '<!-- benchmark:end -->';
@@ -171,6 +178,60 @@ function memorySection() {
   ].join(String.fromCharCode(10));
 }
 
+/**
+ * Server rendering and hydration.
+ *
+ * Two runners, one table: they measure the two halves of the same job, over
+ * the same document, and a reader wants them next to each other. Frameworks
+ * that appear in only one of the two get an em dash in the other, with the
+ * reason stated rather than left to be guessed at.
+ */
+function ssrSection() {
+  if (ssr === null) {
+    return '';
+  }
+  const names = Object.keys(ssr.frameworks);
+  const bytes = (value) =>
+    `${value.toLocaleString('en-US').replace(/,/g, String.fromCharCode(160))} B`;
+  const cell = (result, one) =>
+    result?.frameworks[one] === undefined ? '—' : ms(result.frameworks[one].median);
+  /**
+   * Who won, and everyone who tied with them.
+   *
+   * Times never tie — the clock reads finely enough — but byte counts do, and
+   * three frameworks emitting exactly the same document is a fact about the
+   * document rather than a win for whoever the sort happened to put first.
+   */
+  const best = (result, key) => {
+    const among = Object.keys(result.frameworks);
+    const lowest = Math.min(...among.map((one) => result.frameworks[one][key]));
+    return list(among.filter((one) => result.frameworks[one][key] === lowest).map(label));
+  };
+  return [
+    '### Server rendering and hydration',
+    '',
+    `${ssr.environment.cpu}, ${ssr.environment.cores} cores · Node ${ssr.environment.node} ·`,
+    `${ssr.parameters.rows.toLocaleString('en-US').replace(/,/g, String.fromCharCode(160))} rows · ${ssr.parameters.repeats} measured repetitions after ${ssr.parameters.warmup} warmups ·`,
+    'production builds on every side · the markup compared before anything is',
+    `timed · commit \`${ssr.commit.slice(0, 8)}\` · ${ssr.measuredAt.slice(0, 10)}`,
+    '',
+    'Reproduce with `node benchmarks/ssr/run.mjs` and',
+    '`node benchmarks/ssr/hydrate.mjs`.',
+    '',
+    `| | ${names.map(label).join(' | ')} | Fastest |`,
+    `| --- | ${names.map(() => '---:').join(' | ')} | :--- |`,
+    `| render to markup | ${names.map((one) => cell(ssr, one)).join(' | ')} | ${best(ssr, 'median')} |`,
+    `| markup size | ${names.map((one) => bytes(ssr.frameworks[one].bytes)).join(' | ')} | ${best(ssr, 'bytes')} |`,
+    `| hydrate | ${names.map((one) => cell(hydration, one)).join(' | ')} | ${hydration === null ? '—' : best(hydration, 'median')} |`,
+    '',
+    "React's `hydrateRoot` schedules its work rather than doing it, so a number",
+    'taken the same way would be the time to *start* hydrating. It is left out',
+    'rather than reported as something it is not.',
+    '',
+    '',
+  ].join(String.fromCharCode(10));
+}
+
 function heavySection() {
   if (heavy === null) {
     return '';
@@ -250,7 +311,7 @@ ${
     : ''
 }
 
-${memorySection()}${heavySection()}### Bundle size
+${memorySection()}${ssrSection()}${heavySection()}### Bundle size
 
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |

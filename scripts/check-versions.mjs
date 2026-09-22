@@ -14,6 +14,7 @@ const packages = [
   'core',
   'dom',
   'jsx-runtime',
+  'server',
   'deep',
   'devtools',
   'i18n',

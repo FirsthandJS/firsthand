@@ -11,6 +11,7 @@ import {
   type Signal,
 } from '@firsthandjs/core';
 import { devWarn } from './dev.js';
+import { discard, FLAT } from './insert.js';
 
 type Row<T> = {
   owner: Owner;
@@ -45,11 +46,27 @@ export function list<T>(
   return () => {
     const items = each();
     const next = new Map<unknown, Row<T>>();
-    const nodes: Node[] = [];
-    batch(() => {
+    // Marked as nodes in order, so the child slot places them without
+    // walking them again: this loop is the walk.
+    const nodes = [] as Node[] & { [FLAT]?: true };
+    nodes[FLAT] = true;
+    // One `untrack` around the whole pass rather than one per row. Reading a
+    // key must not subscribe the list to whatever the key function happens to
+    // touch, and that is just as true of ten thousand keys read together as
+    // of one read alone — but a closure and a save/restore per row is ten
+    // thousand of each, for a list that is redrawn whenever one row changes.
+    untrack(() => {
+      batch(() => {
+        buildRows();
+      });
+    });
+    rows = next;
+    return nodes;
+
+    function buildRows(): void {
       for (let i = 0; i < items.length; i++) {
         const item = items[i] as T;
-        const key = untrack(() => keyOf(item, i));
+        const key = keyOf(item, i);
         if (next.has(key)) {
           devWarn(
             `Duplicate list key ${String(key)}. Keys must be unique, or rows will be dropped.`,
@@ -69,13 +86,15 @@ export function list<T>(
           nodes.push(row.nodes[n] as Node);
         }
       }
-      // Whatever is left in `rows` no longer has a key in the new data.
-      for (const row of rows.values()) {
-        disposeOwner(row.owner);
-      }
-    });
-    rows = next;
-    return nodes;
+      // Whatever is left in `rows` no longer has a key in the new data. Its
+      // nodes are removed by the reconciler, in one go, so the parts inside
+      // them are excused from removing theirs one at a time.
+      discard(() => {
+        for (const row of rows.values()) {
+          disposeOwner(row.owner);
+        }
+      });
+    }
   };
 }
 

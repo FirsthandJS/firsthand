@@ -26,6 +26,7 @@ Read in order the first time; each page assumes the ones before it.
 | 14  | [Devtools](guide/14-devtools.md)                           | See what updates what, why it ran, and what the cache did         |
 | 15  | [Performance](guide/15-performance.md)                     | What is fast by construction, what is not, and how to measure     |
 | 16  | [Building and deploying](guide/16-building.md)             | The compiler, bundlers, chunking, hosting                         |
+| 17  | [Server rendering](guide/17-server-rendering.md)           | Rendering to markup, hydration, and data that crosses the wire    |
 
 ## Reference
 
@@ -36,6 +37,7 @@ One page per package, listing every export with its signature.
 | [`@firsthandjs/core`](reference/core.md)                        | 2.36 kB     | Signals, computeds, effects, context, owners       |
 | [`@firsthandjs/dom`](reference/dom.md)                          | 4.20 kB     | Components, rendering, elements, lists, portals    |
 | [`@firsthandjs/jsx-runtime`](reference/jsx-runtime.md)          | 0.59 kB     | JSX types, and the runtime fallback                |
+| [`@firsthandjs/server`](reference/server.md)                    | server only | Rendering to markup, for a server                  |
 | [`@firsthandjs/compiler`](reference/compiler.md)                | build only  | The TSX transform and the bundler plugin           |
 | [`@firsthandjs/deep`](reference/deep.md)                        | 0.72 kB     | Deep reactivity: every property is a signal        |
 | [`@firsthandjs/devtools`](reference/devtools.md)                | 6.29 kB     | **Experimental.** What updates what, why, and when |

@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { cpus, totalmem, platform, release } from 'node:os';
 import { chromium } from 'playwright';
 import { buildBenchmark } from './build.mjs';
+import { aggregate, summarise } from './statistics.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
@@ -257,60 +258,6 @@ async function serve(directory) {
   });
   await new Promise((done) => server.listen(0, '127.0.0.1', done));
   return { server, port: server.address().port };
-}
-
-function median(values) {
-  const sorted = [...values].sort((a, b) => a - b);
-  const middle = sorted.length >> 1;
-  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
-}
-
-function percentile(values, p) {
-  const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)];
-}
-
-function summarise(values) {
-  const mid = median(values);
-  const mean = values.reduce((total, value) => total + value, 0) / values.length;
-  const variance =
-    values.reduce((total, value) => total + (value - mean) ** 2, 0) / (values.length - 1);
-  return {
-    samples: values.length,
-    median: mid,
-    p95: percentile(values, 95),
-    mean,
-    stddev: Math.sqrt(variance),
-    // Median absolute deviation: robust against the one slow run that a GC
-    // pause produces, which a standard deviation is not.
-    mad: median(values.map((value) => Math.abs(value - mid))),
-    min: Math.min(...values),
-    max: Math.max(...values),
-  };
-}
-
-/** Geometric mean of the per-scenario ratios, with a bootstrap interval. */
-function aggregate(ratios, iterations = 10000) {
-  const geometric = (list) =>
-    Math.exp(list.reduce((total, value) => total + Math.log(value), 0) / list.length);
-  const point = geometric(ratios);
-  const samples = [];
-  const random = (() => {
-    let state = 12345;
-    return () => {
-      state = (state * 1103515245 + 12345) & 0x7fffffff;
-      return state / 0x7fffffff;
-    };
-  })();
-  for (let i = 0; i < iterations; i++) {
-    const draw = ratios.map(() => ratios[Math.floor(random() * ratios.length)]);
-    samples.push(geometric(draw));
-  }
-  samples.sort((a, b) => a - b);
-  return {
-    geometricMeanRatio: point,
-    ci95: [samples[Math.floor(iterations * 0.025)], samples[Math.floor(iterations * 0.975)]],
-  };
 }
 
 function gitCommit() {

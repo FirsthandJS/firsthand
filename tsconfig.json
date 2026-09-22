@@ -17,6 +17,9 @@
       "path": "./packages/dom"
     },
     {
+      "path": "./packages/server"
+    },
+    {
       "path": "./packages/jsx-runtime"
     },
     {

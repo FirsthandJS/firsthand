@@ -30,6 +30,8 @@ export type {
  * through when a resource is invalidated (ADR-0023).
  */
 export { createCacheClient, stableKey } from './cache.js';
+export { createMemoryStorage, serialize } from './transfer.js';
+export type { MemoryStorage } from './transfer.js';
 export type { CacheClient, CacheOptions } from './cache.js';
 
 export { tag, tagMatches, anyTagMatches } from './tags.js';

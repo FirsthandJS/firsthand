@@ -5,11 +5,35 @@
  * that is imported but never rendered costs nothing.
  */
 
+import { devHydrationMismatch } from './dev.js';
+import { hydration } from './claim.js';
+
 export type TemplateFactory = () => Node;
 
 export function template(html: string, isFragment = false): TemplateFactory {
   let source: Node | undefined;
+  let expected: string | undefined;
   return () => {
+    const claimer = hydration.current;
+    if (claimer !== null) {
+      // The node is already on the page. Adopting it is the whole point: no
+      // parse, no clone, no insertion — and the markup is never even read, so
+      // a hydrated template costs less than a rendered one.
+      //
+      // What is read is one name. A node is adopted only if it is the element
+      // this template makes, which is the difference between hydrating a page
+      // and believing one: a branch the server took and the browser did not
+      // would otherwise be kept, with the markup of one and the behaviour of
+      // the other.
+      expected ??= claimer.tag(html);
+      const claimed = claimer.adopt(expected);
+      if (claimed !== null) {
+        devHydrationMismatch(claimed as Element, html);
+        return claimed;
+      }
+      // Nothing to adopt, or not the right thing: the node is built the
+      // ordinary way, and whoever asked for it puts it where it belongs.
+    }
     if (source === undefined) {
       const element = document.createElement('template');
       element.innerHTML = html;

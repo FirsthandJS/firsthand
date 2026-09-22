@@ -10,6 +10,7 @@
 import {
   createContext,
   effect,
+  isRendering,
   onCleanup,
   untrack,
   useContext,
@@ -24,6 +25,7 @@ import {
   type ActionContext,
   type DataRequest,
   type DataStore,
+  type Held,
   type LoadContext,
   type Resource,
   type Status,
@@ -69,6 +71,25 @@ export type ResourceOptions = {
  * `effect` — including a token read to build a header. Read it with `peek()`
  * if that is not what you want.
  */
+/** What a storage answered, applied — unless the loader got there first. */
+function seed<T>(entry: Held<T>, stored: unknown): void {
+  if (stored === undefined || entry.data.peek() !== undefined || entry.disposed) {
+    return;
+  }
+  succeed(entry, stored as T);
+  // Loading stays true: the loader is on its way, and what is on the screen is
+  // the last answer rather than this one.
+  entry.loading.value = true;
+}
+
+function isThenable(value: unknown): value is Promise<unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { then?: unknown }).then === 'function'
+  );
+}
+
 export function useResource<T>(
   load: (context: LoadContext) => Promise<T>,
   options: ResourceOptions = {},
@@ -154,7 +175,7 @@ export function useResource<T>(
       tags: declare,
     };
 
-    return load(context)
+    const running = load(context)
       .then(async (value): Promise<T | undefined> => {
         if (controller.signal.aborted || entry.disposed) {
           return undefined;
@@ -191,33 +212,69 @@ export function useResource<T>(
         fail(entry, error);
         return undefined;
       });
+    // Held so a server render can wait for it. Cleared when it is this run
+    // that finished: a run that started another has already replaced it.
+    entry.inflight = running;
+    // No rejection handler: the chain above ends in a `catch`, so this
+    // promise settles with a value or not at all.
+    void running.then(() => {
+      if (entry.inflight === running) {
+        entry.inflight = null;
+      }
+    });
+    return running;
   };
 
   // Shown before anything has been loaded, when there is something to show.
   const persist = options.persist;
   const storage = store.storage;
   if (persist !== undefined && storage?.read !== undefined) {
-    void (async (): Promise<void> => {
-      try {
-        // Called on the storage, not lifted off it: an adapter is allowed to
-        // be an object with state, and a method taken off one loses it.
-        const stored: unknown = await storage.read?.(persist);
-        if (stored !== undefined && entry.data.peek() === undefined && !entry.disposed) {
-          succeed(entry, stored as T);
-          // Loading stays true: the loader is on its way, and what is on the
-          // screen is the last answer rather than this one.
-          entry.loading.value = true;
+    // Read now rather than in a microtask. A storage that answers straight
+    // away — the one a server render fills, or one a page was seeded with —
+    // then has its answer *during* the render rather than after it, which is
+    // what makes the markup carry data at all.
+    let stored: unknown;
+    try {
+      // Called on the storage, not lifted off it: an adapter is allowed to be
+      // an object with state, and a method taken off one loses it.
+      stored = storage.read(persist);
+    } catch {
+      // A storage that cannot answer is a storage that has nothing.
+      stored = undefined;
+    }
+    if (isThenable(stored)) {
+      void (async (): Promise<void> => {
+        try {
+          seed(entry, await stored);
+        } catch {
+          // As above: a rejected read is an empty one.
         }
-      } catch {
-        // A storage that cannot answer is a storage that has nothing.
-      }
-    })();
+      })();
+    } else {
+      seed(entry, stored);
+    }
   }
 
-  // The loader runs inside an effect, so what it reads is what it depends on.
-  effect(() => {
-    void entry.run(false);
-  });
+  if (isRendering()) {
+    // A server render has no effects — there is no later for one to run in —
+    // but it does have data, and the loader is what produces it. So the run
+    // is started here instead, once, and `store.settle()` is what waits for
+    // it. Nothing re-runs it, so there is nothing for tracking to buy.
+    //
+    // Unless the answer is already in hand: a second pass over a storage the
+    // first pass filled has what it came for, and asking again would be one
+    // request per pass for the same page.
+    if (entry.data.peek() === undefined) {
+      void entry.run(false);
+    } else {
+      entry.loading.value = false;
+    }
+  } else {
+    // The loader runs inside an effect, so what it reads is what it depends on.
+    effect(() => {
+      void entry.run(false);
+    });
+  }
 
   onCleanup(() => {
     entry.disposed = true;

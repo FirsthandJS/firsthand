@@ -27,6 +27,7 @@ import {
 import { stableId } from './ids.js';
 
 const RUNTIME = '@firsthandjs/dom/internal';
+const SERVER_RUNTIME = '@firsthandjs/server/internal';
 const CORE = '@firsthandjs/core';
 
 type FirsthandState = {
@@ -38,6 +39,10 @@ type FirsthandState = {
   views: Map<string, t.Identifier>;
   /** Every function markup was written inside, for resolving tags locally. */
   viewNodes: Set<t.Node>;
+  /** Whether this module is being compiled for a server render. */
+  ssr: boolean;
+  /** Whether this module's output has to be able to adopt server markup. */
+  hydratable: boolean;
   /** Functions that run again as a whole, and where each keeps its sites. */
   runs: Map<t.Node, RunContext>;
 };
@@ -138,6 +143,26 @@ export type FirsthandPluginOptions = {
    * production build emits nothing.
    */
   devtools?: boolean;
+  /**
+   * Compile for a server render.
+   *
+   * The same source, emitted against `@firsthandjs/server/internal` instead of
+   * `@firsthandjs/dom/internal`: markup is built as a string rather than as
+   * nodes, and the things a server cannot do — listeners, refs, retained
+   * sites — are not emitted at all.
+   *
+   * The Vite plugin sets this from the bundler's own `ssr` flag, so an
+   * application configures nothing.
+   */
+  ssr?: boolean;
+  /**
+   * Emit navigation that can walk server markup.
+   *
+   * An application that hydrates needs it; one that does not should leave it
+   * off, because it turns two property reads per dynamic position into two
+   * calls. The Vite plugin sets it for a project that has a server build.
+   */
+  hydratable?: boolean;
 };
 
 export default function firsthandPlugin(
@@ -157,9 +182,14 @@ export default function firsthandPlugin(
             views: new Map(),
             viewNodes: new Set(),
             runs: new Map(),
+            ssr: options.ssr === true,
+            hydratable: options.hydratable === true && options.ssr !== true,
           };
           collectViews(path, state);
-          collectRuns(path, state);
+          if (options.ssr !== true) {
+            // A run keeps its sites between runs. A server render has one.
+            collectRuns(path, state);
+          }
         },
         exit(path: NodePath<t.Program>, state: State) {
           const { imports, templates, views } = state.firsthand;
@@ -190,12 +220,18 @@ export default function firsthandPlugin(
       // component's children, a dynamic expression) are re-visited later, by
       // which time they are no longer inside JSX.
       JSXElement(path: NodePath<t.JSXElement>, state: State) {
-        rewriteKeyedMaps(path, state);
+        if (!state.firsthand.ssr) {
+          // A keyed list is a DOM concern: on the server the rows are strings
+          // in an array, in order, and nothing has an identity to keep.
+          rewriteKeyedMaps(path, state);
+        }
         path.replaceWith(compileNode(path, state));
       },
 
       JSXFragment(path: NodePath<t.JSXFragment>, state: State) {
-        rewriteKeyedMaps(path, state);
+        if (!state.firsthand.ssr) {
+          rewriteKeyedMaps(path, state);
+        }
         path.replaceWith(compileNode(path, state));
       },
 
@@ -204,7 +240,10 @@ export default function firsthandPlugin(
       },
 
       VariableDeclarator(path: NodePath<t.VariableDeclarator>, state: State) {
-        if (options.devtools === true) {
+        // Not for a server render: devtools is a panel in a browser, and a
+        // name emitted here would be a call into a runtime that has no reason
+        // to carry one.
+        if (options.devtools === true && options.ssr !== true) {
           nameCell(path, state);
         }
       },
@@ -228,7 +267,11 @@ function groupBySource(imports: Map<string, t.Identifier>): Map<string, [string,
   return grouped;
 }
 
-function runtime(state: State, name: string, source = RUNTIME): t.Identifier {
+function runtime(state: State, name: string, source?: string): t.Identifier {
+  return runtimeFrom(state, name, source ?? (state.firsthand.ssr ? SERVER_RUNTIME : RUNTIME));
+}
+
+function runtimeFrom(state: State, name: string, source: string): t.Identifier {
   const key = `${source}#${name}`;
   let local = state.firsthand.imports.get(key);
   if (local === undefined) {
@@ -876,7 +919,7 @@ function compileNode(path: NodePath<t.JSXElement | t.JSXFragment>, state: State)
   if (isComponentTag(node)) {
     return compileComponent(path, state);
   }
-  return compileTemplate(path, state);
+  return state.firsthand.ssr ? compileMarkup(path, state) : compileTemplate(path, state);
 }
 
 /**
@@ -1262,6 +1305,13 @@ function compileComponent(path: NodePath<t.JSXElement>, state: State): t.Express
     }
     const name = attributeName(attribute);
     const value = attributeValue(attribute);
+    if (state.firsthand.ssr && name === 'key') {
+      // An instruction to the reconciler, and a server has nothing to
+      // reconcile. The DOM path consumes it in `rewriteKeyedMaps`, which a
+      // server render does not run — so it would otherwise arrive as a prop
+      // nobody reads, one accessor per row.
+      continue;
+    }
     if (value === null || isStaticValue(value)) {
       properties.push(t.objectProperty(propertyKey(name), value ?? t.booleanLiteral(true)));
     } else {
@@ -1272,9 +1322,19 @@ function compileComponent(path: NodePath<t.JSXElement>, state: State): t.Express
       // the prop was written on is a line a debugger can stop on — it is where
       // the read that ties a child to a signal actually happens.
       const held = dependsOnRun(value, run, path) ? throughCell(value) : value;
-      const read = t.returnStatement(held);
-      takePosition(read, value);
-      properties.push(t.objectMethod('get', propertyKey(name), [], t.blockStatement([read])));
+      if (state.firsthand.ssr && isPure(value)) {
+        // On a server a prop is read once and nothing can change under it, so
+        // an accessor buys only one thing: not evaluating an expression the
+        // child never reads. That is worth keeping where evaluating early
+        // could be *observed* — a call, an assignment, an await — and worth
+        // nothing where it cannot. Reading a name or a member chain cannot,
+        // so it is written as a value, which is three times cheaper to build.
+        properties.push(t.objectProperty(propertyKey(name), held));
+      } else {
+        const read = t.returnStatement(held);
+        takePosition(read, value);
+        properties.push(t.objectMethod('get', propertyKey(name), [], t.blockStatement([read])));
+      }
     }
   }
   const children = compileChildren(node.children, state);
@@ -1306,6 +1366,11 @@ function compileComponent(path: NodePath<t.JSXElement>, state: State): t.Express
     return keptChild(state, run, make, cells);
   }
   if (isLocalView(path, state)) {
+    if (state.firsthand.ssr) {
+      // A reactive scope is a scope that can run again. This one cannot: the
+      // call stands where it is and its markup is the answer.
+      return make;
+    }
     // A view is a reactive scope. In a child slot the surrounding thunk is
     // already one, so the call goes there as it stands; anywhere else — a
     // return, a variable — it gets a part of its own.
@@ -1376,6 +1441,55 @@ function keptChild(
   return t.callExpression(generated(t.arrowFunctionExpression([], t.blockStatement(body))), []);
 }
 
+/**
+ * Whether evaluating an expression is something nobody could notice.
+ *
+ * Names, member chains, literals and the operators over them: reading them
+ * early is the same as reading them late. A call is not — it may do anything,
+ * including not returning — and neither is anything that writes, waits or
+ * constructs. Deliberately conservative: a shape not listed here is treated as
+ * observable, which costs an accessor and never a wrong answer.
+ */
+function isPure(node: t.Expression): boolean {
+  switch (node.type) {
+    case 'Identifier':
+    case 'ThisExpression':
+    case 'StringLiteral':
+    case 'NumericLiteral':
+    case 'BooleanLiteral':
+    case 'NullLiteral':
+    case 'BigIntLiteral':
+    case 'RegExpLiteral':
+      return true;
+    case 'MemberExpression':
+    case 'OptionalMemberExpression':
+      return isPure(node.object as t.Expression) && (!node.computed || isPure(node.property));
+    case 'UnaryExpression':
+      // `delete` writes. The rest read.
+      return node.operator !== 'delete' && isPure(node.argument);
+    case 'BinaryExpression':
+      return isPure(node.left as t.Expression) && isPure(node.right);
+    case 'LogicalExpression':
+      return isPure(node.left) && isPure(node.right);
+    case 'ConditionalExpression':
+      return isPure(node.test) && isPure(node.consequent) && isPure(node.alternate);
+    case 'TemplateLiteral':
+      return node.expressions.every((one) => t.isExpression(one) && isPure(one));
+    case 'ArrayExpression':
+      return node.elements.every((one) => one === null || (t.isExpression(one) && isPure(one)));
+    case 'ObjectExpression':
+      return node.properties.every(
+        (one) =>
+          t.isObjectProperty(one) &&
+          !one.computed &&
+          t.isExpression(one.value) &&
+          isPure(one.value),
+      );
+    default:
+      return false;
+  }
+}
+
 function propertyKey(name: string): t.Identifier | t.StringLiteral {
   return t.isValidIdentifier(name) ? t.identifier(name) : t.stringLiteral(name);
 }
@@ -1408,6 +1522,198 @@ function isStaticValue(value: t.Expression): boolean {
     t.isBooleanLiteral(value) ||
     t.isNullLiteral(value)
   );
+}
+
+// ---------------------------------------------------------------------------
+// Host elements, for a server render: static parts and the values between them
+// ---------------------------------------------------------------------------
+
+/** What a server-rendered element is built from. */
+type Markup = {
+  /** The static chunks. Always one more than there are values. */
+  parts: string[];
+  values: t.Expression[];
+};
+
+function pushText(markup: Markup, text: string): void {
+  // There is always a last part: the list starts with one and every hole adds
+  // another after it.
+  markup.parts[markup.parts.length - 1] = (markup.parts[markup.parts.length - 1] as string) + text;
+}
+
+function pushHole(markup: Markup, value: t.Expression): void {
+  markup.values.push(value);
+  markup.parts.push('');
+}
+
+/**
+ * Compiles an element to the markup a server sends.
+ *
+ * The structure has to be **the same structure** the browser would have built,
+ * node for node, or hydration walks into the wrong place: the client navigates
+ * a template by `firstChild` and `nextSibling`, and a comment the server left
+ * out is a step the client takes anyway. So the decisions here mirror
+ * `emitChildren` exactly, including the marker comment after a dynamic child
+ * that is not the last one.
+ *
+ * That mirroring is a promise between two files, which is the kind of promise
+ * that rots. It is held by `packages/server/test/parity.test.tsx`, which
+ * renders every shape both ways and compares what comes out.
+ */
+function compileMarkup(path: NodePath<t.JSXElement>, state: State): t.Expression {
+  const markup: Markup = { parts: [''], values: [] };
+  emitMarkupElement(path.node, markup, state);
+  if (markup.values.length === 0) {
+    // Nothing dynamic: one string, made once, at module scope.
+    return t.callExpression(runtime(state, 'ssr'), [
+      t.arrayExpression([t.stringLiteral(markup.parts[0] as string)]),
+    ]);
+  }
+  return t.callExpression(runtime(state, 'ssr'), [
+    t.arrayExpression(markup.parts.map((part) => t.stringLiteral(part))),
+    ...markup.values,
+  ]);
+}
+
+function emitMarkupElement(node: t.JSXElement, markup: Markup, state: State): void {
+  const name = node.openingElement.name;
+  if (!t.isJSXIdentifier(name)) {
+    const namespaced = name as t.JSXNamespacedName;
+    throw new Error(
+      `Namespaced element names are not supported: <${namespaced.namespace.name}:` +
+        `${namespaced.name.name}>. Write the element without a ` +
+        'namespace; SVG children are resolved by the parser.',
+    );
+  }
+  const tag = name.name;
+  pushText(markup, `<${tag}`);
+  for (const attribute of node.openingElement.attributes) {
+    emitMarkupAttribute(attribute, markup, state);
+  }
+  pushText(markup, '>');
+  emitMarkupChildren(node.children, markup, state);
+  if (!VOID_ELEMENTS.has(tag)) {
+    pushText(markup, `</${tag}>`);
+  }
+}
+
+function emitMarkupAttribute(
+  attribute: t.JSXAttribute | t.JSXSpreadAttribute,
+  markup: Markup,
+  state: State,
+): void {
+  if (t.isJSXSpreadAttribute(attribute)) {
+    pushHole(markup, t.callExpression(runtime(state, 'spread'), [attribute.argument]));
+    return;
+  }
+
+  const name = attributeName(attribute);
+  const value = attributeValue(attribute);
+
+  // A ref wants a node and a handler wants a click. Neither exists yet; both
+  // are attached when the client takes over.
+  if (
+    name === 'ref' ||
+    (name.startsWith('on') && name.length > 2 && /[A-Z:]/.test(name[2] as string))
+  ) {
+    return;
+  }
+
+  // `key` is an instruction to the reconciler, not an attribute. The DOM path
+  // consumes it in `rewriteKeyedMaps`, which a server render does not run —
+  // there is one render and nothing to reconcile — so it is dropped here.
+  if (name === 'key') {
+    return;
+  }
+
+  if (value === null) {
+    pushText(markup, ` ${name}=""`);
+    return;
+  }
+
+  if (isStaticValue(value)) {
+    if (t.isBooleanLiteral(value) && !value.value) {
+      return;
+    }
+    if (t.isNullLiteral(value)) {
+      return;
+    }
+    const literal = t.isStringLiteral(value)
+      ? value.value
+      : t.isNumericLiteral(value)
+        ? String(value.value)
+        : '';
+    pushText(markup, ` ${name}="${escapeAttribute(literal)}"`);
+    return;
+  }
+
+  pushHole(markup, markupAttributeCall(name, value, state));
+}
+
+/** The server twin of `dynamicAttributeCall`, kind for kind. */
+function markupAttributeCall(name: string, value: t.Expression, state: State): t.Expression {
+  if (name.startsWith('prop:')) {
+    return t.callExpression(runtime(state, 'setProperty'), [t.stringLiteral(name.slice(5)), value]);
+  }
+  if (name.startsWith('attr:')) {
+    return t.callExpression(runtime(state, 'setAttribute'), [
+      t.stringLiteral(name.slice(5)),
+      value,
+    ]);
+  }
+  if (name === 'class' || name === 'className') {
+    return t.callExpression(runtime(state, 'setClass'), [value]);
+  }
+  if (name === 'style') {
+    return t.callExpression(runtime(state, 'setStyle'), [value]);
+  }
+  if (BOOLEAN_PROPERTIES.has(name)) {
+    return t.callExpression(runtime(state, 'setBoolean'), [t.stringLiteral(name), value]);
+  }
+  if (DOM_PROPERTIES.has(name)) {
+    return t.callExpression(runtime(state, 'setProperty'), [t.stringLiteral(name), value]);
+  }
+  return t.callExpression(runtime(state, 'setAttribute'), [t.stringLiteral(name), value]);
+}
+
+function emitMarkupChildren(
+  children: t.JSXElement['children'],
+  markup: Markup,
+  state: State,
+): void {
+  const entries = planChildren(children);
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i] as ChildEntry;
+    if (entry.kind === 'text') {
+      pushText(markup, escapeText(entry.text as string));
+      continue;
+    }
+    if (entry.kind === 'element') {
+      emitMarkupElement(entry.element as t.JSXElement, markup, state);
+      continue;
+    }
+    // Where a dynamic child starts cannot always be read off the markup — its
+    // content has a length the template does not — so the server says so with
+    // `<!--[-->`, which the client removes once it has adopted the region.
+    //
+    // Except when the child is the whole of its element's content. Then the
+    // region is the element's children, which the client can see for itself,
+    // and the marker would be a comment in every `<td>` on the page for
+    // nothing. It has to be the *whole* content and not merely the first of
+    // it: a template with something after the child has a marker there, and
+    // the client walks to that marker by stepping over this region — which it
+    // can only do if it can see where the region begins.
+    //
+    // The closing side is the marker the browser's own template has here; a
+    // child that is last has none, and the element's end is where it stops.
+    if (entries.length > 1) {
+      pushText(markup, '<!--[-->');
+    }
+    pushHole(markup, t.callExpression(runtime(state, 'child'), [entry.expression as t.Expression]));
+    if (i !== entries.length - 1) {
+      pushText(markup, '<!---->');
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1967,7 +2273,7 @@ function emitChildren(
     const id = build.next();
     build.statements.push(
       t.variableDeclaration('const', [
-        t.variableDeclarator(id, navigate(self, previous, previousIndex, index)),
+        t.variableDeclarator(id, navigate(self, previous, previousIndex, index, state)),
       ]),
     );
     previous = id;
@@ -2063,23 +2369,45 @@ function needsReference(element: t.JSXElement): boolean {
   return false;
 }
 
+/**
+ * The step from one template node to the next.
+ *
+ * `.firstChild` and `.nextSibling` in an ordinary build: the template is a
+ * clone and nothing has been inserted into it yet, so the shape the compiler
+ * planned is the shape that is there.
+ *
+ * A build that can hydrate goes through `first` and `next` instead, because
+ * then the nodes may be a server's and the dynamic children already have
+ * content. The helpers step over a whole region in one move. Outside a
+ * hydration they are the property reads, behind one comparison — which is why
+ * this is an option and not the default: an application that never renders on
+ * a server pays nothing for the one that does.
+ */
 function navigate(
   self: t.Identifier,
   previous: t.Identifier | null,
   previousIndex: number,
   index: number,
+  state: State,
 ): t.Expression {
+  const hydratable = state.firsthand.hydratable;
+  const first = hydratable ? runtime(state, 'first') : null;
+  const next = hydratable ? runtime(state, 'next') : null;
   let expression: t.Expression;
   let steps: number;
   if (previous === null) {
-    expression = t.memberExpression(t.cloneNode(self), t.identifier('firstChild'));
+    expression = hydratable
+      ? t.callExpression(first as t.Identifier, [t.cloneNode(self)])
+      : t.memberExpression(t.cloneNode(self), t.identifier('firstChild'));
     steps = index;
   } else {
     expression = t.cloneNode(previous);
     steps = index - previousIndex;
   }
   for (let i = 0; i < steps; i++) {
-    expression = t.memberExpression(expression, t.identifier('nextSibling'));
+    expression = hydratable
+      ? t.callExpression(next as t.Identifier, [expression])
+      : t.memberExpression(expression, t.identifier('nextSibling'));
   }
   return expression;
 }
@@ -2166,6 +2494,11 @@ function compileChildren(children: t.JSXElement['children'], state: State): t.Ex
       result.push(t.stringLiteral(entry.text as string));
     } else if (entry.kind === 'element') {
       result.push(entry.element as unknown as t.Expression);
+    } else if (state.firsthand.ssr) {
+      // A part is a place something can be written again. A server render
+      // writes once, so the expression stands where it is and `child()`
+      // renders whatever it turns out to be.
+      result.push(entry.expression as t.Expression);
     } else if (entry.kind === 'list') {
       result.push(t.callExpression(runtime(state, 'part'), [entry.expression as t.Expression]));
     } else {

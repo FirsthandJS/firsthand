@@ -1,12 +1,12 @@
 {
   "metadata": {
-    "timestamp": "2026-09-21T22:02:00.698Z",
+    "timestamp": "2026-09-22T16:38:48.122Z",
     "os": "win32 10.0.19045",
     "cpu": "Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz",
     "cores": 12,
     "browser": "chromium",
     "nodeVersion": "v24.19.0",
-    "gitCommit": "cb7d041cfd7c3f5647b8a0a6605f11919248e194",
+    "gitCommit": "8a60cb2f3759dd5081e0188fda1852f30df94aae",
     "components": 1000,
     "sitesPerComponent": 20,
     "updatesPerMeasurement": 20,
@@ -17,15 +17,21 @@
   "rows": [
     {
       "variant": "Parts",
-      "mountMs": 31.4,
-      "updateMs": 11.435,
-      "heapMb": 14
+      "mountMs": 31,
+      "updateMs": 10.82,
+      "heapMb": 12.1
     },
     {
       "variant": "Run",
-      "mountMs": 20.7,
-      "updateMs": 8.355,
-      "heapMb": 8.8
+      "mountMs": 21,
+      "updateMs": 8.185,
+      "heapMb": 10.3
+    },
+    {
+      "variant": "Hoisted",
+      "mountMs": 21.2,
+      "updateMs": 6.775,
+      "heapMb": 7.6
     }
   ]
 }

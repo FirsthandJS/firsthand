@@ -13,6 +13,7 @@
 export const PROTOCOL_VERSION = 1;
 
 export { template, path } from './template.js';
+export { first, next } from './claim.js';
 export {
   insert,
   applyChild,
