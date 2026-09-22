@@ -7,7 +7,7 @@
  * inspector that leaves listeners or styles behind is worse than none.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { DataContext, createData, tag, useResource } from '@firsthandjs/data';
 
@@ -15,7 +15,7 @@ import { provide, signal } from '@firsthandjs/core';
 
 import { component, render } from '@firsthandjs/dom';
 
-import { attach, detach } from '@firsthandjs/devtools';
+import { detach } from '@firsthandjs/devtools';
 
 import { close, open, refresh, show } from '@/panel.js';
 

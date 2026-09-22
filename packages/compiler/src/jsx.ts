@@ -31,7 +31,7 @@ import { dependsOnRun, enclosingRun, isLocalView } from './runs.js';
 
 import { runtime, type RunContext, type State } from './state.js';
 
-import { compileTemplate } from './template.js';
+import { compileTemplate } from './site.js';
 
 export function compileNode(
   path: NodePath<t.JSXElement | t.JSXFragment>,

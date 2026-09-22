@@ -124,13 +124,20 @@ export default tseslint.config(
     // A test may be longer than the code it tests — a table of cases is one
     // idea however many rows it has — but it is still code somebody has to
     // read, so the limits are looser rather than absent.
+    //
+    // `max-lines-per-function` is off here, and it is the one rule that does
+    // not transfer. In a test file every function is a `describe` or an `it`
+    // callback: `describe` is a grouping, not a function anybody calls, and a
+    // per-function limit on it measures the suite twice while naming it wrongly.
+    // The file limit is what says a suite has grown too big, and it stays.
     files: ['packages/*/test/**/*.ts', 'packages/*/test/**/*.tsx'],
     rules: {
       'max-lines': ['error', { max: 400, skipBlankLines: true, skipComments: true }],
-      'max-lines-per-function': ['error', { max: 120, skipBlankLines: true, skipComments: true }],
       'max-params': ['error', 4],
       'max-depth': ['error', 4],
-      'max-nested-callbacks': ['error', 5],
+      // describe > describe > it > act > a callback the test passes in: six is
+      // the depth an ordinary nested suite reaches without anything being wrong.
+      'max-nested-callbacks': ['error', 6],
       'no-restricted-imports': imports(),
     },
   },

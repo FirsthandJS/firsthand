@@ -8,11 +8,9 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DataContext, createData, tag, useResource } from '@firsthandjs/data';
+import { signal } from '@firsthandjs/core';
 
-import { provide, signal } from '@firsthandjs/core';
-
-import { component, render } from '@firsthandjs/dom';
+import { render } from '@firsthandjs/dom';
 
 import { attach, detach } from '@firsthandjs/devtools';
 

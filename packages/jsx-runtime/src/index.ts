@@ -285,6 +285,11 @@ declare global {
       | keyof IntrinsicElements
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       | ((props: any) => Element)
+      // `never` until an application augments `ForeignElementTypes`, which is
+      // exactly what an extension point looks like before anyone extends it.
+      // The rule is about a `never` written by mistake; this one is the empty
+      // case of the mechanism the comment above describes.
+      // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
       | ForeignElementTypes[keyof ForeignElementTypes];
 
     /** Available on every element, including components. Consumed by the list part. */
