@@ -115,6 +115,17 @@ from run locals are held in cells the run writes, so a prop that did not change
 reaches nobody. Props that are not fed from the run stay ordinary live reads
 and cost nothing extra.
 
+**Anything a run hands to something built once goes through a cell.** This is
+the general form of the rule above, and it is written out because it has been
+got wrong three times by being read as a rule about props. A run local is a
+binding belonging to one call of the run; anything built once that captures it
+goes on reading that call's value for ever, silently, because the page still
+renders. So the same treatment is owed to a child a run gives a component, and
+to the data a run gives a keyed list, as to a prop — a cell the run writes,
+holding the _reading_ rather than the result, so that what it reads is
+attributed to the part that displays it rather than to the run. The fourth
+instance of this should be caught in review rather than in an issue.
+
 **Handlers are what they look like.** A closure over a run local is a new
 function on every run, and it replaces the previous one on the node — so it is
 never stale, and always exactly as old as the DOM beside it. `on()` had to

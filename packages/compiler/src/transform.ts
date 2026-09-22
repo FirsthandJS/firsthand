@@ -1337,7 +1337,24 @@ function compileComponent(path: NodePath<t.JSXElement>, state: State): t.Express
       }
     }
   }
-  const children = compileChildren(node.children, state);
+  /**
+   * What a run has to say to a child of its own child, through a cell.
+   *
+   * The same mechanism the props above use, and for the same reason: the
+   * child is made once and kept, so anything the run hands it has to arrive
+   * as a value that is written again rather than as a binding that belonged
+   * to one call of the run. What the cell holds is the *reading*, not the
+   * result — evaluating it here would attribute whatever it reads to the run
+   * rather than to the part that displays it, and a signal read in a child
+   * position belongs to that position.
+   */
+  const throughRunCell = (value: t.Expression): t.Expression =>
+    t.callExpression(throughCell(t.arrowFunctionExpression([], value)), []);
+  const children = compileChildren(node.children, state, {
+    depends: (value: t.Expression) => dependsOnRun(value, run, path),
+    cell: throughRunCell,
+    value: throughCell,
+  });
   if (children.length === 1) {
     properties.push(
       t.objectMethod(
@@ -2487,7 +2504,11 @@ function cleanText(value: string): string {
  * make them reactive at all. `part` carries that scope along with an anchor,
  * and the runtime binds it once the array is in the DOM.
  */
-function compileChildren(children: t.JSXElement['children'], state: State): t.Expression[] {
+function compileChildren(
+  children: t.JSXElement['children'],
+  state: State,
+  kept?: Kept,
+): t.Expression[] {
   const result: t.Expression[] = [];
   for (const entry of planChildren(children)) {
     if (entry.kind === 'text') {
@@ -2500,14 +2521,51 @@ function compileChildren(children: t.JSXElement['children'], state: State): t.Ex
       // renders whatever it turns out to be.
       result.push(entry.expression as t.Expression);
     } else if (entry.kind === 'list') {
-      result.push(t.callExpression(runtime(state, 'part'), [entry.expression as t.Expression]));
+      const list = entry.expression as t.CallExpression;
+      keepReading(list, kept);
+      result.push(t.callExpression(runtime(state, 'part'), [list]));
     } else {
-      result.push(
-        t.callExpression(runtime(state, 'part'), [thunk(entry.expression as t.Expression)]),
-      );
+      const value = entry.expression as t.Expression;
+      const read = kept !== undefined && kept.depends(value) ? kept.cell(value) : value;
+      result.push(t.callExpression(runtime(state, 'part'), [thunk(read)]));
     }
   }
   return result;
+}
+
+/**
+ * How a kept child is told what its run currently says.
+ *
+ * A component inside a run is made once, so an expression it is given cannot
+ * be left as a binding of the run that made it — the second run has its own,
+ * and the child would go on reading the first for ever.
+ */
+type Kept = {
+  /** Whether an expression names anything belonging to the run. */
+  depends(value: t.Expression): boolean;
+  /** The expression, read through a cell the run writes on every run. */
+  cell(value: t.Expression): t.Expression;
+  /** A value, written to a cell on every run and read from it. */
+  value(value: t.Expression): t.Expression;
+};
+
+/**
+ * Makes a keyed list read its data from the run rather than remember it.
+ *
+ * Only the first argument is touched: the list itself must be made once, or
+ * its rows are made once per run and a list that reuses rows has nothing to
+ * reuse. What changes per run is the data it is over, which is exactly what a
+ * cell is for.
+ */
+function keepReading(list: t.CallExpression, kept: Kept | undefined): void {
+  const each = list.arguments[0];
+  if (kept === undefined || !t.isArrowFunctionExpression(each) || !t.isExpression(each.body)) {
+    return;
+  }
+  if (!kept.depends(each.body)) {
+    return;
+  }
+  each.body = kept.value(each.body);
 }
 
 /**
