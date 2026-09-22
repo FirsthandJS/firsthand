@@ -9,13 +9,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { createRoot } from '@firsthandjs/core';
-import {
-  createData,
-  createMemoryStorage,
-  serialize,
-  useResource,
-  DataContext,
-} from '@/index.js';
+import { createData, createMemoryStorage, serialize, useResource, DataContext } from '@/index.js';
 import { provide } from '@firsthandjs/core';
 
 describe('a memory storage', () => {
