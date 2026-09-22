@@ -57,6 +57,16 @@ export type Claimer = {
   within<T>(region: Region, body: () => T): T;
   /** A step through the template that goes over a whole region at a time. */
   step(node: Node): Node;
+  /**
+   * Puts `anchor` where hydration has got to, and says what it went into.
+   *
+   * What a keyed list needs to adopt a row that is a view: the row has
+   * nothing of its own until it runs, and it has to run where its markup is,
+   * in the order the rows come in — not after the list has decided what goes
+   * where. Null when the region is used up, which is a list with more rows
+   * than the server sent: those are built.
+   */
+  place(anchor: Node): Node | null;
 };
 
 /**

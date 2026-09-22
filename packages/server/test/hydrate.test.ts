@@ -122,6 +122,7 @@ describe('hydration', () => {
   hydrates('RunChild', { label: 'run' });
   hydrates('RunList', { items: ['a', 'b'] });
   hydrates('ListOfComponents', { items: ['a', 'b'] });
+  hydrates('ListOfRenderComponents', { items: ['a', 'b'] });
   hydrates('Deep', { label: 'deep' });
   hydrates('RunNothing', { label: 'x' });
   hydrates('RunPair', { label: 'x' });

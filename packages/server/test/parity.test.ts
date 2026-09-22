@@ -88,6 +88,7 @@ describe('server and client render the same tree', () => {
   parity('RunChild', { label: 'run' });
   parity('RunList', { items: ['a', 'b'] });
   parity('ListOfComponents', { items: ['a', 'b'] });
+  parity('ListOfRenderComponents', { items: ['a', 'b'] });
   parity('Deep', { label: 'deep' });
   parity('RunNothing', { label: 'x' });
   parity('RunElement', { label: 'x' });

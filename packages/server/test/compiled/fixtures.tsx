@@ -222,6 +222,24 @@ export const ListOfComponents = component((props: { readonly items: readonly str
   </div>
 ));
 
+/**
+ * A row whose setup returns a render function, mapped over a list.
+ *
+ * The combination is what the example projects are written in and what the
+ * pieces above only cover apart: a list position whose items are components,
+ * each of which hands back a function rather than a tree. The list has to
+ * unwrap that function *and* hand it the markup the server sent for that row.
+ */
+const Row = component((props: { readonly label: string }) => () => <li>{props.label}</li>);
+
+export const ListOfRenderComponents = component((props: { readonly items: readonly string[] }) => (
+  <ul>
+    {props.items.map((item) => (
+      <Row key={item} label={item} />
+    ))}
+  </ul>
+));
+
 export const Deep = component((props: { readonly label: string }) => (
   <main>
     <Composed label={props.label} />

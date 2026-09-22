@@ -415,7 +415,15 @@ if (optional.length > 0) {
 // 0.35 kB gzip. They are separate exports, so an application that never
 // returns a render function does not pay for them — this figure is the
 // everything-imported one.
-const budget = 7 * 1024;
+//
+// Raised again, from 7 kB, when a keyed list learned to hold rows that are
+// views: a row whose component hands back a render function is a part, not a
+// tree, so the list has to place it, bind it, and keep track of what it has
+// in the document as it writes. Measured at 0.37 kB gzip (6.85 to 7.22), and
+// the alternative was a shape the framework accepts everywhere else failing
+// in a list — which it did, silently, by writing the row's own source into
+// the page.
+const budget = 7.5 * 1024;
 const full = sizes[sizes.length - 1];
 if (full.gzip > budget) {
   console.error(`\nBundle budget exceeded: ${kb(full.gzip)} gzip against a ${kb(budget)} target.`);

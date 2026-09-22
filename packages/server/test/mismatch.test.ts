@@ -97,6 +97,37 @@ describe('markup that is not what the view would have built', () => {
     expect(inside(container)).toBe(fresh('Keyed', { items: ['x', 'y'] }));
   });
 
+  it('builds the rows a view-row list has that the server did not send', () => {
+    // A row that is a view takes its markup where hydration has got to. Past
+    // the end of what the server sent there is nothing to take, so the row is
+    // built and placed like any other — which is the case a list whose data
+    // grew between the render and the page arriving.
+    const container = host(
+      renderToString(() =>
+        createServerComponent(server.ListOfRenderComponents as never, { items: ['a'] }),
+      ),
+    );
+    disposers.push(
+      hydrate(
+        () => createComponent(client.ListOfRenderComponents, { items: ['a', 'b', 'c'] }),
+        container,
+      ),
+    );
+    expect(inside(container)).toBe(fresh('ListOfRenderComponents', { items: ['a', 'b', 'c'] }));
+  });
+
+  it('rebuilds view rows that are not the rows it has', () => {
+    const container = host(
+      renderToString(() =>
+        createServerComponent(server.ListOfRenderComponents as never, { items: ['a', 'b'] }),
+      ),
+    );
+    disposers.push(
+      hydrate(() => createComponent(client.ListOfRenderComponents, { items: ['x'] }), container),
+    );
+    expect(inside(container)).toBe(fresh('ListOfRenderComponents', { items: ['x'] }));
+  });
+
   it('renders normally again once hydration is over', () => {
     const container = host(renderToString(() => createServerComponent(server.Plain as never, {})));
     disposers.push(hydrate(() => createComponent(client.Plain, {}), container));

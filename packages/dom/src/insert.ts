@@ -67,6 +67,17 @@ const PART: unique symbol = Symbol('firsthand.part');
 export const FLAT: unique symbol = Symbol('firsthand.flat');
 
 /**
+ * What a keyed list still has to do once its nodes are in the document.
+ *
+ * A row whose component handed back a render function is a part like any
+ * other, and a part cannot be bound where it is made: the list has an array,
+ * not a place in the document. So the list puts the row's anchor among its
+ * nodes and leaves the binding here, to be run with the parent that was
+ * missing — the same two steps `flatten` takes for a fragment's children.
+ */
+export const PENDING: unique symbol = Symbol('firsthand.pending');
+
+/**
  * A dynamic child inside an array, carrying the scope it was written in.
  *
  * A fragment has no element of its own, so its children cannot be bound when
@@ -92,7 +103,7 @@ export function part(thunk: () => unknown): DynamicChild {
   return { [PART]: true, anchor: document.createTextNode(''), thunk, owner: getOwner() };
 }
 
-function isDynamicChild(value: object): value is DynamicChild {
+export function isDynamicChild(value: object): value is DynamicChild {
   return PART in value;
 }
 
@@ -307,6 +318,15 @@ export function insert(
    * actually own it — see the `function` branch below.
    */
   seed?: Claimed | null,
+  /**
+   * Told what this part currently has in the document, after every run.
+   *
+   * The compiler never passes this either. A keyed list needs it: a row that
+   * is a view owns nodes that change without the list running, and a reorder
+   * has to move what the row has now rather than what it had when it was
+   * made.
+   */
+  report?: Report,
 ): void {
   if (typeof value !== 'function') {
     applyChild(parent, marker, null, value);
@@ -339,6 +359,12 @@ export function insert(
     written = claimed.text;
   }
   const body = (): void => {
+    run();
+    // `marker` is the part's own anchor wherever a report was asked for: only
+    // `bindPart` passes one, and it passes the anchor with it.
+    report?.(nodesOf(current, marker as Node));
+  };
+  const run = (): void => {
     const next = (value as () => unknown)();
     const type = typeof next;
     if (type === 'string' || type === 'number') {
@@ -396,6 +422,22 @@ export function insert(
   });
 }
 
+/** Told what a part has in the document, when somebody needs to know. */
+export type Report = (nodes: Node[]) => void;
+
+/**
+ * What a part has in the document, as a list, with its anchor at the end.
+ *
+ * Only a keyed list asks, and only for its rows that are views — so this is
+ * not on the path a page of static markup takes, and the allocation is one
+ * per row per change rather than one per part per run.
+ */
+function nodesOf(current: ChildSlot, anchor: Node): Node[] {
+  const nodes = current === null ? [] : Array.isArray(current) ? [...current] : [current];
+  nodes.push(anchor);
+  return nodes;
+}
+
 /** Applies one value to a child slot and returns the slot's new contents. */
 export function applyChild(
   parent: Node,
@@ -440,6 +482,7 @@ export function applyChild(
         current === null ? [] : Array.isArray(current) ? current : [current],
         rows,
       );
+      (value as { [PENDING]?: (parent: Node) => void })[PENDING]?.(parent);
       return rows;
     }
     const next: Node[] = [];
@@ -455,16 +498,9 @@ export function applyChild(
       next,
     );
     // Bound only now: the anchors are in the DOM, so each part has a parent to
-    // insert before. Each runs under the owner it was written in, which is what
-    // keeps context, disposal and error ownership lexical.
+    // insert before.
     for (let i = 0; i < dynamic.length; i++) {
-      const child = dynamic[i] as DynamicChild;
-      // A part created outside any scope — runtime JSX at module level, say —
-      // is bound under the scope doing the inserting, so that it is still
-      // disposed by something rather than by nothing.
-      runWithOwner(child.owner ?? getOwner(), () => {
-        insert(parent, child.thunk, child.anchor);
-      });
+      bindPart(dynamic[i] as DynamicChild, parent);
     }
     return next;
   }
@@ -481,6 +517,20 @@ export function applyChild(
   // without `.value`, so development says so.
   devWarnRenderedObject(value);
   return applyChild(parent, marker, current, String(value));
+}
+
+/**
+ * Binds parts whose anchors are now in the document.
+ *
+ * Each runs under the owner it was written in, which is what keeps context,
+ * disposal and error ownership lexical. A part created outside any scope —
+ * runtime JSX at module level, say — is bound under the scope doing the
+ * inserting, so that it is still disposed by something rather than by nothing.
+ */
+export function bindPart(child: DynamicChild, parent: Node, report?: Report): void {
+  runWithOwner(child.owner ?? getOwner(), () => {
+    insert(parent, child.thunk, child.anchor, undefined, report);
+  });
 }
 
 /** Flattens nested arrays, thunks and primitives into a list of DOM nodes. */

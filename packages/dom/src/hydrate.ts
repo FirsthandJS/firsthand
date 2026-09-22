@@ -211,6 +211,23 @@ export function claimRegion(parent: Node, marker: Node | null): Claimed | null {
   };
 }
 
+/**
+ * Puts an anchor where hydration has got to, and hands back its parent.
+ *
+ * A keyed list's row that is a view is bound here rather than with the rest,
+ * because by then the reconciler would have put the list's anchors where the
+ * server's rows are and taken the rows out. The anchor goes in at the point
+ * the region has reached, and the row runs there — which adopts the nodes the
+ * server sent for it, in row order, because that is the order the markup is
+ * in.
+ */
+export function place(anchor: Node): Node | null {
+  const node = claim === null ? null : claim.node;
+  const parent = node?.parentNode ?? null;
+  parent?.insertBefore(anchor, node);
+  return parent;
+}
+
 /** Makes `region` the one nodes are adopted from while `body` runs. */
 export function within<T>(region: Region, body: () => T): T {
   const outer = claim;
@@ -287,4 +304,4 @@ function keep(slot: Filled, parent: Node, anchor: Node, claimed: Claimed): void 
 }
 
 /** What `template` and `insert` reach hydration through, once it is here. */
-const claimer = { tag: tagOf, adopt, claim: claimRegion, within, keep, step };
+const claimer = { tag: tagOf, adopt, claim: claimRegion, within, keep, step, place };
