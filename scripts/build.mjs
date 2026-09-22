@@ -10,7 +10,7 @@
  * branches that tests can never take, and no diagnostics in the shipped bundle.
  */
 import { execFileSync } from 'node:child_process';
-import { brotliCompressSync, gzipSync } from 'node:zlib';
+import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -291,7 +291,18 @@ for (const target of targets) {
       module: `@firsthandjs/${target.pkg}${name === 'index' ? '' : `/${name}`}`,
       minified: code.byteLength,
       gzip: gzipSync(code, { level: 9 }).byteLength,
-      brotli: brotliCompressSync(code).byteLength,
+      // Asked for by name, as the gzip level is. A published size has to be
+      // the same size on the machine that checks it, and brotli's defaults
+      // are the library's rather than the caller's — which is how a README
+      // written on one platform came to disagree with the build on another
+      // by thirty bytes.
+      brotli: brotliCompressSync(code, {
+        params: {
+          [constants.BROTLI_PARAM_QUALITY]: 11,
+          [constants.BROTLI_PARAM_LGWIN]: 22,
+          [constants.BROTLI_PARAM_SIZE_HINT]: code.byteLength,
+        },
+      }).byteLength,
     });
   }
 }

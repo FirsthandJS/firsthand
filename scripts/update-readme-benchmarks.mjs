@@ -366,8 +366,23 @@ function splice(text, startMarker, endMarker, replacement) {
 
 const updated = splice(splice(readme, START, END, body), HEAD_START, HEAD_END, headline);
 
+/**
+ * The text, with the brotli column taken out.
+ *
+ * Brotli is the one published size that is not reproducible: `node:zlib`
+ * compresses with whatever brotli the Node build carries, and two Node builds
+ * of the same major differ by a few bytes on the same input — a README
+ * written on Windows and checked on Linux disagreed by thirty. Minified and
+ * gzip are byte-identical everywhere, and gzip is the figure this project
+ * quotes, so those are what the check holds the README to. The brotli numbers
+ * are still regenerated, and still come from a real compression; they are
+ * simply not a thing one machine may fail another over.
+ */
+const withoutBrotli = (text) =>
+  text.replaceAll(/^(\|.*\*\*[\d.]+ kB\*\* \| )[\d.]+ kB \|$/gmu, '$1');
+
 if (check) {
-  if (updated !== readme) {
+  if (withoutBrotli(updated) !== withoutBrotli(readme)) {
     console.error('README.md is out of sync with benchmarks/results/. Run `npm run bench:readme`.');
     process.exit(1);
   }
