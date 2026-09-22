@@ -240,6 +240,51 @@ export const ListOfRenderComponents = component((props: { readonly items: readon
   </ul>
 ));
 
+/**
+ * The shape an application is actually written in.
+ *
+ * A setup that returns a render function, which returns a fragment: something
+ * before the list, the list itself, and a conditional after it — with the rows
+ * being components whose setups return render functions too. Each piece is
+ * covered above on its own; together they are what a page looks like, and the
+ * page is where they first went wrong.
+ */
+const Line = component((props: { readonly label: string; readonly busy: boolean }) => () => (
+  <li class={props.label === '' ? 'line empty' : 'line'}>
+    <span>{props.label}</span>
+    <button type="button" disabled={props.busy}>
+      Mark
+    </button>
+  </li>
+));
+
+export const Page = component((props: { readonly items: readonly string[] }) => {
+  const query = signal('');
+  return () => {
+    const shown = props.items.filter((item) => item.includes(query.value));
+    return (
+      <>
+        <label class="filter">
+          <span>Filter</span>
+          <input
+            value={query.value}
+            onInput={(event) => {
+              query.value = (event.target as HTMLInputElement).value;
+            }}
+          />
+          <span class="left">{shown.length} shown</span>
+        </label>
+        <ul class="lines">
+          {shown.map((item) => (
+            <Line key={item} label={item} busy={false} />
+          ))}
+        </ul>
+        {shown.length === 0 ? <p class="empty">Nothing matches.</p> : null}
+      </>
+    );
+  };
+});
+
 export const Deep = component((props: { readonly label: string }) => (
   <main>
     <Composed label={props.label} />
