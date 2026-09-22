@@ -10,7 +10,7 @@
  *   npm run build && npm start    # production
  */
 import { createServer } from 'node:http';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = import.meta.dirname;
@@ -55,9 +55,11 @@ const serve = async (request, response) => {
     response.end(page);
   } catch (error) {
     vite?.ssrFixStacktrace(error);
+    // To the log, not to the visitor: a stack trace names the files a server
+    // is made of, and whoever asked for this page is not who should read it.
     console.error(error);
     response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
-    response.end(String(error));
+    response.end('Internal Server Error');
   }
 };
 
@@ -73,27 +75,51 @@ const server = createServer((request, response) => {
   });
 });
 
-/** Assets in production. A real deployment would put a CDN here instead. */
-async function serveStatic(request, response) {
-  const url = (request.url ?? '/').split('?')[0];
-  if (url !== '/' && !url.endsWith('/')) {
-    try {
-      const file = readFileSync(resolve(root, 'dist/client', `.${url}`));
-      response.writeHead(200, { 'content-type': typeOf(url) });
-      response.end(file);
-      return;
-    } catch {
-      // Not an asset. It is a page.
-    }
+/**
+ * The built assets, read once and served by name.
+ *
+ * A request never reaches the file system: the URL is a key into a map built
+ * from what the bundler produced. That is not a hardening measure bolted on
+ * afterwards — joining a path with something a visitor typed is how a server
+ * ends up serving `/etc/passwd`, and there is no reason to do it when the set
+ * of files is known before the first request arrives.
+ *
+ * A real deployment would put a CDN here instead.
+ */
+const TYPES = {
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.woff2': 'font/woff2',
+};
+
+function readAssets() {
+  const assets = new Map();
+  if (!production) {
+    return assets;
   }
-  await serve(request, response);
+  const directory = resolve(root, 'dist', 'client', 'assets');
+  for (const name of readdirSync(directory)) {
+    const dot = name.lastIndexOf('.');
+    assets.set(`/assets/${name}`, {
+      body: readFileSync(resolve(directory, name)),
+      type: TYPES[name.slice(dot)] ?? 'application/octet-stream',
+    });
+  }
+  return assets;
 }
 
-function typeOf(url) {
-  if (url.endsWith('.js')) return 'text/javascript; charset=utf-8';
-  if (url.endsWith('.css')) return 'text/css; charset=utf-8';
-  if (url.endsWith('.svg')) return 'image/svg+xml';
-  return 'application/octet-stream';
+const assets = readAssets();
+
+async function serveStatic(request, response) {
+  const url = (request.url ?? '/').split('?')[0];
+  const asset = assets.get(url);
+  if (asset !== undefined) {
+    response.writeHead(200, { 'content-type': asset.type });
+    response.end(asset.body);
+    return;
+  }
+  await serve(request, response);
 }
 
 server.listen(port, () => {

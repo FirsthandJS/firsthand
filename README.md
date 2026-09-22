@@ -25,7 +25,7 @@ handler is created once and always reads the current value.
 
 <!-- headline:start -->
 <!-- prettier-ignore-start -->
-The whole runtime is **6.78 kB gzip** with no production dependencies. On the
+The whole runtime is **6.81 kB gzip** with no production dependencies. On the
 render/update set it is **1.47×** faster than React 19.2.0, **1.30×** faster than Vue 3.5.43 and level with Solid 1.9.15
 (geometric means of 27 scenarios, 95 % bootstrap intervals) — measured in the same browser session,
 with the same data and the same rendered DOM verified before any timing, and
@@ -365,18 +365,18 @@ the tree has been torn down.
 ### Server rendering and hydration
 
 Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz, 12 cores · Node v24.19.0 ·
-1 000 rows · 21 measured repetitions after 3 warmups ·
+1 000 rows · 9 measured repetitions after 3 warmups ·
 production builds on every side · the markup compared before anything is
-timed · commit `e77c57fc` · 2026-09-22
+timed · commit `4ecc92e6` · 2026-09-22
 
 Reproduce with `node benchmarks/ssr/run.mjs` and
 `node benchmarks/ssr/hydrate.mjs`.
 
 | | Firsthand | Solid | Vue | React | Fastest |
 | --- | ---: | ---: | ---: | ---: | :--- |
-| render to markup | 0.189 ms | 0.206 ms | 15.77 ms | 302.27 ms | Firsthand |
+| render to markup | 0.193 ms | 0.218 ms | 15.86 ms | 303.36 ms | Firsthand |
 | markup size | 222 802 B | 238 694 B | 222 802 B | 222 802 B | Firsthand, Vue and React |
-| hydrate | 4.72 ms | 4.84 ms | 11.15 ms | — | Firsthand |
+| hydrate | 4.99 ms | 5.20 ms | 12.16 ms | — | Firsthand |
 
 React's `hydrateRoot` schedules its work rather than doing it, so a number
 taken the same way would be the time to *start* hydrating. It is left out
@@ -400,17 +400,17 @@ different sample sizes would quietly weaken the confidence interval.
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
 | `@firsthandjs/core` | 6.81 kB | **2.48 kB** | 2.26 kB |
-| `@firsthandjs/dom` | 12.84 kB | **5.04 kB** | 4.50 kB |
-| `@firsthandjs/dom/internal` | 12.30 kB | **4.98 kB** | 4.47 kB |
+| `@firsthandjs/dom` | 12.93 kB | **5.08 kB** | 4.54 kB |
+| `@firsthandjs/dom/internal` | 12.38 kB | **5.02 kB** | 4.50 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
-| full runtime (core + dom, everything imported) | 18.35 kB | **6.78 kB** | 6.13 kB |
+| full runtime (core + dom, everything imported) | 18.42 kB | **6.81 kB** | 6.15 kB |
 
 
 Optional packages, downloaded only by an application that imports them:
 
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
-| `@firsthandjs/dom/hydrate` | 6.40 kB | **2.64 kB** | 2.43 kB |
+| `@firsthandjs/dom/hydrate` | 6.46 kB | **2.67 kB** | 2.45 kB |
 | `@firsthandjs/deep` | 1.58 kB | **0.72 kB** | 0.66 kB |
 | `@firsthandjs/devtools` | 16.90 kB | **6.29 kB** | 5.52 kB |
 | `@firsthandjs/i18n` | 0.63 kB | **0.37 kB** | 0.32 kB |
@@ -518,7 +518,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 1181 tests under Vitest and 102
+This repository is the demonstration: 1184 tests under Vitest and 102
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all eight examples.
 <!-- prettier-ignore-end -->

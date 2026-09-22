@@ -194,21 +194,37 @@ writeFileSync(resolve(dist, 'hydrate.html'), page);
 // Running it
 // ---------------------------------------------------------------------------
 
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
+/**
+ * The five files this page is made of, read once and served by name.
+ *
+ * A request never reaches the file system: the URL is a key into a map. The
+ * set is known before the server starts, so there is no reason to join a path
+ * with anything that came over a socket.
+ */
+const files = new Map(
+  [
+    ['/hydrate.html', 'text/html; charset=utf-8'],
+    ['/markup.js', 'text/javascript; charset=utf-8'],
+    ['/client-firsthand.js', 'text/javascript; charset=utf-8'],
+    ['/client-solid.js', 'text/javascript; charset=utf-8'],
+    ['/client-vue.js', 'text/javascript; charset=utf-8'],
+  ].map(([name, type]) => [name, { type, body: readFileSync(resolve(dist, name.slice(1))) }]),
+);
+
 const httpServer = createServer((request, response) => {
-  const name = (request.url ?? '/').split('?')[0].replace(/^\//, '') || 'hydrate.html';
-  try {
-    const file = readFileSync(resolve(dist, name));
-    response.writeHead(200, {
-      'content-type': MIME[name.slice(name.lastIndexOf('.'))] ?? 'application/octet-stream',
-      // Cross-origin isolation, for a clock with microsecond resolution.
-      'cross-origin-opener-policy': 'same-origin',
-      'cross-origin-embedder-policy': 'require-corp',
-    });
-    response.end(file);
-  } catch {
+  const url = (request.url ?? '/').split('?')[0];
+  const file = files.get(url === '/' ? '/hydrate.html' : url);
+  if (file === undefined) {
     response.writeHead(404).end('not found');
+    return;
   }
+  response.writeHead(200, {
+    'content-type': file.type,
+    // Cross-origin isolation, for a clock with microsecond resolution.
+    'cross-origin-opener-policy': 'same-origin',
+    'cross-origin-embedder-policy': 'require-corp',
+  });
+  response.end(file.body);
 });
 await new Promise((done) => httpServer.listen(0, '127.0.0.1', done));
 const port = httpServer.address().port;
@@ -225,9 +241,24 @@ if (!isolated) {
   process.exit(1);
 }
 
-/** The tree, with each framework's own hydration bookkeeping removed. */
+/**
+ * The tree, with each framework's own hydration bookkeeping removed.
+ *
+ * The comment pass repeats until it finds nothing: one pass over
+ * `<!--<!---->-->` leaves a `<!--` behind, and a comparison that treats two
+ * different documents as equal is worse than no comparison at all.
+ */
+const withoutComments = (html) => {
+  let out = html;
+  for (let before = ''; out !== before;) {
+    before = out;
+    out = out.replace(/<!--[\s\S]*?-->/g, '');
+  }
+  return out;
+};
+
 const normalise = (html) =>
-  html.replace(/<!--[\s\S]*?-->/g, '').replace(/\s(data-hk|data-v-[a-z0-9]+)="[^"]*"/g, '');
+  withoutComments(html).replace(/\s(data-hk|data-v-[a-z0-9]+)="[^"]*"/g, '');
 
 const trees = {};
 for (const name of FRAMEWORKS) {

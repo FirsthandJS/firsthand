@@ -58,6 +58,16 @@ All notable changes to this project are documented here. The format follows
   in the core describes the scope; the first `provide`, `signal`, `onCleanup`
   or `catchError` makes it. Worth a sixth of a server render.
 
+- **A row that leaves a list does not take itself apart first.** The
+  reconciler removes a dropped row's nodes in one go, and everything the row's
+  own parts put inside them goes with them — so removing each of those first
+  is work with no effect. Measured at 15 ms of the 46 ms it took to clear ten
+  thousand rows, and the same whether it happened before or after the rows
+  were detached. `clear-10k` 46.5 ms to 38.1 ms, `clear-1k` 4.3 ms to 3.6 ms,
+  which is now faster than Solid rather than slower. Nothing else is excused:
+  a part whose parent might outlive it still cleans up after itself, which is
+  what `discard.test.tsx` pins down.
+
 - **Emptying a list is one call, not ten thousand.** Clearing a table removed
   every row individually; when the slot being emptied _is_ the parent's whole
   content — no marker after it, nothing beside it — the platform has one call

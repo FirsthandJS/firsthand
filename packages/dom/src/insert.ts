@@ -16,6 +16,37 @@ import { hydration, type Claimed } from './claim.js';
 /** What a child part currently owns in the DOM. */
 export type ChildSlot = Node | Node[] | null;
 
+/**
+ * How deep we are inside something whose nodes are being thrown away anyway.
+ *
+ * A part removes what it inserted when its scope is disposed, because usually
+ * nothing else will. A list row is the exception: its nodes are removed by the
+ * reconciler, in one go, and everything the row's own parts put *inside* those
+ * nodes goes with them. Removing each of those first is work with no effect —
+ * measured at 15 ms of the 46 ms it took to clear ten thousand rows, and the
+ * same whether it happens before or after the rows are detached.
+ *
+ * So the list says so, and the parts inside it believe it. Nothing else sets
+ * this: a part whose parent might outlive it still cleans up after itself.
+ */
+let discarding = 0;
+
+/**
+ * Runs `body` with the parts inside it excused from removing their nodes.
+ *
+ * The caller is promising that the nodes those parts wrote into are about to
+ * be removed wholesale. `list` is the only caller, and `reconcile` is the
+ * promise it is keeping.
+ */
+export function discard(body: () => void): void {
+  discarding++;
+  try {
+    body();
+  } finally {
+    discarding--;
+  }
+}
+
 const TEXT_NODE = 3;
 
 function isNode(value: object): value is Node {
@@ -347,8 +378,10 @@ export function insert(
   adopting = false;
   // A dynamic child owns the nodes it inserted, so disposing the scope that
   // created it removes them — including the nodes a nested part inserted.
+  // Unless somebody above is removing the whole subtree already: see
+  // `discard`.
   onCleanup(() => {
-    current = clear(current);
+    current = discarding > 0 ? null : clear(current);
   });
 }
 

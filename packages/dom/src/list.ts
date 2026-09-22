@@ -11,6 +11,7 @@ import {
   type Signal,
 } from '@firsthandjs/core';
 import { devWarn } from './dev.js';
+import { discard } from './insert.js';
 
 type Row<T> = {
   owner: Owner;
@@ -69,10 +70,14 @@ export function list<T>(
           nodes.push(row.nodes[n] as Node);
         }
       }
-      // Whatever is left in `rows` no longer has a key in the new data.
-      for (const row of rows.values()) {
-        disposeOwner(row.owner);
-      }
+      // Whatever is left in `rows` no longer has a key in the new data. Its
+      // nodes are removed by the reconciler, in one go, so the parts inside
+      // them are excused from removing theirs one at a time.
+      discard(() => {
+        for (const row of rows.values()) {
+          disposeOwner(row.owner);
+        }
+      });
     });
     rows = next;
     return nodes;
