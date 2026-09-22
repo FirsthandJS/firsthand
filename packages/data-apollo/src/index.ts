@@ -152,77 +152,19 @@ export function createApolloClient(
         ? options.cache
         : createCacheClient(options.cache);
 
-  // Untracked: a header function reads a token, and a token is not something a
-  // resource may depend on — writing it would re-send every request that built
-  // a header from it, including on the way out of a sign-out.
-  const context = (): Record<string, unknown> => {
-    const headers =
-      typeof options.headers === 'function' ? untrack(options.headers) : options.headers;
-    return headers === undefined ? {} : { context: { headers } };
-  };
-
-  /** What the cached answers belong to: the caller's scope, or the token. */
-  const identity = (): string => {
-    if (options.scope !== undefined) {
-      return untrack(options.scope);
-    }
-    const headers =
-      typeof options.headers === 'function' ? untrack(options.headers) : (options.headers ?? {});
-    return headers['authorization'] ?? headers['Authorization'] ?? '';
-  };
-
-  const send = async <T>(
-    kind: 'query' | 'mutation',
-    document: GraphQLDocument<T, Variables>,
-    variables: Variables,
-    request: DataRequest,
-  ): Promise<T> => {
-    const parsed = parse(document.source);
-    if (kind === 'mutation') {
-      const result = await client.mutate({
-        ...options.options,
-        ...context(),
-        mutation: parsed,
-        variables,
-      });
-      return result.data as T;
-    }
-    const result = await client.query({
-      ...options.options,
-      ...context(),
-      query: parsed,
-      variables,
-      fetchPolicy: request.force ? 'network-only' : 'cache-first',
-    });
-    return result.data as T;
-  };
-
   const run =
     <T, V extends Variables>(
       kind: 'query' | 'mutation',
       document: GraphQLDocument<T, V>,
       rest: DocumentArguments<V>,
     ): Loader<T> =>
-    async (request: DataRequest): Promise<T> => {
-      const variables: Variables = rest[0] ?? {};
-      // A query says what it is about; a mutation says what it changed. The
-      // request carries whichever of the two it belongs to.
-      request.tags?.(
-        ...resolveTags(kind === 'mutation' ? document.invalidates : document.tags, variables),
-      );
-      const document_ = document as GraphQLDocument<T, Variables>;
-      // A mutation is never cached, and neither is a query an action sends:
-      // what an action gets back is the answer to doing something.
-      if (cache === undefined || kind === 'mutation' || request.mutating === true) {
-        return await send<T>(kind, document_, variables, request);
-      }
-      // Stable whatever order the variables were written in, and carrying the
-      // identity the answer belongs to.
-      const key = `${identity()}\u0000${document.operation}(${stableKey(variables)})`;
-      return await cache.read<T>(key, (shared) => send<T>(kind, document_, variables, shared))(
+    async (request: DataRequest): Promise<T> =>
+      load<T>(
+        { client, parse, options },
+        cache,
+        { kind, document, variables: rest[0] ?? {} },
         request,
       );
-    };
 
   const bound: ApolloClient = {
     cache,
@@ -237,24 +179,8 @@ export function createApolloClient(
     watch: <T, V extends Variables>(
       document: GraphQLDocument<T, V>,
       ...rest: DocumentArguments<V>
-    ): readonly [ObservableLike<T>, BridgeOptions] => {
-      const watched = client.watchQuery({
-        ...options.options,
-        ...context(),
-        query: parse(document.source),
-        variables: rest[0] ?? {},
-      });
-      return [
-        {
-          subscribe: (observer: { next?: (value: T) => void; error?: (error: unknown) => void }) =>
-            watched.subscribe({
-              next: (result) => observer.next?.(result.data as T),
-              ...(observer.error === undefined ? {} : { error: observer.error }),
-            }),
-        },
-        { reload: () => watched.refetch() },
-      ] as const;
-    },
+    ): readonly [ObservableLike<T>, BridgeOptions] =>
+      watch<T>({ client, parse, options }, document, rest[0] ?? {}),
     with: (overrides: ApolloClientOptions): ApolloClient =>
       createApolloClient(client, parse, {
         ...options,
@@ -263,4 +189,116 @@ export function createApolloClient(
       }),
   };
   return bound;
+}
+
+/**
+ * The headers an operation carries, if any.
+ *
+ * Untracked: a header function reads a token, and a token is not something a
+ * resource may depend on — writing it would re-send every request that built a
+ * header from it, including on the way out of a sign-out.
+ */
+function contextFor(options: ApolloClientOptions): Record<string, unknown> {
+  const headers =
+    typeof options.headers === 'function' ? untrack(options.headers) : options.headers;
+  return headers === undefined ? {} : { context: { headers } };
+}
+
+/** What the cached answers belong to: the caller's scope, or the token. */
+function identity(options: ApolloClientOptions): string {
+  if (options.scope !== undefined) {
+    return untrack(options.scope);
+  }
+  const headers =
+    typeof options.headers === 'function' ? untrack(options.headers) : (options.headers ?? {});
+  return headers['authorization'] ?? headers['Authorization'] ?? '';
+}
+
+/** What this binding was built with. */
+type Bound = { client: ApolloLike & WatchLike; parse: Parse; options: ApolloClientOptions };
+
+/** One operation, as Apollo wants it. */
+type Operation<T> = {
+  kind: 'query' | 'mutation';
+  document: GraphQLDocument<T, Variables>;
+  variables: Variables;
+};
+
+async function send<T>(bound: Bound, operation: Operation<T>, request: DataRequest): Promise<T> {
+  const { client, parse, options } = bound;
+  const parsed = parse(operation.document.source);
+  if (operation.kind === 'mutation') {
+    const result = await client.mutate({
+      ...options.options,
+      ...contextFor(options),
+      mutation: parsed,
+      variables: operation.variables,
+    });
+    return result.data as T;
+  }
+  const result = await client.query({
+    ...options.options,
+    ...contextFor(options),
+    query: parsed,
+    variables: operation.variables,
+    fetchPolicy: request.force ? 'network-only' : 'cache-first',
+  });
+  return result.data as T;
+}
+
+/**
+ * A watched query, as the observable bridge wants it.
+ *
+ * Apollo's own subscription, wrapped rather than handed over: the bridge asks
+ * for `subscribe` and a way to reload, and neither is what `watchQuery`
+ * returns.
+ */
+function watch<T>(
+  bound: Bound,
+  document: GraphQLDocument<T, Variables>,
+  variables: Variables,
+): readonly [ObservableLike<T>, BridgeOptions] {
+  const watched = bound.client.watchQuery({
+    ...bound.options.options,
+    ...contextFor(bound.options),
+    query: bound.parse(document.source),
+    variables,
+  });
+  return [
+    {
+      subscribe: (observer: { next?: (value: T) => void; error?: (error: unknown) => void }) =>
+        watched.subscribe({
+          next: (result) => observer.next?.(result.data as T),
+          ...(observer.error === undefined ? {} : { error: observer.error }),
+        }),
+    },
+    { reload: () => watched.refetch() },
+  ] as const;
+}
+
+/**
+ * One operation, answered from the cache when it may be.
+ *
+ * A mutation is never cached, and neither is a query an action sends: what an
+ * action gets back is the answer to doing something.
+ */
+async function load<T>(
+  bound: Bound,
+  cache: CacheClient | undefined,
+  operation: Operation<T>,
+  request: DataRequest,
+): Promise<T> {
+  const { kind, document, variables } = operation;
+  // A query says what it is about; a mutation says what it changed. The
+  // request carries whichever of the two it belongs to.
+  request.tags?.(
+    ...resolveTags(kind === 'mutation' ? document.invalidates : document.tags, variables),
+  );
+  if (cache === undefined || kind === 'mutation' || request.mutating === true) {
+    return await send<T>(bound, operation, request);
+  }
+  // Stable whatever order the variables were written in, and carrying the
+  // identity the answer belongs to.
+  const key = `${identity(bound.options)}\u0000${document.operation}(${stableKey(variables)})`;
+  return await cache.read<T>(key, (shared) => send<T>(bound, operation, shared))(request);
 }

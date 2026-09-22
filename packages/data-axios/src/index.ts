@@ -107,56 +107,18 @@ export function createAxiosClient(
         ? options.cache
         : createCacheClient(options.cache);
 
-  /** What the cached answers belong to: the caller's scope, or the token. */
-  const identity = (): string => {
-    if (options.scope !== undefined) {
-      return untrack(options.scope);
-    }
-    const headers =
-      typeof options.headers === 'function' ? untrack(options.headers) : (options.headers ?? {});
-    return headers['authorization'] ?? headers['Authorization'] ?? '';
-  };
-
-  const send = async <T>(config: AxiosRequest, request: DataRequest): Promise<T> => {
-    const headers = {
-      // Untracked: a header function reads a token, and a token is not
-      // something a resource may depend on.
-      ...(typeof options.headers === 'function' ? untrack(options.headers) : options.headers),
-      ...((config['headers'] as Record<string, string> | undefined) ?? {}),
-    };
-    const response = await instance.request({
-      ...options.config,
-      ...config,
-      headers,
-      signal: request.signal,
-    });
-    return response.data as T;
-  };
-
   const client: AxiosClient = {
     cache,
     request:
       <T>(config: AxiosRequest): Loader<T> =>
       async (request: DataRequest): Promise<T> => {
-        const method = text(config['method'], 'get').toUpperCase();
-        // Only a read is cacheable, and only by its URL: a POST is not
-        // identified by where it was sent. Nor is anything an action sends,
-        // whatever its method — a write is not a representation.
-        if (
-          cache === undefined ||
-          request.mutating === true ||
-          (method !== 'GET' && method !== 'HEAD')
-        ) {
-          return await send<T>(config, request);
+        const key = cache === undefined ? undefined : cacheKeyFor(options, config, request);
+        if (cache === undefined || key === undefined) {
+          return await send<T>(instance, options, config, request);
         }
-        // `params` is part of the URL once Axios has sent it, so it is part of
-        // the key: leaving it out makes page 1 and page 2 of a list one entry,
-        // which is the collision this line exists to prevent.
-        const where = `${method} ${text(config['baseURL'], '')}${text(config['url'], '')}`;
-        const query = config['params'] === undefined ? '' : `?${stableKey(config['params'])}`;
-        // And an identity, separated by a character a URL cannot contain.
-        const key = `${identity()}\u0000${where}${query}`;
-        return await cache.read<T>(key, (shared) => send<T>(config, shared))(request);
+        return await cache.read<T>(key, (shared) => send<T>(instance, options, config, shared))(
+          request,
+        );
       },
     get: <T>(url: string, config: AxiosRequest = {}): Loader<T> =>
       client.request<T>({ ...config, url, method: 'get' }),
@@ -176,4 +138,61 @@ export function createAxiosClient(
       }),
   };
   return client;
+}
+
+/** One request, with the instance's headers folded in. */
+async function send<T>(
+  instance: AxiosLike,
+  options: AxiosClientOptions,
+  config: AxiosRequest,
+  request: DataRequest,
+): Promise<T> {
+  const headers = {
+    // Untracked: a header function reads a token, and a token is not something
+    // a resource may depend on.
+    ...(typeof options.headers === 'function' ? untrack(options.headers) : options.headers),
+    ...((config['headers'] as Record<string, string> | undefined) ?? {}),
+  };
+  const response = await instance.request({
+    ...options.config,
+    ...config,
+    headers,
+    signal: request.signal,
+  });
+  return response.data as T;
+}
+
+/** What the cached answers belong to: the caller's scope, or the token. */
+function identity(options: AxiosClientOptions): string {
+  if (options.scope !== undefined) {
+    return untrack(options.scope);
+  }
+  const headers =
+    typeof options.headers === 'function' ? untrack(options.headers) : (options.headers ?? {});
+  return headers['authorization'] ?? headers['Authorization'] ?? '';
+}
+
+/**
+ * Where this request's answer belongs in the cache, or nowhere.
+ *
+ * Only a read is cacheable, and only by its URL: a POST is not identified by
+ * where it was sent. Nor is anything an action sends, whatever its method — a
+ * write is not a representation.
+ */
+function cacheKeyFor(
+  options: AxiosClientOptions,
+  config: AxiosRequest,
+  request: DataRequest,
+): string | undefined {
+  const method = text(config['method'], 'get').toUpperCase();
+  if (request.mutating === true || (method !== 'GET' && method !== 'HEAD')) {
+    return undefined;
+  }
+  // `params` is part of the URL once Axios has sent it, so it is part of the
+  // key: leaving it out makes page 1 and page 2 of a list one entry, which is
+  // the collision this line exists to prevent.
+  const where = `${method} ${text(config['baseURL'], '')}${text(config['url'], '')}`;
+  const query = config['params'] === undefined ? '' : `?${stableKey(config['params'])}`;
+  // And an identity, separated by a character a URL cannot contain.
+  return `${identity(options)}\u0000${where}${query}`;
 }
