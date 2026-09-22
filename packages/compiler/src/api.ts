@@ -100,6 +100,8 @@ function buildPlugins(options: TransformOptions): PluginItem[] {
       packageName: options.packageName,
       strictReactivity: options.strictReactivity,
       devtools: options.devtools,
+      ssr: options.ssr,
+      hydratable: options.hydratable,
     },
   ]);
   return plugins;

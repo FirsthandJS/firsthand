@@ -31,8 +31,33 @@ export function createEffect(fn: EffectBody): Cell {
   devLabel(cell, 'effect', fn.name);
   own(cell);
   createEffectScope(cell);
-  runEffectNow(cell);
+  if (!rendering) {
+    runEffectNow(cell);
+  }
   return cell;
+}
+
+/**
+ * Whether a server render is in progress.
+ *
+ * An effect is a side effect **over time**, and a server render has none: the
+ * markup is produced once and the process moves on. So an effect created
+ * during one is owned, disposable and never run — which is also what keeps a
+ * `document` reference inside one from being reached where there is no
+ * document. Anything that has to happen before the markup exists is data, and
+ * data has `useResource`.
+ */
+let rendering = false;
+
+/** Set by `@firsthandjs/server` around a render. Not part of the public API. */
+export function setRendering(on: boolean): boolean {
+  const previous = rendering;
+  rendering = on;
+  return previous;
+}
+
+export function isRendering(): boolean {
+  return rendering;
 }
 
 /**

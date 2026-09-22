@@ -173,6 +173,15 @@ export type ContextRecord = Record<symbol, unknown>;
 let activeSub: Cell | undefined;
 /** The scope new owners, cleanups and cells attach to. */
 let currentOwner: Owner | null = null;
+/**
+ * A scope that has been described but not made yet. See `deferOwner`.
+ *
+ * Two variables rather than one nullable parent, because the parent of a
+ * deferred scope is legitimately `null` — a root has no owner above it, and
+ * "no parent" must not read as "nothing deferred".
+ */
+let deferred = false;
+let deferredParent: Owner | null = null;
 
 let batchDepth = 0;
 let flushing = false;
@@ -409,8 +418,10 @@ function checkDirty(cell: Cell): boolean {
 function evaluate(cell: Cell): boolean {
   const prevSub = activeSub;
   const prevOwner = currentOwner;
+  const prevDeferred = deferred;
   activeSub = cell;
   currentOwner = null;
+  deferred = false;
   startTracking(cell);
   try {
     const next = (cell.fn as () => unknown)();
@@ -426,6 +437,7 @@ function evaluate(cell: Cell): boolean {
     endTracking(cell);
     activeSub = prevSub;
     currentOwner = prevOwner;
+    deferred = prevDeferred;
   }
 }
 
@@ -482,8 +494,10 @@ function runEffect(cell: Cell): void {
   clearScope(scope);
   const prevSub = activeSub;
   const prevOwner = currentOwner;
+  const prevDeferred = deferred;
   activeSub = cell;
   currentOwner = scope;
+  deferred = false;
   startTracking(cell);
   // Devtools attribute every DOM write made below to this effect, which is how
   // a part learns that it is `Button.disabled` without the DOM layer and the
@@ -501,6 +515,7 @@ function runEffect(cell: Cell): void {
     endTracking(cell);
     activeSub = prevSub;
     currentOwner = prevOwner;
+    deferred = prevDeferred;
   }
 }
 
@@ -508,10 +523,10 @@ function runEffect(cell: Cell): void {
 // Owners (ADR-0008)
 // ---------------------------------------------------------------------------
 
-export function createOwner(parent: Owner | null): Owner {
+export function createOwner(parent: Owner | null, attach = true): Owner {
   const owner: Owner = {
     parent,
-    attached: parent !== null,
+    attached: attach && parent !== null,
     prev: null,
     next: null,
     head: null,
@@ -522,7 +537,7 @@ export function createOwner(parent: Owner | null): Owner {
     ctx: parent !== null ? parent.ctx : null,
     handler: null,
   };
-  if (parent !== null) {
+  if (attach && parent !== null) {
     const tail = parent.tail;
     owner.prev = tail;
     if (tail !== null) {
@@ -650,25 +665,64 @@ export function handleError(error: unknown, owner: Owner | null): void {
 // ---------------------------------------------------------------------------
 
 export function getOwner(): Owner | null {
+  if (deferred) {
+    currentOwner = createOwner(deferredParent);
+    deferred = false;
+  }
   return currentOwner;
 }
 
 export function setOwner(owner: Owner | null): Owner | null {
-  const previous = currentOwner;
+  const previous = getOwner();
   currentOwner = owner;
+  deferred = false;
   return previous;
+}
+
+/**
+ * Puts off creating a scope until something needs one.
+ *
+ * A scope exists so that what a component makes can be taken apart again. A
+ * component that makes nothing — no signal, no effect, no context, no cleanup
+ * — has nothing to take apart, and on a server most of them are exactly that:
+ * a function that reads its props and returns markup. Creating an owner for
+ * each of them, linking it into its parent and walking the lot on disposal
+ * measured at a sixth of a server render.
+ *
+ * So the scope is described rather than created. The first thing that asks for
+ * one gets one, with the right parent; a component that never asks costs
+ * nothing at all.
+ *
+ * Returns the owner to hand back to `restoreOwner`. The parent is made here
+ * rather than deferred in turn, which is what makes that one value enough to
+ * restore from — and is no loss, because a component that has children is a
+ * component that has a scope.
+ */
+export function deferOwner(): Owner | null {
+  const parent = getOwner();
+  deferredParent = parent;
+  deferred = true;
+  currentOwner = null;
+  return parent;
+}
+
+/** Ends a `deferOwner`, whether or not the scope was ever made. */
+export function restoreOwner(previous: Owner | null): void {
+  currentOwner = previous;
+  deferred = false;
+  deferredParent = null;
 }
 
 /** Registers a cell with the current scope so disposal unlinks it. */
 export function own(cell: Cell): void {
-  const owner = currentOwner;
+  const owner = getOwner();
   if (owner !== null) {
     (owner.cells ??= []).push(cell);
   }
 }
 
 export function createEffectScope(cell: Cell): Owner {
-  const scope = createOwner(currentOwner);
+  const scope = createOwner(getOwner());
   cell.scope = scope;
   return scope;
 }
@@ -688,7 +742,8 @@ export function runEffectNow(cell: Cell): void {
 export function releaseEffect(cell: Cell): void {
   cell.flags |= DISPOSED;
   cell.fn = undefined;
-  const owner = currentOwner;
+  // `createEffect` asked for the scope a moment ago, so this is a read.
+  const owner = getOwner();
   if (owner !== null) {
     const cells = owner.cells as Cell[];
     // `createEffect` pushed it last, so this is O(1) in the only case that

@@ -31,3 +31,7 @@ export function devRan(_store: { name: string; busy?: boolean; quiet?: number })
 export function devHandedNewFunction(_store: { name: string }, _value: unknown): void {
   /* stripped in production */
 }
+
+export function devHydrationMismatch(_node: Element, _html: string): void {
+  /* stripped in production */
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@firsthandjs/example-ssr",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "build": "vite build --outDir dist/client && vite build --ssr src/entry-server.tsx --outDir dist/server",
+    "start": "NODE_ENV=production node server.mjs"
+  },
+  "dependencies": {
+    "@firsthandjs/data": "0.0.0",
+    "@firsthandjs/dom": "0.0.0",
+    "@firsthandjs/server": "0.0.0"
+  },
+  "devDependencies": {
+    "@firsthandjs/compiler": "0.0.0",
+    "vite": "^7.1.9"
+  }
+}

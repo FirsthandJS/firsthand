@@ -206,6 +206,8 @@ type Held<T = unknown> = {
   name: string | undefined;
   /** When this resource last carried an answer. 0 until it has one. */
   answeredAt: number;
+  /** The run that is out, while there is one. What `settle` waits for. */
+  inflight: Promise<unknown> | null;
   run: (force: boolean) => Promise<T | undefined>;
 };
 
@@ -214,6 +216,16 @@ export type DataStore = {
   invalidate(...patterns: Tag[]): Promise<void>;
   /** Forgets every resource and empties the storage. */
   clear(): void;
+  /**
+   * Resolves once nothing is loading.
+   *
+   * What a server render waits on: the view is rendered, this is awaited, and
+   * the view is rendered again with the answers in hand. A run that starts
+   * another — a resource invalidated while it was out — is waited for too, up
+   * to `passes`; past that the render goes ahead with whatever is there
+   * rather than never returning.
+   */
+  settle(passes?: number): Promise<void>;
   /** How many resources are alive. For tests and devtools. */
   readonly size: number;
   /** Internal: a resource registers itself here. */
@@ -263,6 +275,20 @@ export function createData(options: DataOptions = {}): DataStore {
       // holding for those tags is that answer, so the debt is paid — and
       // keeping it would force every resource created in the next minute.
       recent = recent.filter((one) => !anyTagMatches(one.patterns, tags));
+    },
+    settle: async (passes = 10): Promise<void> => {
+      for (let pass = 0; pass < passes; pass++) {
+        const waiting: Promise<unknown>[] = [];
+        for (const entry of held) {
+          if (entry.inflight !== null) {
+            waiting.push(entry.inflight);
+          }
+        }
+        if (waiting.length === 0) {
+          return;
+        }
+        await Promise.all(waiting);
+      }
     },
     hold: (entry) => {
       held.add(entry);
@@ -337,6 +363,7 @@ export function createHeld<T>(store: DataStore, name: string | undefined): Held<
     tags: [],
     controller: null,
     pending: [],
+    inflight: null,
     superseded: false,
     disposed: false,
     answeredAt: 0,

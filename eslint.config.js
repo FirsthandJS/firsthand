@@ -71,6 +71,20 @@ export default tseslint.config(
     },
   },
   {
+    // The server layer writes the same values the DOM layer writes, into a
+    // string instead of a node. The same rule applies for the same reason:
+    // `[object Object]` is what the platform does, and what the browser would
+    // have done with the same value.
+    files: ['packages/server/src/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-base-to-string': 'off',
+      'no-restricted-imports': [
+        'error',
+        { patterns: ['@firsthandjs/compiler*', '@firsthandjs/dom*', '@firsthandjs/jsx-runtime*'] },
+      ],
+    },
+  },
+  {
     // The DOM layer may depend on the core, and on nothing else.
     files: ['packages/dom/src/**/*.ts'],
     rules: {

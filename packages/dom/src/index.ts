@@ -4,7 +4,7 @@
  * Re-exports the reactive core so that applications have one import site.
  */
 
-export { component, defineElement, setElementPrefix, createComponent } from './component.js';
+export { component, defineElement, setElementPrefix, createComponent, view } from './component.js';
 export { setComponentAdapter, FirsthandComponentError } from './adapter.js';
 export type { ComponentAdapter } from './adapter.js';
 export type { Component, ComponentOptions, AttributeCodec, View, Render } from './component.js';

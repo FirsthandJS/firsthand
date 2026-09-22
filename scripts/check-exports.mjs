@@ -50,7 +50,27 @@ const expectations = [
   {
     pkg: 'dom',
     entry: './internal',
-    names: ['template', 'insert', 'on', 'list', 'createComponent', 'PROTOCOL_VERSION'],
+    names: [
+      'template',
+      'insert',
+      'on',
+      'list',
+      'createComponent',
+      'first',
+      'next',
+      'PROTOCOL_VERSION',
+    ],
+  },
+  { pkg: 'dom', entry: './hydrate', names: ['hydrate'] },
+  {
+    pkg: 'server',
+    entry: '.',
+    names: ['renderToString', 'renderToStringAsync', 'Markup', 'escapeText', 'escapeAttribute'],
+  },
+  {
+    pkg: 'server',
+    entry: './internal',
+    names: ['ssr', 'child', 'createComponent', 'spread', 'setAttribute', 'PROTOCOL_VERSION'],
   },
   { pkg: 'jsx-runtime', entry: '.', names: ['jsx', 'jsxs', 'Fragment'] },
   { pkg: 'deep', entry: '.', names: ['deepSignal', 'raw', 'isDeep'] },

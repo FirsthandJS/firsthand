@@ -26,3 +26,7 @@ release/
 # framework, so they live outside the public tree. `scripts/` holds only what
 # the build and the CI gate need, and all of that is tracked.
 internal/
+
+# The SSR example's two builds, and the log its server writes when run by hand.
+examples/ssr/dist
+examples/ssr/*.log

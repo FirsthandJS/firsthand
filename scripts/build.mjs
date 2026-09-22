@@ -53,15 +53,24 @@ const pureDevHooks = [
   'devRoot',
   'devRunning',
   'devPart',
+  'devHydrationMismatch',
 ];
 
 const targets = [
   { pkg: 'core', entries: { index: 'src/index.ts' }, platform: 'browser', runtime: true },
   {
     pkg: 'dom',
-    entries: { index: 'src/index.ts', internal: 'src/internal.ts' },
+    // `hydrate` is built here rather than on its own so that it shares chunks
+    // with the other two. It has to: `claim.ts` holds the seam hydration is
+    // installed through, and two bundles would give an application two of it
+    // — the installed claimer in one and the empty holder that `template`
+    // reads in the other.
+    entries: { index: 'src/index.ts', internal: 'src/internal.ts', hydrate: 'src/hydrate.ts' },
     platform: 'browser',
     runtime: true,
+    // Reported outside the runtime budget, because an application without a
+    // server never imports it. The budget is what every application pays.
+    optionalEntries: ['hydrate'],
   },
   { pkg: 'jsx-runtime', entries: { index: 'src/index.ts' }, platform: 'browser', runtime: true },
   // Optional packages: an application that does not route does not download
@@ -152,6 +161,16 @@ const targets = [
     entries: { vite: 'src/vite.ts', codegen: 'src/codegen.ts' },
     platform: 'node',
     runtime: false,
+  },
+  // Server rendering runs on a server, so its size is not part of the browser
+  // budget either — but it is built the same way, and `internal` is the
+  // surface the compiler emits against, exactly as the DOM package's is.
+  {
+    pkg: 'server',
+    entries: { index: 'src/index.ts', internal: 'src/internal.ts' },
+    platform: 'node',
+    runtime: false,
+    optional: true,
   },
   // Test helpers are a dev dependency, so their size is not part of the
   // browser-runtime budget.
@@ -267,7 +286,8 @@ for (const target of targets) {
     // code splitting moved out of sight.
     const files = withChunks(result.metafile, `${relativeDist(root, base)}/${name}.js`);
     const code = Buffer.concat(files.map((file) => readFileSync(resolve(root, file))));
-    (target.runtime ? sizes : optional).push({
+    const counted = target.runtime && target.optionalEntries?.includes(name) !== true;
+    (counted ? sizes : optional).push({
       module: `@firsthandjs/${target.pkg}${name === 'index' ? '' : `/${name}`}`,
       minified: code.byteLength,
       gzip: gzipSync(code, { level: 9 }).byteLength,

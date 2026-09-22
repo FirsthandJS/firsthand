@@ -6,7 +6,14 @@ export type VitePluginLike = {
   name: string;
   enforce: 'pre';
   configResolved(config: { command: string }): void;
-  transform(code: string, id: string): { code: string; map: SourceMap | null } | null;
+  transform(
+    code: string,
+    id: string,
+    // `boolean | undefined` rather than `boolean`: with
+    // `exactOptionalPropertyTypes`, the shorter spelling is a different type
+    // from the one Vite declares, and the plugin stops being assignable.
+    options?: { ssr?: boolean | undefined },
+  ): { code: string; map: SourceMap | null } | null;
 };
 
 /**
@@ -49,7 +56,7 @@ export function firsthand(options: FirsthandViteOptions = {}): VitePluginLike {
     configResolved(config: { command: string }): void {
       serving = config.command === 'serve';
     },
-    transform(code: string, id: string) {
+    transform(code: string, id: string, hook?: { ssr?: boolean | undefined }) {
       const file = id.split('?')[0] as string;
       if (!file.endsWith('.tsx') && !file.endsWith('.jsx')) {
         return null;
@@ -70,6 +77,10 @@ export function firsthand(options: FirsthandViteOptions = {}): VitePluginLike {
         devtools: serving,
         sourceMaps: true,
         ...options,
+        // The bundler already knows which build this is. An explicit `ssr`
+        // option still wins, because a project that compiles a module by hand
+        // has its own reasons.
+        ssr: options.ssr ?? hook?.ssr === true,
       });
     },
   };

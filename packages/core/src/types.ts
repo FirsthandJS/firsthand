@@ -37,9 +37,16 @@ export type DeepReadonly<T> = T extends (...args: never[]) => unknown
         ? ReadonlySet<DeepReadonly<U>>
         : T extends Date | RegExp | Promise<unknown>
           ? T
-          : T extends object
-            ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
-            : T;
+          : // A DOM node is not data a component reads through. Descending
+            // into one turns `children` into a deeply readonly `Node`, which
+            // no longer is one — so `<aside>{props.children}</aside>` stops
+            // type-checking. Recognised structurally, so that this stays
+            // usable where there is no DOM at all.
+            T extends { readonly nodeType: number }
+            ? T
+            : T extends object
+              ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+              : T;
 
 /**
  * The type a component sees for its props: every key readonly, deeply.

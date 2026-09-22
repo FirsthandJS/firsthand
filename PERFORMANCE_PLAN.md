@@ -72,6 +72,17 @@ Memory: after mount, after 100 update cycles, after disposal.
 Startup: time to first meaningful DOM, total JS execution time.
 Bundle: raw, minified, gzip, brotli — per entry point and for a realistic app.
 
+Server: rendering 1 000 rows to markup, the size of that markup, and the time
+to hydrate it. Measured by `npm run bench:ssr` and `npm run bench:hydrate`
+under the same rules — the output compared before anything is timed, the
+frameworks interleaved, production builds on every side.
+
+The production-build rule is worth its own sentence, because breaking it cost
+a factor of three before anyone noticed: the first hydration numbers measured a
+_development_ build of Firsthand against production rivals, and the diagnostic
+that reports a hydration mismatch was 13 % of the run. Both server runners
+apply the published build's `dev.js` → `dev.prod.ts` swap.
+
 ---
 
 ## 3. Where the time is expected to go

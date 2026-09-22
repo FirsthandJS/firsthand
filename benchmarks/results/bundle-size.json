@@ -1,23 +1,23 @@
 {
-  "measuredAt": "2026-09-21T21:06:56.555Z",
+  "measuredAt": "2026-09-22T15:02:24.682Z",
   "sizes": [
     {
       "module": "@firsthandjs/core",
-      "minified": 6661,
-      "gzip": 2420,
-      "brotli": 2195
+      "minified": 6971,
+      "gzip": 2540,
+      "brotli": 2312
     },
     {
       "module": "@firsthandjs/dom",
-      "minified": 12072,
-      "gzip": 4774,
-      "brotli": 4274
+      "minified": 13152,
+      "gzip": 5158,
+      "brotli": 4609
     },
     {
       "module": "@firsthandjs/dom/internal",
-      "minified": 11640,
-      "gzip": 4782,
-      "brotli": 4278
+      "minified": 12591,
+      "gzip": 5103,
+      "brotli": 4574
     },
     {
       "module": "@firsthandjs/jsx-runtime",
@@ -27,12 +27,18 @@
     },
     {
       "module": "full runtime (core + dom, everything imported)",
-      "minified": 17649,
-      "gzip": 6517,
-      "brotli": 5874
+      "minified": 18795,
+      "gzip": 6941,
+      "brotli": 6275
     }
   ],
   "optional": [
+    {
+      "module": "@firsthandjs/dom/hydrate",
+      "minified": 6549,
+      "gzip": 2699,
+      "brotli": 2489
+    },
     {
       "module": "@firsthandjs/deep",
       "minified": 1623,
@@ -59,15 +65,15 @@
     },
     {
       "module": "@firsthandjs/data",
-      "minified": 10198,
-      "gzip": 4219,
-      "brotli": 3841
+      "minified": 11366,
+      "gzip": 4629,
+      "brotli": 4227
     },
     {
       "module": "@firsthandjs/data (.gql loader path, parser tree-shaken)",
-      "minified": 7211,
-      "gzip": 2963,
-      "brotli": 2713
+      "minified": 7954,
+      "gzip": 3215,
+      "brotli": 2942
     },
     {
       "module": "@firsthandjs/data-axios",
@@ -104,6 +110,18 @@
       "minified": 1228,
       "gzip": 672,
       "brotli": 596
+    },
+    {
+      "module": "@firsthandjs/server",
+      "minified": 2913,
+      "gzip": 1288,
+      "brotli": 1141
+    },
+    {
+      "module": "@firsthandjs/server/internal",
+      "minified": 3645,
+      "gzip": 1605,
+      "brotli": 1408
     }
   ]
 }

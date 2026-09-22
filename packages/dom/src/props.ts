@@ -18,7 +18,11 @@ import { on } from './events.js';
  */
 export function applyProp(node: Element, name: string, value: unknown): void {
   if (name === 'class' || name === 'className') {
-    if (value !== null && typeof value === 'object') {
+    if (Array.isArray(value)) {
+      // An array is a list of names, not a record of flags. Read as a record
+      // it would toggle "0" and "1", which is what it used to do.
+      setClass(node, value.filter(Boolean).join(' '));
+    } else if (value !== null && typeof value === 'object') {
       setClassList(node, value as Record<string, unknown>, remember(node, 'class', value));
     } else {
       setClass(node, value);

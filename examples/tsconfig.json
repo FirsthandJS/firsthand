@@ -22,8 +22,11 @@
       "@firsthandjs/react": ["../packages/react/src/index.ts"],
       "@firsthandjs/router": ["../packages/router/src/index.ts"],
       "@firsthandjs/styled": ["../packages/styled/src/index.ts"],
-      "@firsthandjs/compiler/vite": ["../packages/compiler/src/vite.ts"]
+      "@firsthandjs/compiler/vite": ["../packages/compiler/src/vite.ts"],
+      "@firsthandjs/server": ["../packages/server/src/index.ts"],
+      "@firsthandjs/dom/hydrate": ["../packages/dom/src/hydrate.ts"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx"]
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["ssr"]
 }

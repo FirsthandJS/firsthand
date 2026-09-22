@@ -141,7 +141,14 @@ type EventHandler<E extends Element, Ev extends Event> = (
 ) => void;
 
 type StyleValue = string | Record<string, string | number | null | undefined>;
-type ClassValue = string | Record<string, unknown>;
+/**
+ * What `class` accepts.
+ *
+ * A string is written as it stands; a record toggles the names whose value is
+ * truthy; an array is the list of names, with the falsy entries left out — so
+ * `class={[base, active && 'on']}` says what it looks like it says.
+ */
+type ClassValue = string | Record<string, unknown> | readonly unknown[];
 
 /** A value, or a thunk producing it (runtime JSX), or absent. */
 type Attribute<T> = T | (() => T) | undefined;

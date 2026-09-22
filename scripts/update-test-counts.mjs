@@ -68,10 +68,15 @@ const browser = Number(totals[1]);
  *
  * Each one is a directory with its own entry point; the files beside them —
  * the shared stylesheet, the index, the workspace's own config — are not
- * examples and are skipped by looking for that entry point.
+ * examples and are skipped by looking for one. There are two spellings: the
+ * pages of the shared Vite project start at `main.tsx`, and the SSR example
+ * is its own project, so its entry point is the one a browser loads.
  */
+const ENTRIES = ['main.tsx', 'src/entry-client.tsx'];
 const examples = readdirSync(resolve(root, 'examples'), { withFileTypes: true }).filter(
-  (entry) => entry.isDirectory() && existsSync(resolve(root, 'examples', entry.name, 'main.tsx')),
+  (entry) =>
+    entry.isDirectory() &&
+    ENTRIES.some((one) => existsSync(resolve(root, 'examples', entry.name, one))),
 ).length;
 
 /** Prose spells small numbers, so the generated sentence does too. */

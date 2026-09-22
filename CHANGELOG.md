@@ -6,7 +6,75 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-22
+
+### Added
+
+- **Server rendering, as a second compiler target.** `@firsthandjs/server`
+  renders an application to markup: the same components, the same signals, the
+  same context, compiled against a runtime that builds a string instead of a
+  tree. Nothing in an application is written for a server — Vite already knows
+  which build it is running, and the compiler plugin asks it.
+
+  ```tsx
+  const html = renderToString(() => <App />);
+  ```
+
+  Every shape the compiler can emit is supported, and that is asserted rather
+  than claimed: `packages/server/test/parity.test.ts` renders thirty fixtures
+  both ways and compares the resulting trees — components, view functions,
+  render functions, keyed lists, context, fragments, spreads, attribute and
+  property bindings, custom-element hosts and data.
+
+- **Hydration, which adopts rather than rebuilds.** `@firsthandjs/dom/hydrate`
+  takes over markup a server sent: every element is adopted, every text node
+  kept, and the only writes are the listeners and the properties markup cannot
+  express. `tests/browser/ssr.spec.ts` asserts it in Chromium, Firefox and
+  WebKit with a `MutationObserver` installed before any script the page
+  carries — **not one element the server sent is replaced**.
+
+  It is its own entry point on purpose. Nothing in the render path imports it,
+  so a bundle that never mentions it does not contain it: the runtime budget is
+  the 7.00 kB gzip it was before server rendering existed, and hydration is
+  2.0 kB that only an application with a server downloads.
+
+- **Data that crosses the wire.** `renderToStringAsync` waits for what a render
+  started; `createMemoryStorage` and `serialize` carry the answers into the
+  page; a **named** resource finds its value during its first run in the
+  browser, so the first paint is the markup rather than a spinner replacing it.
+  A resource has no key to be serialised under — that is ADR-0022 — but
+  `persist` is a name the application already chose.
+
+- **An SSR example.** `examples/ssr` is its own project: an application, two
+  entry points, and a server in eighty lines of `node:http`. The page shows how
+  many requests the process that rendered it has answered, which is the honest
+  way to demonstrate that the browser made none of its own.
+
 ### Changed
+
+- **A scope is created when something needs one, not before.** A component that
+  makes nothing — no signal, no effect, no context, no cleanup — has nothing to
+  take apart, and on a server most components are exactly that. `deferOwner`
+  in the core describes the scope; the first `provide`, `signal`, `onCleanup`
+  or `catchError` makes it. Worth a sixth of a server render.
+
+- **Emptying a list is one call, not ten thousand.** Clearing a table removed
+  every row individually; when the slot being emptied _is_ the parent's whole
+  content — no marker after it, nothing beside it — the platform has one call
+  that says so. Measured on `clear-10k`: 50.8 ms to 46.5 ms, and `clear-1k`
+  5.0 ms to 4.3 ms. The rest of that scenario's gap to Solid is the disposal
+  order, which is the next thing to be measured rather than the next thing to
+  be claimed.
+
+- **`class={[...]}` is a list of names.** It used to be read as a record of
+  flags, which toggled the classes `0` and `1`. Found by the parity suite,
+  which noticed that the server and the browser disagreed about it — and they
+  disagreed because the browser was wrong.
+
+- **`ReadonlyProps` stops at a DOM node.** `readonly children?: View` followed
+  by `<aside>{props.children}</aside>` did not type-check: a deeply readonly
+  `Node` is not a `Node`. Recognised structurally, so the rule holds where
+  there is no DOM at all.
 
 - **The benchmark measures Solid and Vue as well as React.** React alone is the
   model most readers know, but it is not the hardest test: Solid makes the same
@@ -1140,6 +1208,9 @@ strictReactivity: false })` restores the previous behaviour.
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.9.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.9.0
+[0.8.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.8.0
+[0.7.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.7.1
 [0.7.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.7.0
 [0.6.3]: https://github.com/firsthandjs/firsthand/releases/tag/v0.6.3
 [0.6.2]: https://github.com/firsthandjs/firsthand/releases/tag/v0.6.2

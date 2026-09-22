@@ -150,4 +150,4 @@ is what every example here does.
 
 ---
 
-Back to the [index](../README.md).
+Next: [Server rendering](17-server-rendering.md) · Back to the [index](../README.md).

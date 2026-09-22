@@ -152,6 +152,43 @@ of `app/firsthand.tsx`, `app/react.jsx`, `app/solid.jsx` and `app/vue.js`. If an
 of them stops producing the same DOM, the equality phase will say so before a
 number is produced.
 
+## Server rendering and hydration
+
+The other half of the job, and its own two runners:
+
+```bash
+npm run bench:ssr       # rendering to markup, in Node
+npm run bench:hydrate   # taking that markup over, in Chromium
+```
+
+They keep the rules above, applied to a server:
+
+- **The output is compared before anything is timed.** Each framework's markup
+  is stripped of the bookkeeping it needs for its own hydration — comments,
+  `data-hk`, `data-v-…` — and what is left has to be identical: same elements,
+  same classes, same order, same text. A framework that rendered less cannot
+  look faster.
+- **Interleaved in one process**, warmed up, medians over repetitions.
+- **Production builds on every side.** This is worth stating because getting it
+  wrong was worth a factor of three here: the first hydration numbers were a
+  _development_ build of Firsthand against production rivals, and
+  `devHydrationMismatch` alone was 13 % of the run. Both runners apply the
+  published build's `dev.js` → `dev.prod.ts` swap and the same pure-call
+  annotations.
+- **Hydratable output on both sides.** Solid is compiled with
+  `hydratable: true` and Firsthand emits its region markers, because markup a
+  browser cannot take over is not the thing this is about.
+- **Cross-origin isolated**, for the hydration run, so the clock reads in 5 µs
+  steps rather than Chromium's clamped 100 µs.
+
+React is measured for rendering and not for hydration: `hydrateRoot` schedules
+its work rather than doing it, so a number taken the same way would be the time
+to _start_ hydrating. Leaving it out is more honest than reporting it as
+something it is not.
+
+Results go to `results/ssr.json` and `results/hydration.json`, and into the
+README from there.
+
 ## Micro-benchmarks
 
 Some questions are about Firsthand's own defaults rather than about anyone

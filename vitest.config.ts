@@ -12,11 +12,28 @@ const firsthandCompiler = {
   enforce: 'pre' as const,
   transform(code: string, id: string) {
     const file = id.split('?')[0] as string;
-    if (!file.includes('/test/compiled/') || !file.endsWith('.tsx')) {
+    if (!file.endsWith('.tsx')) {
+      return null;
+    }
+    // `import './fixtures.tsx?server'` compiles the same source a second time,
+    // for a server render. It is how the parity suite gets both halves of a
+    // comparison out of one file: whatever it compares, it compares the same
+    // component.
+    const server = id.slice(file.length).includes('server');
+    if (!server && !file.includes('/test/compiled/')) {
       return null;
     }
     return {
-      code: transform(code, { filename: file, typescript: true, packageName: 'firsthand-test' }),
+      code: transform(code, {
+        filename: file,
+        typescript: true,
+        packageName: 'firsthand-test',
+        ssr: server,
+        // The server package's fixtures are compiled for a project that has a
+        // server build, because that is what they are testing. Everything
+        // else is compiled the way an application without one is.
+        hydratable: file.includes('/packages/server/test/'),
+      }),
       map: null,
     };
   },
@@ -34,11 +51,18 @@ export default defineConfig({
       '@firsthandjs/dom/internal': fileURLToPath(
         new URL('./packages/dom/src/internal.ts', import.meta.url),
       ),
+      '@firsthandjs/server/internal': fileURLToPath(
+        new URL('./packages/server/src/internal.ts', import.meta.url),
+      ),
+      '@firsthandjs/server': source('server'),
       '@firsthandjs/core': source('core'),
       '@firsthandjs/deep': source('deep'),
       '@firsthandjs/compiler': source('compiler'),
       '@firsthandjs/devtools': source('devtools'),
       '@firsthandjs/i18n': source('i18n'),
+      '@firsthandjs/dom/hydrate': fileURLToPath(
+        new URL('./packages/dom/src/hydrate.ts', import.meta.url),
+      ),
       '@firsthandjs/dom': source('dom'),
       '@firsthandjs/jsx-runtime/jsx-dev-runtime': source('jsx-runtime'),
       '@firsthandjs/jsx-runtime/jsx-runtime': source('jsx-runtime'),
@@ -95,6 +119,7 @@ export default defineConfig({
           include: [
             'packages/{dom,jsx-runtime,testing,router,data,data-axios,data-urql,data-apollo,styled,react,devtools,i18n}/test/**/*.test.{ts,tsx}',
             'packages/*/test/compiled/**/*.test.tsx',
+            'packages/server/test/**/*.test.{ts,tsx}',
           ],
         },
       },

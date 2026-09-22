@@ -18,3 +18,7 @@ cd examples && npm run dev
 
 Each example is an ordinary Vite application using the published compiler
 plugin. There is nothing example-specific in the framework.
+
+`ssr` is the one exception to "run them all with one command": it needs a
+server, so it is its own project with its own `package.json`. See
+[its README](ssr/README.md).
