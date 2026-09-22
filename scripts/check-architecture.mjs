@@ -81,11 +81,15 @@ function* sources(directory) {
  * as an assertion about compiler output, and a regex cannot tell that from the
  * real thing. ESLint parses rather than matches, and covers the real ones.
  */
-function specifiersOf(file, { dynamic = true } = {}) {
+function specifiersOf(file, { dynamic = true, types = true } = {}) {
   const code = readFileSync(file, 'utf8');
   const found = [];
-  for (const match of code.matchAll(/^\s*(?:import|export)[\s\S]*?from\s*['"]([^'"]+)['"]/gm)) {
-    found.push(match[1]);
+  for (const match of code.matchAll(
+    /^\s*(?:import|export)(\s+type)?[\s\S]*?from\s*['"]([^'"]+)['"]/gm,
+  )) {
+    if (types || match[1] === undefined) {
+      found.push(match[2]);
+    }
   }
   if (dynamic) {
     for (const match of code.matchAll(/(^|[^'"`])\bimport\(\s*['"]([^'"]+)['"]\s*\)/gm)) {
@@ -175,7 +179,11 @@ const graph = new Map();
 for (const name of packages) {
   for (const file of sources(join(root, 'packages', name, 'src'))) {
     const edges = [];
-    for (const specifier of specifiersOf(file)) {
+    // Type-only imports are erased before anything runs, so a cycle through
+    // one is not a cycle. `theme.ts` importing `FirsthandTheme` from the entry
+    // module is the standing example: the declaration has to live there, in the
+    // module an application augments, and nothing is loaded to get it.
+    for (const specifier of specifiersOf(file, { types: false })) {
       const target = localTarget(file, specifier);
       if (target !== null) {
         edges.push(target);

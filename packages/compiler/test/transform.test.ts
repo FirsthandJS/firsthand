@@ -614,6 +614,23 @@ export const Panel = component(() => {
     expect(ref).not.toContain('_$site(');
   });
 
+  it('builds a site again when the run’s ref is on a nested element', () => {
+    // The refusal belongs to the whole template, not to the element carrying
+    // the ref: the site is the root, and keeping it would keep a descendant
+    // whose ref holds one run's value for ever.
+    const out = compile(`
+import { component } from '@firsthandjs/dom';
+export const Panel = component(() => {
+  return () => {
+    const n = state.value;
+    const keep = (node) => [node, n];
+    return <section><p ref={keep}>x</p></section>;
+  };
+});
+`);
+    expect(out).not.toContain('_$site(');
+  });
+
   it('builds a site again when its keyed list is the run’s', () => {
     const out = compile(`
 import { component } from '@firsthandjs/dom';
