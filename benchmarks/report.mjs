@@ -19,17 +19,26 @@ const frameworks = result.frameworks ?? ['firsthand', 'react'];
 const rivals = frameworks.slice(1);
 const aggregates = result.aggregates ?? { react: result.aggregate };
 
-const ms = (value) => value.toFixed(2);
+const ms = (value) => value.toFixed(value < 1 ? 3 : 2);
 const name = (key) => (key === 'firsthand' ? 'Firsthand' : key[0].toUpperCase() + key.slice(1));
 
-/** Which framework won a scenario, and by how much. */
+/**
+ * Which framework won a scenario, and by how much over the next one.
+ *
+ * Ordered by median, and where two medians are identical to the microsecond by
+ * mean and then by p95 — the page is cross-origin isolated, so the clock reads
+ * in 5 µs steps and a true tie across all three is vanishingly unlikely.
+ */
+const order = (scenario) => (a, b) =>
+  scenario[a].median - scenario[b].median ||
+  scenario[a].mean - scenario[b].mean ||
+  scenario[a].p95 - scenario[b].p95;
+
 const fastest = (scenario) => {
-  const best = frameworks.reduce((a, b) => (scenario[a].median <= scenario[b].median ? a : b));
-  const rest = frameworks.filter((one) => one !== best);
-  const runnerUp = rest.reduce((a, b) => (scenario[a].median <= scenario[b].median ? a : b));
+  const [best, runnerUp] = [...frameworks].sort(order(scenario));
   const margin = scenario[runnerUp].median / scenario[best].median;
-  // A margin that rounds to nothing is a tie, not a win.
-  return margin < 1.005 ? 'too close to call' : `${name(best)} ${margin.toFixed(2)}×`;
+  // Three decimals for a narrow win: `1.00×` reads as a tie and is not one.
+  return `${name(best)} ${margin.toFixed(margin < 1.01 ? 3 : 2)}×`;
 };
 
 if (markdown) {

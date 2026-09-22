@@ -30,7 +30,9 @@ const HEAD_START = '<!-- headline:start -->';
 const HEAD_END = '<!-- headline:end -->';
 
 const kb = (bytes) => `${(bytes / 1024).toFixed(2)} kB`;
-const ms = (value) => `${value.toFixed(2)} ms`;
+// Three decimals below a millisecond: the clock reads in 5 µs steps, and
+// rounding that away is what made these rows look identical.
+const ms = (value) => `${value.toFixed(value < 1 ? 3 : 2)} ms`;
 
 const meta = bench.metadata;
 /** Older result files predate the three-rival comparison. */
@@ -41,16 +43,24 @@ const label = (key) => (key === 'firsthand' ? 'Firsthand' : key[0].toUpperCase()
 const named = (key) => `${label(key)} ${meta[`${key}Version`] ?? ''}`.trim();
 const full = bundle.sizes[bundle.sizes.length - 1];
 
-/** Which framework won a scenario, and by how much over the next one. */
+/**
+ * Which framework won a scenario, and by how much over the next one.
+ *
+ * Ordered by median, and where two medians are identical to the microsecond by
+ * mean and then by p95 — the page is cross-origin isolated, so the clock reads
+ * in 5 µs steps and a true tie across all three is vanishingly unlikely. There
+ * is always a winner, and it is the one the samples say.
+ */
+const order = (scenario) => (a, b) =>
+  scenario[a].median - scenario[b].median ||
+  scenario[a].mean - scenario[b].mean ||
+  scenario[a].p95 - scenario[b].p95;
+
 const fastest = (scenario, among = frameworks) => {
-  const best = among.reduce((a, b) => (scenario[a].median <= scenario[b].median ? a : b));
-  const runnerUp = among
-    .filter((one) => one !== best)
-    .reduce((a, b) => (scenario[a].median <= scenario[b].median ? a : b));
+  const [best, runnerUp] = [...among].sort(order(scenario));
   const margin = scenario[runnerUp].median / scenario[best].median;
-  // A margin that rounds to nothing is a tie, and calling a winner on it would
-  // be reading the timer's resolution as a result.
-  return margin < 1.005 ? 'too close to call' : `${label(best)} ${margin.toFixed(2)}×`;
+  // Three decimals for a narrow win: `1.00×` reads as a tie and is not one.
+  return `${label(best)} ${margin.toFixed(margin < 1.01 ? 3 : 2)}×`;
 };
 
 /**
@@ -217,9 +227,10 @@ ${scenarioRows}
 | --- | ---: | :---: | :--- |
 ${aggregateRows}
 
-**Fastest** names the winner of the row and its margin over the next one, or
-says *too close to call* where that margin is under half a percent — at a tenth
-of a millisecond that is the timer, not the framework.
+**Fastest** names the winner of the row and its margin over the next one. The
+page is served cross-origin isolated, so \`performance.now()\` reads in 5 µs
+steps rather than Chromium's default 100 µs — without that the sub-millisecond
+rows would all report the same number and there would be nothing to compare.
 
 A ratio above 1.0 in the table below means Firsthand is faster by that factor.
 Where the interval includes 1.0 the two are level as far as this suite can
