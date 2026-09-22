@@ -25,7 +25,7 @@ handler is created once and always reads the current value.
 
 <!-- headline:start -->
 <!-- prettier-ignore-start -->
-The whole runtime is **6.85 kB gzip** with no production dependencies. On the
+The whole runtime is **7.20 kB gzip** with no production dependencies. On the
 render/update set it is **1.59×** faster than React 19.2.0, **1.37×** faster than Vue 3.5.43 and level with Solid 1.9.15
 (geometric means of 27 scenarios, 95 % bootstrap intervals) — measured in the same browser session,
 with the same data and the same rendered DOM verified before any timing, and
@@ -400,17 +400,17 @@ different sample sizes would quietly weaken the confidence interval.
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
 | `@firsthandjs/core` | 6.80 kB | **2.47 kB** | 2.24 kB |
-| `@firsthandjs/dom` | 13.09 kB | **5.13 kB** | 4.60 kB |
-| `@firsthandjs/dom/internal` | 12.54 kB | **5.07 kB** | 4.55 kB |
+| `@firsthandjs/dom` | 14.12 kB | **5.50 kB** | 4.95 kB |
+| `@firsthandjs/dom/internal` | 13.57 kB | **5.43 kB** | 4.87 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
-| full runtime (core + dom, everything imported) | 18.57 kB | **6.85 kB** | 6.19 kB |
+| full runtime (core + dom, everything imported) | 19.53 kB | **7.20 kB** | 6.52 kB |
 
 
 Optional packages, downloaded only by an application that imports them:
 
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
-| `@firsthandjs/dom/hydrate` | 6.58 kB | **2.71 kB** | 2.49 kB |
+| `@firsthandjs/dom/hydrate` | 6.88 kB | **2.80 kB** | 2.59 kB |
 | `@firsthandjs/deep` | 1.58 kB | **0.72 kB** | 0.66 kB |
 | `@firsthandjs/devtools` | 16.90 kB | **6.29 kB** | 5.52 kB |
 | `@firsthandjs/i18n` | 0.63 kB | **0.37 kB** | 0.32 kB |
@@ -518,7 +518,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 1186 tests under Vitest and 102
+This repository is the demonstration: 1209 tests under Vitest and 102
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all eight examples.
 <!-- prettier-ignore-end -->

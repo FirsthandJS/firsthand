@@ -7,7 +7,7 @@
  * where the markup says it should be, and regions inside regions.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { adopt, claimRegion, hydrateWith, within } from '../src/hydrate.js';
+import { adopt, claimRegion, hydrateWith, place, within } from '../src/hydrate.js';
 import { first, next } from '../src/claim.js';
 import { devHydrationMismatch } from '../src/dev.js';
 import { store, writeChild } from '../src/insert.js';
@@ -56,6 +56,29 @@ describe('walking a template', () => {
       // The last dynamic child of an element: the element's end is where it
       // stops, and nothing navigates past it.
       expect(next(host.firstChild as Node)).toBe(null);
+    });
+  });
+});
+
+describe('placing an anchor where hydration has got to', () => {
+  it('places nothing when nothing is being hydrated', () => {
+    expect(place(document.createTextNode(''))).toBe(null);
+  });
+
+  it('goes in before the next node the region has not handed out', () => {
+    const host = tree('<p></p><b></b>');
+    const anchor = document.createTextNode('');
+    hydrateWith(host, () => {
+      expect(place(anchor)).toBe(host);
+    });
+    expect(host.firstChild).toBe(anchor);
+  });
+
+  it('places nothing once the region is used up', () => {
+    const host = tree('<p></p>');
+    hydrateWith(host, () => {
+      adopt('P');
+      expect(place(document.createTextNode(''))).toBe(null);
     });
   });
 });
