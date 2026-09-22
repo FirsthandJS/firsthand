@@ -37,6 +37,7 @@ import * as esbuild from 'esbuild';
 import { chromium } from 'playwright';
 import { aggregate, summarise } from '../statistics.mjs';
 import { productionDev, pureDevHooks } from '../build.mjs';
+import { normaliseTree as normalise } from './normalise.mjs';
 import { transform } from '../../packages/compiler/dist/index.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -240,25 +241,6 @@ if (!isolated) {
   console.error('Not cross-origin isolated: the clock would be clamped. Refusing to publish.');
   process.exit(1);
 }
-
-/**
- * The tree, with each framework's own hydration bookkeeping removed.
- *
- * The comment pass repeats until it finds nothing: one pass over
- * `<!--<!---->-->` leaves a `<!--` behind, and a comparison that treats two
- * different documents as equal is worse than no comparison at all.
- */
-const withoutComments = (html) => {
-  let out = html;
-  for (let before = ''; out !== before;) {
-    before = out;
-    out = out.replace(/<!--[\s\S]*?-->/g, '');
-  }
-  return out;
-};
-
-const normalise = (html) =>
-  withoutComments(html).replace(/\s(data-hk|data-v-[a-z0-9]+)="[^"]*"/g, '');
 
 const trees = {};
 for (const name of FRAMEWORKS) {

@@ -56,6 +56,17 @@ function isNode(value: object): value is Node {
 const PART: unique symbol = Symbol('firsthand.part');
 
 /**
+ * Marks an array as nodes, in order, with nothing to unpack.
+ *
+ * `applyChild` accepts arrays of anything — nested arrays, thunks, strings,
+ * dynamic children — so it walks what it is given and builds a flat list of
+ * nodes out of it. A keyed list has already done that walk: it has the nodes,
+ * it made the array, and nobody else can reach it. Walking it again is one
+ * allocation and ten thousand steps for a list of ten thousand rows.
+ */
+export const FLAT: unique symbol = Symbol('firsthand.flat');
+
+/**
  * A dynamic child inside an array, carrying the scope it was written in.
  *
  * A fragment has no element of its own, so its children cannot be bound when
@@ -417,6 +428,20 @@ export function applyChild(
     return applyChild(parent, marker, current, (value as () => unknown)());
   }
   if (Array.isArray(value)) {
+    if (FLAT in value) {
+      // Nodes already, in order. The only thing left is to put them in place.
+      const rows = value as unknown as Node[];
+      if (rows.length === 0) {
+        return clearIn(parent, marker, current);
+      }
+      reconcile(
+        parent,
+        marker,
+        current === null ? [] : Array.isArray(current) ? current : [current],
+        rows,
+      );
+      return rows;
+    }
     const next: Node[] = [];
     const dynamic: DynamicChild[] = [];
     flatten(value, next, dynamic);

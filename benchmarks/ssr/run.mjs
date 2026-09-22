@@ -31,6 +31,7 @@ import { cpus, platform, release } from 'node:os';
 import * as esbuild from 'esbuild';
 import { aggregate, summarise } from '../statistics.mjs';
 import { productionDev, pureDevHooks } from '../build.mjs';
+import { normaliseMarkup as normalise } from './normalise.mjs';
 import { transform } from '../../packages/compiler/dist/index.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -158,22 +159,6 @@ const FRAMEWORKS = ['firsthand', 'solid', 'vue', 'react'];
 const modules = {};
 for (const name of FRAMEWORKS) {
   modules[name] = await import(pathToFileURL(resolve(dist, `${name}.mjs`)).href);
-}
-
-/**
- * The markup, with each framework's own hydration bookkeeping removed.
- *
- * Comments and the attributes a framework needs to find its own nodes again
- * are not the document; what is left has to be identical, or the four numbers
- * are not about the same work. Nothing else is touched — the elements, the
- * classes, the order and the text all have to match exactly.
- */
-function normalise(html) {
-  return html
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/\s(data-hk|data-reactroot|_ssr)="[^"]*"/g, '')
-    .replace(/<!\$>|<!\/>/g, '')
-    .replace(/\s*\n\s*/g, '');
 }
 
 const rows = (await import(pathToFileURL(resolve(dist, 'firsthand.mjs')).href)).rows(ROWS);

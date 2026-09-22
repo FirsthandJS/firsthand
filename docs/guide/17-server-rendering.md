@@ -230,9 +230,9 @@ frameworks interleaved in one process, production builds on every side:
 
 | 1 000 rows       | Firsthand    | Solid     | Vue       | React     |
 | ---------------- | ------------ | --------- | --------- | --------- |
-| render to markup | **0.189 ms** | 0.206 ms  | 15.77 ms  | 302.3 ms  |
-| markup size      | 222 802 B    | 238 694 B | 222 802 B | 222 802 B |
-| hydrate          | **4.72 ms**  | 4.84 ms   | 11.15 ms  | —         |
+| render to markup | **0.171 ms** | 0.205 ms  | 15.02 ms  | 199.67 ms |
+| markup size      | 222 802 B    | 238 694 B | 222 802 B | 222 802 B |
+| hydrate          | **4.12 ms**  | 4.62 ms   | 10.48 ms  | —         |
 
 Reproduce them with:
 

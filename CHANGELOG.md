@@ -58,6 +58,15 @@ All notable changes to this project are documented here. The format follows
   in the core describes the scope; the first `provide`, `signal`, `onCleanup`
   or `catchError` makes it. Worth a sixth of a server render.
 
+- **A keyed list reads its keys once per pass, not once per row.** Reading a
+  key must not subscribe the list to whatever the key function touches, which
+  is as true of ten thousand keys read together as of one read alone — but a
+  closure and a save/restore per row is ten thousand of each, for a list that
+  is redrawn whenever one row changes. And the array it produces is handed to
+  the child slot as it stands rather than walked a second time: the list has
+  already done that walk. `mount-10k` 382.8 ms to 364.3 ms, `swap-rows-10k`
+  35.8 ms to 29.8 ms, `append-1k-to-10k` 74.3 ms to 63.3 ms.
+
 - **A row that leaves a list does not take itself apart first.** The
   reconciler removes a dropped row's nodes in one go, and everything the row's
   own parts put inside them goes with them — so removing each of those first

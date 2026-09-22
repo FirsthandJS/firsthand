@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, signal } from '@firsthandjs/core';
-import { applyChild, insert, reconcile } from '../src/insert.js';
+import { applyChild, FLAT, insert, reconcile } from '../src/insert.js';
 import { on, off, resetDelegation } from '../src/events.js';
 import { path, template } from '../src/template.js';
 import { applyProp, mergeProps, spread } from '../src/props.js';
@@ -440,5 +440,33 @@ describe('portal', () => {
     const dispose = render(() => portal(document.createElement('b'), target), host);
     target.innerHTML = '';
     expect(() => dispose()).not.toThrow();
+  });
+});
+
+describe('an array a keyed list produced', () => {
+  it('is placed as it stands, rather than walked again', () => {
+    // The list has already done the walk: it has the nodes, it made the array,
+    // and nobody else can reach it. `applyChild` handing the same array back
+    // is how that is visible from here — an ordinary array is copied into a
+    // new one, because it may hold nested arrays, thunks or text.
+    const parent = document.createElement('div');
+    const rows = Object.assign([document.createElement('p'), document.createElement('p')], {
+      [FLAT]: true,
+    });
+    expect(applyChild(parent, null, null, rows)).toBe(rows);
+    expect(parent.childNodes).toHaveLength(2);
+
+    const ordinary = [document.createElement('b')];
+    expect(applyChild(parent, null, rows, ordinary)).not.toBe(ordinary);
+    expect(parent.childNodes).toHaveLength(1);
+  });
+
+  it('empties the slot when it is empty', () => {
+    const parent = document.createElement('div');
+    parent.append(document.createElement('p'), document.createElement('p'));
+    const before = [...parent.childNodes];
+    const empty = Object.assign([] as Node[], { [FLAT]: true });
+    expect(applyChild(parent, null, before, empty)).toBe(null);
+    expect(parent.childNodes).toHaveLength(0);
   });
 });
