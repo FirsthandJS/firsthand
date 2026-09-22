@@ -196,6 +196,44 @@ async function send<T>(
   return parsed as T;
 }
 
+/**
+ * Where this request's answer belongs in the cache, or nowhere.
+ *
+ * Only a read is cacheable, and only by its URL: a POST is not identified by
+ * where it was sent, and a body may be a stream nobody can key on.
+ * `cacheKey: 'name'` is how a reading POST says otherwise, and
+ * `cacheKey: false` is how anything says not to.
+ */
+function cacheKeyFor(
+  options: FetchClientOptions,
+  init: JsonRequest,
+  target: string,
+  merged: JsonRequest,
+): string | undefined {
+  if (init.cacheKey === false) {
+    return undefined;
+  }
+  const method = (merged.method ?? 'GET').toUpperCase();
+  const named =
+    typeof init.cacheKey === 'string'
+      ? init.cacheKey
+      : method === 'GET' || method === 'HEAD'
+        ? `${method} ${target}`
+        : undefined;
+  if (named === undefined) {
+    return undefined;
+  }
+  // Who this answer belongs to. The default is the authorization header the
+  // request carries, so two accounts in one session cannot read each other's
+  // answers out of one URL-shaped key. Two parts, separated by a character a
+  // URL cannot contain: neither can be mistaken for the other.
+  const scope =
+    options.scope === undefined
+      ? ((merged.headers as Headers).get('authorization') ?? '')
+      : untrack(options.scope);
+  return `${scope}\u0000${named}`;
+}
+
 export function createFetchClient(options: FetchClientOptions = {}): FetchClient {
   const cache =
     options.cache === undefined || options.cache === false
@@ -210,29 +248,9 @@ export function createFetchClient(options: FetchClientOptions = {}): FetchClient
       <T>(url: string, init: JsonRequest = {}): Loader<T> =>
       async (request: DataRequest): Promise<T> => {
         const [target, merged] = resolve(options, url, init);
-        const method = (merged.method ?? 'GET').toUpperCase();
-        // Who this answer belongs to. The default is the authorization header
-        // the request carries, so two accounts in one session cannot read
-        // each other's answers out of one URL-shaped key.
-        const scope =
-          options.scope === undefined
-            ? ((merged.headers as Headers).get('authorization') ?? '')
-            : untrack(options.scope);
-        // Only a read is cacheable, and only by its URL: a POST is not
-        // identified by where it was sent, and a body may be a stream nobody
-        // can key on. `cache: 'key'` is how a reading POST says otherwise.
-        const named =
-          typeof init.cacheKey === 'string'
-            ? init.cacheKey
-            : method === 'GET' || method === 'HEAD'
-              ? `${method} ${target}`
-              : undefined;
-        // Two parts, separated by a character a URL cannot contain: an
-        // identity and a request. Neither can be mistaken for the other.
-        const key = named === undefined ? undefined : `${scope}\u0000${named}`;
+        const key = cacheKeyFor(options, init, target, merged);
         if (
           cache === undefined ||
-          init.cacheKey === false ||
           key === undefined ||
           // An action. Even a `cacheKey` does not put its answer in here: the
           // call site asked for a key, not for its writes to be remembered.

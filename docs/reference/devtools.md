@@ -1,6 +1,6 @@
 # @firsthandjs/devtools
 
-[Reference index](../README.md#reference) · 1.96 kB gzip · depends on
+[Reference index](../README.md#reference) · 6.40 kB gzip · depends on
 `@firsthandjs/core` · development only
 
 See which signal updates which DOM node, what depends on what, and why an

@@ -119,52 +119,6 @@ export function createUrqlClient(client: UrqlLike, options: UrqlClientOptions = 
         ? options.cache
         : createCacheClient(options.cache);
 
-  /** What the cached answers belong to: the caller's scope, or the token. */
-  const identity = (): string => {
-    if (options.scope !== undefined) {
-      return untrack(options.scope);
-    }
-    const headers =
-      typeof options.headers === 'function' ? untrack(options.headers) : (options.headers ?? {});
-    return headers['authorization'] ?? headers['Authorization'] ?? '';
-  };
-
-  const send = async <T>(
-    kind: 'query' | 'mutation',
-    source: string,
-    variables: Variables,
-    request: DataRequest,
-  ): Promise<T> => {
-    // Untracked: a header function reads a token, and a token is not something
-    // a resource may depend on — writing it would re-send every request that
-    // built a header from it, including on the way out of a sign-out.
-    const headers =
-      typeof options.headers === 'function' ? untrack(options.headers) : options.headers;
-    const context = {
-      ...options.context,
-      fetchOptions: {
-        signal: request.signal,
-        ...(headers === undefined ? {} : { headers }),
-      },
-      // What makes an invalidation reach past urql's own cache, if you kept one.
-      requestPolicy: request.force ? 'network-only' : 'cache-first',
-    };
-    // Wrapped rather than taken off the client: a method separated from its
-    // object loses `this`, and urql's does use it.
-    const sent =
-      kind === 'mutation'
-        ? client.mutation(source, variables, context)
-        : client.query(source, variables, context);
-    const result = await sent.toPromise();
-    if (result.error !== undefined) {
-      // Unchanged: a client's own error is more useful than one of ours, and
-      // it is what lands in the resource's `error`.
-      // eslint-disable-next-line @typescript-eslint/only-throw-error -- urql's CombinedError
-      throw result.error;
-    }
-    return result.data as T;
-  };
-
   const run =
     <T, V extends Variables>(
       kind: 'query' | 'mutation',
@@ -183,13 +137,18 @@ export function createUrqlClient(client: UrqlLike, options: UrqlClientOptions = 
       // A mutation is never cached, and neither is a query an action sends:
       // what an action gets back is the answer to doing something.
       if (cache === undefined || kind === 'mutation' || request.mutating === true) {
-        return await send<T>(kind, document.source, variables, request);
+        return await send<T>(
+          client,
+          options,
+          { kind, source: document.source, variables },
+          request,
+        );
       }
       // Stable whatever order the variables were written in, and carrying the
       // identity the answer belongs to.
-      const key = `${identity()}\u0000${document.operation}(${stableKey(variables)})`;
+      const key = `${identity(options)}\u0000${document.operation}(${stableKey(variables)})`;
       return await cache.read<T>(key, (shared) =>
-        send<T>(kind, document.source, variables, shared),
+        send<T>(client, options, { kind, source: document.source, variables }, shared),
       )(request);
     };
 
@@ -211,4 +170,57 @@ export function createUrqlClient(client: UrqlLike, options: UrqlClientOptions = 
       }),
   };
   return bound;
+}
+
+/** What the cached answers belong to: the caller's scope, or the token. */
+function identity(options: UrqlClientOptions): string {
+  if (options.scope !== undefined) {
+    return untrack(options.scope);
+  }
+  const headers =
+    typeof options.headers === 'function' ? untrack(options.headers) : (options.headers ?? {});
+  return headers['authorization'] ?? headers['Authorization'] ?? '';
+}
+
+/** One operation, as urql wants it. */
+type Operation = { kind: 'query' | 'mutation'; source: string; variables: Variables };
+
+/**
+ * Sends one operation.
+ *
+ * Untracked headers: a header function reads a token, and a token is not
+ * something a resource may depend on — writing it would re-send every request
+ * that built a header from it, including on the way out of a sign-out.
+ */
+async function send<T>(
+  client: UrqlLike,
+  options: UrqlClientOptions,
+  operation: Operation,
+  request: DataRequest,
+): Promise<T> {
+  const headers =
+    typeof options.headers === 'function' ? untrack(options.headers) : options.headers;
+  const context = {
+    ...options.context,
+    fetchOptions: {
+      signal: request.signal,
+      ...(headers === undefined ? {} : { headers }),
+    },
+    // What makes an invalidation reach past urql's own cache, if you kept one.
+    requestPolicy: request.force ? 'network-only' : 'cache-first',
+  };
+  // Wrapped rather than taken off the client: a method separated from its
+  // object loses `this`, and urql's does use it.
+  const sent =
+    operation.kind === 'mutation'
+      ? client.mutation(operation.source, operation.variables, context)
+      : client.query(operation.source, operation.variables, context);
+  const result = await sent.toPromise();
+  if (result.error !== undefined) {
+    // Unchanged: a client's own error is more useful than one of ours, and it
+    // is what lands in the resource's `error`.
+    // eslint-disable-next-line @typescript-eslint/only-throw-error -- urql's CombinedError
+    throw result.error;
+  }
+  return result.data as T;
 }

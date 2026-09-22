@@ -14,21 +14,11 @@ export const PROTOCOL_VERSION = 1;
 
 export { template, path } from './template.js';
 export { first, next } from './claim.js';
-export {
-  insert,
-  applyChild,
-  reconcile,
-  part,
-  store,
-  site,
-  open,
-  close,
-  ran,
-  wrote,
-  cell,
-  writeChild,
-} from './insert.js';
-export type { DynamicChild, ChildSlot, Slot, Store } from './insert.js';
+export { insert, applyChild, part } from './insert.js';
+export { reconcile } from './reconcile.js';
+export { store, site, open, close, ran, wrote, cell, writeChild } from './store.js';
+export type { DynamicChild, ChildSlot } from './insert.js';
+export type { Slot, Store } from './store.js';
 export {
   setAttribute,
   setAttributeNS,

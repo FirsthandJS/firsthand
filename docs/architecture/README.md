@@ -14,6 +14,8 @@ which question.
   measured rather than assumed.
 - [`mutation-testing.md`](mutation-testing.md) — what 100 % coverage does not
   tell you, and the five real gaps it found here.
+- [`code-rules.md`](code-rules.md) — the SOLID and clean-code rules, each with
+  the number a tool checks it against and where that number came from.
 
 ## Where each topic lives
 

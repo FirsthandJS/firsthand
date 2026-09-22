@@ -9,7 +9,7 @@
  * components render in both places.
  */
 import { describe, expect, it } from 'vitest';
-import { createRoot, effect, isRendering, setRendering, signal } from '../src/index.js';
+import { createRoot, effect, isRendering, setRendering, signal } from '@/index.js';
 
 describe('rendering mode', () => {
   it('is off to begin with', () => {

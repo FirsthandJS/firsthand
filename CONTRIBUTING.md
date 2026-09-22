@@ -71,7 +71,31 @@ much.
 The measurement rules the project holds itself to are in
 [`PERFORMANCE_PLAN.md`](PERFORMANCE_PLAN.md). They apply to contributors too.
 
-### 3. Architecture decisions are written down
+### 3. The shape of the code is a build failure, not an opinion
+
+Module size, function size, complexity, parameter count and the direction of
+every import are **numbers a tool checks**. They are in
+[`docs/architecture/code-rules.md`](docs/architecture/code-rules.md) together
+with the mechanism that enforces each one and the reasoning behind the number.
+
+```bash
+npm run lint         # the metric and import rules
+npm run check:arch   # layering, cycles, module surface, aliases
+```
+
+Two things catch people out. `../` is banned inside a package — `@/` means that
+package's `src/`, and the ban applies wherever `@/` has a meaning, which is not
+`benchmarks/` or `scripts/`. And the line counts skip blank lines and comments
+on purpose: this codebase explains its reasoning in prose, so deleting a
+comment to get under a limit is breaking the rule rather than keeping it.
+
+`eslint-disable` is accepted for four things, each needing a written reason — a
+measured hot path, a compiler-emitted protocol signature, a platform shape, or
+generated code. `npm run check:arch` prints the running total, so the number is
+visible rather than discovered. One file does not meet the rules at all;
+[§7](docs/architecture/code-rules.md) says which and why.
+
+### 4. Architecture decisions are written down
 
 If your change alters the reactive graph, scheduling, ownership, props, context,
 portals, DOM parts, list reconciliation, compiler output, the element adapter or
@@ -87,7 +111,7 @@ Rejected alternatives
 "Because it is simpler" is not an accepted justification where performance or
 semantics are affected. It is a perfectly good one elsewhere.
 
-### 4. API growth needs a reason
+### 5. API growth needs a reason
 
 `@firsthandjs/dom` exports 27 names, four of which are error classes — the full
 list is in [`docs/reference/`](docs/reference/) — and the goal is to keep it

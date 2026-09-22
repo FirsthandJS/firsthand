@@ -108,8 +108,6 @@ function make<P>(base: string | Component<P>, fragment: CssFragment): Component<
   const tag = typeof base === 'string' ? base : null;
   const depth = tag === null ? (depths.get(base as object) ?? 0) + 1 : 0;
   const id = `s${hash(fragment.strings.join('|'))}${String(++sequence)}`;
-  /** `.c` at depth 0, `.c.c` at depth 1, and so on. */
-  const selector = (name: string): string => `.${name}`.repeat(depth + 1);
   // Only a tag gets custom properties: they are set on an element, and a
   // wrapped component's element belongs to that component. Everything else
   // resolves into the class, which always works.
@@ -118,123 +116,171 @@ function make<P>(base: string | Component<P>, fragment: CssFragment): Component<
   // The one class every instance shares. With no block slots this is the only
   // rule this component will ever produce.
   const staticText = join(compiled, () => '');
-  const baseClass = `${id}-${hash(staticText)}`;
-  const blocks = compiled.slots.some((slot) => slot.kind === 'block');
-  if (!blocks) {
-    insertRule(baseClass, `${selector(baseClass)}{${staticText}}`);
+  const spec: Spec = {
+    tag,
+    id,
+    compiled,
+    /** `.c` at depth 0, `.c.c` at depth 1, and so on. */
+    selector: (name: string): string => `.${name}`.repeat(depth + 1),
+    baseClass: `${id}-${hash(staticText)}`,
+    blocks: compiled.slots.some((slot) => slot.kind === 'block'),
+  };
+  if (!spec.blocks) {
+    insertRule(spec.baseClass, `${spec.selector(spec.baseClass)}{${staticText}}`);
   }
 
-  const setup = (props: Record<string, unknown>): View => {
-    const theme = useContext(ThemeContext);
-    const view = withTheme(props, theme);
-    const element = tag === null ? null : document.createElement(tag);
-
-    /** The class list for this instance, `class` prop included. */
-    let applied = '';
-    /**
-     * The same value, as a cell — but only when wrapping a component.
-     *
-     * A wrapped component reads the class as an ordinary prop, so a wrapper
-     * whose own class changes (a block interpolation, or one that reads the
-     * theme) has to be able to notify it: the element belongs to whatever it
-     * wraps. An element is written to directly and needs no cell, and a list
-     * of a thousand styled rows should not allocate a thousand of them.
-     */
-    const cell = element === null ? signal('') : null;
-    const setClass = (own: string): void => {
-      const extra = props['class'];
-      const whole = `${own}${typeof extra === 'string' && extra !== '' ? ` ${extra}` : ''}`;
-      if (whole === applied) {
-        return;
-      }
-      applied = whole;
-      if (element === null) {
-        (cell as Signal<string>).value = whole;
-      } else {
-        element.className = whole;
-      }
-    };
-
-    if (blocks) {
-      // A block can produce any CSS, so its result decides the rule — and the
-      // rule's own text decides its name, which is how two instances that
-      // resolve the same way share one.
-      bind(() => {
-        const text = join(compiled, (slot) => blockText(slot.fn(view)));
-        const name = `${id}-${hash(text)}`;
-        insertRule(name, `${selector(name)}{${text}}`);
-        setClass(name);
-      });
-    } else {
-      bind(() => {
-        setClass(baseClass);
-      });
-    }
-
-    // Value slots are custom properties: one write each, and only for the ones
-    // whose inputs actually changed. They exist only for a tag, so there is an
-    // element to set them on.
-    for (const slot of compiled.slots) {
-      if (slot.kind !== 'value') {
-        continue;
-      }
-      const host = element as HTMLElement;
-      bind(() => {
-        const value = slot.fn(view);
-        const text = value === null || value === undefined || value === false ? '' : String(value);
-        host.style.setProperty(slot.property, text);
-      });
-    }
-
-    if (element === null) {
-      // Wrapping another component: it receives the class like any other prop,
-      // and is responsible for putting it on its root — the same contract
-      // styled-components has with `className`.
-      const forwarded: Record<string, unknown> = {};
-      for (const name of Object.keys(props)) {
-        // `class` is deliberately not copied: `setClass` has already folded an
-        // incoming one into `applied`, and defining it twice on the same
-        // object throws — which is what `styled(styled(X))` used to do.
-        //
-        // Transient (`$`) props *are* forwarded here, unlike at an element:
-        // what this wraps may itself be a styled component that declares them,
-        // and stripping them would leave the inner level unable to see the
-        // props the outer one was given. They are stripped where they would do
-        // harm — on a real element — by `forwards`.
-        if (name !== 'class') {
-          Object.defineProperty(forwarded, name, {
-            enumerable: true,
-            get: () => props[name],
-          });
-        }
-      }
-      Object.defineProperty(forwarded, 'class', {
-        enumerable: true,
-        get: () => (cell as Signal<string>).value,
-      });
-      return (base as Component<P>)(forwarded as never);
-    }
-
-    for (const name of Object.keys(props)) {
-      if (!forwards(element, name)) {
-        continue;
-      }
-      bind(() => {
-        applyProp(element, name, props[name]);
-      });
-    }
-    insert(element, () => props['children']);
-    return element;
-  };
-
   const declared = component<P>(
-    setup,
+    (props: Record<string, unknown>) => instance(props, spec, base as Component<P>),
     undefined,
     `firsthand/styled:${id}`,
     tag === null ? `Styled(${(base as Component<P>).name})` : `Styled(${tag})`,
   );
   depths.set(declared, depth);
   return declared;
+}
+
+/**
+ * What one styled component knows about itself, worked out once.
+ *
+ * An object per styled component rather than a closure per instance: a list of
+ * a thousand styled rows makes a thousand instances and one of these.
+ */
+type Spec = {
+  /** The tag, or `null` when this wraps another component. */
+  tag: string | null;
+  id: string;
+  compiled: ReturnType<typeof compile>;
+  selector: (name: string) => string;
+  baseClass: string;
+  /** Whether any slot can produce arbitrary CSS, so the rule is per value. */
+  blocks: boolean;
+};
+
+/** One instance: its class, its custom properties, and what it renders to. */
+function instance<P>(props: Record<string, unknown>, spec: Spec, base: Component<P>): View {
+  const theme = useContext(ThemeContext);
+  const view = withTheme(props, theme);
+  const element = spec.tag === null ? null : document.createElement(spec.tag);
+  /**
+   * The class, as a cell — but only when wrapping a component.
+   *
+   * A wrapped component reads the class as an ordinary prop, so a wrapper
+   * whose own class changes (a block interpolation, or one that reads the
+   * theme) has to be able to notify it: the element belongs to whatever it
+   * wraps. An element is written to directly and needs no cell, and a list of
+   * a thousand styled rows should not allocate a thousand of them.
+   */
+  const cell = element === null ? signal('') : null;
+  /** The class this instance last wrote, so an unchanged one writes nothing. */
+  let applied = '';
+  bindClass(spec, view, (own) => {
+    const extra = props['class'];
+    const whole = `${own}${typeof extra === 'string' && extra !== '' ? ` ${extra}` : ''}`;
+    if (whole === applied) {
+      return;
+    }
+    applied = whole;
+    writeClass(element, cell, whole);
+  });
+  bindValues(spec, view, element);
+
+  if (element === null) {
+    return base(forwarded(props, cell as Signal<string>) as never);
+  }
+  for (const name of Object.keys(props)) {
+    if (!forwards(element, name)) {
+      continue;
+    }
+    bind(() => {
+      applyProp(element, name, props[name]);
+    });
+  }
+  insert(element, () => props['children']);
+  return element;
+}
+
+/**
+ * Puts the class where this instance keeps it.
+ *
+ * An element is written to directly. A wrapped component reads it as a prop,
+ * so it goes through the cell — and only when it has changed, because writing
+ * a cell wakes whatever read it.
+ */
+function writeClass(element: HTMLElement | null, cell: Signal<string> | null, whole: string): void {
+  if (element === null) {
+    (cell as Signal<string>).value = whole;
+  } else {
+    element.className = whole;
+  }
+}
+
+/**
+ * Keeps the class current.
+ *
+ * A block can produce any CSS, so its result decides the rule — and the rule's
+ * own text decides its name, which is how two instances that resolve the same
+ * way share one. Without blocks there is one class and one binding that sets it.
+ */
+function bindClass(
+  spec: Spec,
+  view: Record<string, unknown>,
+  setClass: (own: string) => void,
+): void {
+  if (!spec.blocks) {
+    bind(() => {
+      setClass(spec.baseClass);
+    });
+    return;
+  }
+  bind(() => {
+    const text = join(spec.compiled, (slot) => blockText(slot.fn(view)));
+    const name = `${spec.id}-${hash(text)}`;
+    insertRule(name, `${spec.selector(name)}{${text}}`);
+    setClass(name);
+  });
+}
+
+/**
+ * Value slots are custom properties: one write each, and only for the ones
+ * whose inputs actually changed. They exist only for a tag, so there is an
+ * element to set them on.
+ */
+function bindValues(spec: Spec, view: Record<string, unknown>, element: HTMLElement | null): void {
+  for (const slot of spec.compiled.slots) {
+    if (slot.kind !== 'value') {
+      continue;
+    }
+    const host = element as HTMLElement;
+    bind(() => {
+      const value = slot.fn(view);
+      const text = value === null || value === undefined || value === false ? '' : String(value);
+      host.style.setProperty(slot.property, text);
+    });
+  }
+}
+
+/**
+ * The props a wrapped component receives.
+ *
+ * `class` is deliberately not copied from the caller: `writeClass` has already
+ * folded an incoming one into the cell, and defining it twice on the same
+ * object throws — which is what `styled(styled(X))` used to do.
+ *
+ * Transient (`$`) props *are* forwarded here, unlike at an element: what this
+ * wraps may itself be a styled component that declares them, and stripping
+ * them would leave the inner level unable to see the props the outer one was
+ * given. They are stripped where they would do harm — on a real element — by
+ * `forwards`.
+ */
+function forwarded(props: Record<string, unknown>, cell: Signal<string>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const name of Object.keys(props)) {
+    if (name !== 'class') {
+      Object.defineProperty(out, name, { enumerable: true, get: () => props[name] });
+    }
+  }
+  Object.defineProperty(out, 'class', { enumerable: true, get: () => cell.value });
+  return out;
 }
 
 type Tags = {

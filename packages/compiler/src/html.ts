@@ -90,3 +90,18 @@ export function escapeAttribute(value: string): string {
 export function eventName(attribute: string): string {
   return attribute.slice(2).toLowerCase();
 }
+
+/**
+ * Whether an attribute name is a listener.
+ *
+ * `onClick` and `on:sl-change` are both listeners; `once` and `onwards` are
+ * not, which is what the third character decides — a capital or a colon after
+ * `on` is the only thing that makes the rest a type name.
+ *
+ * One definition rather than two, because the browser path and the server path
+ * both need it and have to agree: a name the server skips and the browser
+ * attaches would be a listener nobody could reach.
+ */
+export function isEventName(name: string): boolean {
+  return name.startsWith('on') && name.length > 2 && /[A-Z:]/.test(name[2] as string);
+}

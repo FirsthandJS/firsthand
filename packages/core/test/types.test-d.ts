@@ -26,7 +26,7 @@ import {
   type ReadonlyCell,
   type ReadonlyProps,
   type Signal,
-} from '../src/index.js';
+} from '@/index.js';
 
 describe('signal', () => {
   it('infers the value type and stays writable', () => {

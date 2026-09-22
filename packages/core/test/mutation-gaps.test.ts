@@ -19,8 +19,8 @@ import {
   runWithOwner,
   signal,
   useContext,
-} from '../src/index.js';
-import { Cell } from '../src/core.js';
+} from '@/index.js';
+import { Cell } from '@/core.js';
 
 function dependencyCount(node: unknown): number {
   let link = (node as Cell).deps;

@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { signal } from '@firsthandjs/core';
 import { render, type View } from '@firsthandjs/dom';
-import { Fragment, jsx, jsxs } from '../src/index.js';
+import { Fragment, jsx, jsxs } from '@/index.js';
 
 let host: HTMLElement;
 

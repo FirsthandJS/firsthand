@@ -5,7 +5,11 @@
     "outDir": "dist",
     "lib": ["ES2022"],
     "types": ["node"],
-    "emitDeclarationOnly": true
+    "emitDeclarationOnly": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src"]
 }

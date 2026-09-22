@@ -4,8 +4,8 @@
  * disposed scope leaves no edges behind.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { batch, computed, createRoot, effect, signal } from '../src/index.js';
-import { Cell } from '../src/core.js';
+import { batch, computed, createRoot, effect, signal } from '@/index.js';
+import { Cell } from '@/core.js';
 
 /** Counts the subscribers a source currently has, by walking its list. */
 function subscriberCount(source: unknown): number {

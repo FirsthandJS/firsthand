@@ -8,8 +8,8 @@ import {
   onCleanup,
   runWithOwner,
   signal,
-} from '../src/index.js';
-import { reportUncaught } from '../src/dev.js';
+} from '@/index.js';
+import { reportUncaught } from '@/dev.js';
 
 describe('ownership and disposal', () => {
   it('createRoot returns the callback result', () => {

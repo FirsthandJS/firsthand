@@ -7,7 +7,7 @@
  * can see in the resulting tree is a change that silently stops happening.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { applyChild } from '../src/insert.js';
+import { applyChild } from '@/insert.js';
 
 const nodes = (parent: Element, count: number): Node[] => {
   const made: Node[] = [];

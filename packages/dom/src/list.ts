@@ -79,33 +79,24 @@ export function list<T>(
   let views = false;
 
   return () => {
-    const items = each();
     if (views && placed !== undefined) {
-      // What the rows have now, rather than what they had when they were
-      // placed: a view row is a part, and a part writes without the list
-      // running. This array is what the next reconcile compares against.
-      placed.length = 0;
-      for (const row of rows.values()) {
-        for (const node of row.pieces === undefined ? row.nodes : nodesOf(row)) {
-          placed.push(node);
-        }
-      }
+      rewritePlaced(placed, rows);
     }
-    const next = new Map<unknown, Row<T>>();
-    // Marked as nodes in order, so the child slot places them without
-    // walking them again: this loop is the walk.
+    // Marked as nodes in order, so the child slot places them without walking
+    // them again: the pass below is the walk.
     const nodes = [] as Node[] & { [FLAT]?: true; [PENDING]?: (parent: Node) => void };
     nodes[FLAT] = true;
-    /**
-     * Rows made on this pass that are views rather than trees.
-     *
-     * Their anchors are in `nodes` and go into the document with everything
-     * else; binding waits until they are there, because a part inserts before
-     * its anchor and an anchor with no parent has nowhere to insert. Only new
-     * rows are here: a row that kept its key kept its part and its content
-     * with it, and binding it again would mount a second copy.
-     */
-    let pending: Row<T>[] | undefined;
+    const pass: Pass<T> = {
+      items: each(),
+      rows,
+      next: new Map<unknown, Row<T>>(),
+      nodes,
+      host,
+      keyOf,
+      render,
+      pending: undefined,
+      views,
+    };
     // One `untrack` around the whole pass rather than one per row. Reading a
     // key must not subscribe the list to whatever the key function happens to
     // touch, and that is just as true of ten thousand keys read together as
@@ -113,13 +104,14 @@ export function list<T>(
     // thousand of each, for a list that is redrawn whenever one row changes.
     untrack(() => {
       batch(() => {
-        buildRows();
+        buildRows(pass);
       });
     });
-    rows = next;
+    views = pass.views;
+    rows = pass.next;
     placed = nodes;
-    if (pending !== undefined) {
-      const made = pending;
+    const made = pass.pending;
+    if (made !== undefined) {
       nodes[PENDING] = (parent: Node): void => {
         for (const row of made) {
           bindRow(row, parent);
@@ -127,49 +119,97 @@ export function list<T>(
       };
     }
     return nodes;
-
-    function buildRows(): void {
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i] as T;
-        const key = keyOf(item, i);
-        if (next.has(key)) {
-          devWarn(
-            `Duplicate list key ${String(key)}. Keys must be unique, or rows will be dropped.`,
-          );
-          continue;
-        }
-        let row = rows.get(key);
-        if (row === undefined) {
-          row = createRow(host, item, i, render);
-          if (row.pieces !== undefined) {
-            views = true;
-            if (!bindRow(row, null)) {
-              pending = pending === undefined ? [row] : [...pending, row];
-            }
-          }
-        } else {
-          rows.delete(key);
-          row.item.value = item;
-          row.index.value = i;
-        }
-        next.set(key, row);
-        // `nodes` on the row, unless the row is a view: then what it has is
-        // put together from its parts, which have been writing on their own.
-        const found = row.pieces === undefined ? row.nodes : nodesOf(row);
-        for (let n = 0; n < found.length; n++) {
-          nodes.push(found[n] as Node);
-        }
-      }
-      // Whatever is left in `rows` no longer has a key in the new data. Its
-      // nodes are removed by the reconciler, in one go, so the parts inside
-      // them are excused from removing theirs one at a time.
-      discard(() => {
-        for (const row of rows.values()) {
-          disposeOwner(row.owner);
-        }
-      });
-    }
   };
+}
+
+/**
+ * What the rows have now, rather than what they had when they were placed.
+ *
+ * A view row is a part, and a part writes without the list running. This array
+ * is the one `insert` is holding, and it is what the next reconcile compares
+ * against — so it is rewritten in place at the one moment it is read.
+ */
+function rewritePlaced<T>(placed: Node[], rows: Map<unknown, Row<T>>): void {
+  placed.length = 0;
+  for (const row of rows.values()) {
+    for (const node of row.pieces === undefined ? row.nodes : nodesOf(row)) {
+      placed.push(node);
+    }
+  }
+}
+
+/**
+ * One pass over the data, and everything it needs.
+ *
+ * An object rather than nine closed-over variables, because the pass is a
+ * function of its own: one allocation per list update, beside the map and the
+ * array a pass already makes, and none per row.
+ */
+type Pass<T> = {
+  items: readonly T[];
+  /** The rows the last pass left, emptied as this one claims them. */
+  rows: Map<unknown, Row<T>>;
+  next: Map<unknown, Row<T>>;
+  nodes: Node[];
+  host: Owner;
+  keyOf: (item: T, index: number) => unknown;
+  render: (item: ReadonlyCell<T>, index: ReadonlyCell<number>) => unknown;
+  /**
+   * Rows made on this pass that are views rather than trees.
+   *
+   * Their anchors are in `nodes` and go into the document with everything
+   * else; binding waits until they are there, because a part inserts before
+   * its anchor and an anchor with no parent has nowhere to insert. Only new
+   * rows are here: a row that kept its key kept its part and its content with
+   * it, and binding it again would mount a second copy.
+   */
+  pending: Row<T>[] | undefined;
+  /** Whether any row has ever been a view. Carried between passes. */
+  views: boolean;
+};
+
+function buildRows<T>(pass: Pass<T>): void {
+  const { items, rows, next, nodes } = pass;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i] as T;
+    const key = pass.keyOf(item, i);
+    if (next.has(key)) {
+      devWarn(`Duplicate list key ${String(key)}. Keys must be unique, or rows will be dropped.`);
+      continue;
+    }
+    const row = rows.get(key) ?? newRow(pass, item, i);
+    if (rows.delete(key)) {
+      row.item.value = item;
+      row.index.value = i;
+    }
+    next.set(key, row);
+    // `nodes` on the row, unless the row is a view: then what it has is put
+    // together from its parts, which have been writing on their own.
+    const found = row.pieces === undefined ? row.nodes : nodesOf(row);
+    for (let n = 0; n < found.length; n++) {
+      nodes.push(found[n] as Node);
+    }
+  }
+  // Whatever is left in `rows` no longer has a key in the new data. Its nodes
+  // are removed by the reconciler, in one go, so the parts inside them are
+  // excused from removing theirs one at a time.
+  discard(() => {
+    for (const row of rows.values()) {
+      disposeOwner(row.owner);
+    }
+  });
+}
+
+/** A row the data has but the last pass did not. */
+function newRow<T>(pass: Pass<T>, item: T, index: number): Row<T> {
+  const row = createRow(pass.host, item, index, pass.render);
+  if (row.pieces !== undefined) {
+    pass.views = true;
+    if (!bindRow(row, null)) {
+      pass.pending = pass.pending === undefined ? [row] : [...pass.pending, row];
+    }
+  }
+  return row;
 }
 
 function isNode(piece: Piece): piece is Node {

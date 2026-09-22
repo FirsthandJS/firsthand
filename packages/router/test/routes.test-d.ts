@@ -6,7 +6,7 @@
  * compilation error rather than `undefined` at runtime.
  */
 import { describe, expectTypeOf, it } from 'vitest';
-import { route, type ParamsOf, type RouteProps } from '../src/index.js';
+import { route, type ParamsOf, type RouteProps } from '@/index.js';
 
 describe('ParamsOf', () => {
   it('reads a parameter out of a path', () => {

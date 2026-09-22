@@ -1,6 +1,6 @@
 # @firsthandjs/router
 
-[Reference index](../README.md#reference) · 3.44 kB gzip · depends on
+[Reference index](../README.md#reference) · 3.36 kB gzip · depends on
 `@firsthandjs/dom`
 
 Nested routes, ranked matching and routes whose code is loaded on demand.

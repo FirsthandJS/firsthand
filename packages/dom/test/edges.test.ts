@@ -1,11 +1,12 @@
 /** Remaining edge cases, kept apart so the behavioural suites stay readable. */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, signal, type ReadonlyCell } from '@firsthandjs/core';
-import { applyChild, insert, reconcile } from '../src/insert.js';
-import { applyProp } from '../src/props.js';
-import { list } from '../src/list.js';
-import { component, createComponent } from '../src/component.js';
-import { render } from '../src/render.js';
+import { applyChild, insert } from '@/insert.js';
+import { reconcile } from '@/reconcile.js';
+import { applyProp } from '@/props.js';
+import { list } from '@/list.js';
+import { component, createComponent } from '@/component.js';
+import { render } from '@/render.js';
 
 let host: HTMLElement;
 

@@ -14,8 +14,8 @@ import {
   signal,
   snapshot,
 } from '@firsthandjs/core';
-import { component } from '../../src/component.js';
-import { render } from '../../src/render.js';
+import { component } from '@/component.js';
+import { render } from '@/render.js';
 
 let warn: MockInstance<typeof console.warn>;
 let host: HTMLElement;

@@ -20,7 +20,7 @@ import {
   list,
   type ReadonlyCell,
   type ReadonlyProps,
-} from '../src/index.js';
+} from '@/index.js';
 
 let host: HTMLElement;
 

@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { compileModule } from '@firsthandjs/compiler';
-import { forget, original } from '../src/source.js';
+import { forget, original } from '@/source.js';
 
 /** Spelled in pieces: written out, it would be read as this file's own map. */
 const MARKER = ['source', 'Mapping', 'URL'].join('');

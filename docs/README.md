@@ -63,6 +63,8 @@ Sizes are measured by `npm run build` and published in the
 - [ADRs](adr/) — every decision with performance or semantic consequences,
   including the ones measurement proved wrong.
 - [Performance plan](../PERFORMANCE_PLAN.md) and
+  [code rules](architecture/code-rules.md) — the limits a tool enforces and
+  where each number came from — the
   [risk register](architecture/risks.md) — what was predicted, and what
   actually happened.
 

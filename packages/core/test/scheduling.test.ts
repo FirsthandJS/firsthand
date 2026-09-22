@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { batch, catchError, createRoot, effect, signal } from '../src/index.js';
-import { FirsthandCycleError } from '../src/errors.js';
+import { batch, catchError, createRoot, effect, signal } from '@/index.js';
+import { FirsthandCycleError } from '@/errors.js';
 
 describe('scheduling (ADR-0006)', () => {
   it('updates synchronously: no await is needed after a write', () => {

@@ -1,6 +1,6 @@
 # @firsthandjs/data
 
-[Reference index](../README.md#reference) · 3.84 kB gzip (2.61 kB with the
+[Reference index](../README.md#reference) · 4.80 kB gzip (2.61 kB with the
 `.gql` loader, which leaves the parser out) · depends on `@firsthandjs/dom`
 
 Two layers: **resources and actions**, which are reactive state and

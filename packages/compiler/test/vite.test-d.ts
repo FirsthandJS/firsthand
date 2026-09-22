@@ -13,7 +13,7 @@
  */
 import { describe, expectTypeOf, it } from 'vitest';
 import type { PluginOption } from 'vite';
-import { firsthand } from '../src/vite.js';
+import { firsthand } from '@/vite.js';
 
 describe('as a Vite plugin', () => {
   it('is assignable to what `plugins` accepts', () => {

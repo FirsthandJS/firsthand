@@ -4,8 +4,19 @@
     "rootDir": "src",
     "outDir": "dist",
     "types": [],
-    "emitDeclarationOnly": true
+    "emitDeclarationOnly": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src"],
-  "references": [{ "path": "../core" }, { "path": "../dom" }]
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../dom"
+    }
+  ]
 }

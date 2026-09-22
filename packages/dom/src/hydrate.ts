@@ -164,41 +164,23 @@ export function claimRegion(parent: Node, marker: Node | null): Claimed | null {
       return offered;
     }
   }
-  const held = cursors.get(parent);
-  const fromTheTop = held === undefined;
-  const node = fromTheTop ? parent.firstChild : held;
-
-  let start: Node | null;
-  let end: Node | null;
-  // The opening marker, if there is one. For the first claim on a parent the
-  // search stops at `marker`: a marker found past it belongs to the *next*
-  // dynamic child, whose opener the server did emit.
-  const stop = fromTheTop ? marker : null;
-  let open: Node | null = node;
-  while (open !== null && open !== stop && !isOpen(open)) {
-    open = open.nextSibling;
-  }
-  if (open !== null && open !== stop) {
-    end = closeOf(open);
-    if (marker !== null && marker !== end) {
-      return null;
-    }
-    openers.push(open);
-    start = open.nextSibling;
-  } else if (fromTheTop) {
-    // No opener before the end of this region: the child is the first thing
-    // in its element, and the server left the marker out because where the
-    // element's children start is where the region starts.
-    start = node;
-    end = marker;
-  } else {
+  const bounds = boundsOf(parent, marker);
+  if (bounds === null) {
     return null;
   }
+  const { end } = bounds;
   cursors.set(parent, end === null ? null : end.nextSibling);
-  if (start === end) {
-    start = null;
-  }
+  return claimedOf(bounds.start === end ? null : bounds.start, end);
+}
 
+/**
+ * The nodes between two bounds, as the thing a part adopts.
+ *
+ * A region of exactly one text node is the common case and is described twice:
+ * as the node, and as its text, so that the first run can compare what it
+ * produces against what is there and write nothing.
+ */
+function claimedOf(start: Node | null, end: Node | null): Claimed {
   const nodes: Node[] = [];
   for (let one = start; one !== null && one !== end; one = one.nextSibling) {
     nodes.push(one);
@@ -209,6 +191,47 @@ export function claimRegion(parent: Node, marker: Node | null): Claimed | null {
     text: only !== null && only.nodeType === TEXT_NODE ? (only as Text).data : undefined,
     region: { node: start, end },
   };
+}
+
+/**
+ * Where the next region starts and ends, or `null` when the markup disagrees.
+ *
+ * The server writes an opening marker before a dynamic child unless the child
+ * is the whole of its element's content — then where the element's children
+ * start is where the region starts, and the marker would be a comment in every
+ * cell of a table for nothing.
+ */
+function boundsOf(
+  parent: Node,
+  marker: Node | null,
+): { start: Node | null; end: Node | null } | null {
+  const held = cursors.get(parent);
+  const fromTheTop = held === undefined;
+  const node = fromTheTop ? parent.firstChild : held;
+
+  // The opening marker, if there is one. For the first claim on a parent the
+  // search stops at `marker`: a marker found past it belongs to the *next*
+  // dynamic child, whose opener the server did emit.
+  const stop = fromTheTop ? marker : null;
+  let open: Node | null = node;
+  while (open !== null && open !== stop && !isOpen(open)) {
+    open = open.nextSibling;
+  }
+  if (open !== null && open !== stop) {
+    const end = closeOf(open);
+    if (marker !== null && marker !== end) {
+      // The server and the client disagree about this subtree.
+      return null;
+    }
+    openers.push(open);
+    return { start: open.nextSibling, end };
+  }
+  if (fromTheTop) {
+    // No opener before the end of this region: the child is the first thing in
+    // its element, and the server left the marker out.
+    return { start: node, end: marker };
+  }
+  return null;
 }
 
 /**

@@ -37,8 +37,6 @@
     "baseUrl": "."
   },
   "include": [
-    "packages/*/src/**/*",
-    "packages/*/test/**/*",
     "tests/**/*",
     "scripts/**/*",
     "benchmarks/**/*",

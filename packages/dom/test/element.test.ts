@@ -7,9 +7,9 @@ import {
   defineElement,
   isComponent,
   tagNameFor,
-} from '../src/component.js';
-import { render } from '../src/render.js';
-import { insert } from '../src/insert.js';
+} from '@/component.js';
+import { render } from '@/render.js';
+import { insert } from '@/insert.js';
 
 let host: HTMLElement;
 let unique = 0;

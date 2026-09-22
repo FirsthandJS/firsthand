@@ -1,20 +1,22 @@
-import {
-  bind,
-  createOwner,
-  signal,
-  disposeOwner,
-  getOwner,
-  onCleanup,
-  runWithOwner,
-  setOwner,
-  type Owner,
-  type Signal,
-} from '@firsthandjs/core';
-import { devHandedNewFunction, devPart, devRan, devWarnRenderedObject } from './dev.js';
+/**
+ * A dynamic child position: what fills it, and when it is filled again.
+ *
+ * `insert` binds one; `applyChild` writes whatever a part produced into one.
+ * The two are mutually recursive by nature — an array of children is children —
+ * which is why they are one module rather than two.
+ */
+
+import { bind, getOwner, onCleanup, runWithOwner, type Owner } from '@firsthandjs/core';
+
 import { hydration, type Claimed } from './claim.js';
 
-/** What a child part currently owns in the DOM. */
-export type ChildSlot = Node | Node[] | null;
+import { devPart, devWarnRenderedObject } from './dev.js';
+
+import { TEXT_NODE, clear, clearIn, isNode, single, type ChildSlot } from './nodes.js';
+
+import { reconcile } from './reconcile.js';
+
+export type { ChildSlot } from './nodes.js';
 
 /**
  * How deep we are inside something whose nodes are being thrown away anyway.
@@ -45,12 +47,6 @@ export function discard(body: () => void): void {
   } finally {
     discarding--;
   }
-}
-
-const TEXT_NODE = 3;
-
-function isNode(value: object): value is Node {
-  return typeof (value as Node).nodeType === 'number';
 }
 
 const PART: unique symbol = Symbol('firsthand.part');
@@ -122,196 +118,32 @@ export function isDynamicChild(value: object): value is DynamicChild {
 }
 
 /**
- * One place a run writes to, and what it last put there.
+ * What only the runtime passes, and the compiler never does.
  *
- * A render function runs as a whole, so the DOM it describes has to be the DOM
- * it already made: created on the first run, written on every one after. These
- * records are what survives between runs — the node, and the last value, so a
- * run that produces what is already on screen writes nothing.
+ * Two hand-offs that exist for one caller each, grouped rather than added to
+ * the signature: `insert` is the compiler/runtime protocol, and its arity is
+ * part of that protocol (ARCHITECTURE section 1.1). Both paths that pass this
+ * happen once per part rather than once per row, so the object costs nothing
+ * anybody can measure.
  */
-export type Slot = {
-  /** What this site made, or what a write currently owns. */
-  node?: ChildSlot;
-  /** The last primitive written here, when the last thing written was one. */
-  text?: string | undefined;
-  /** The last value written to an attribute or a property. */
-  last?: unknown;
-  /** What the site made besides its node: parts, listeners, components. */
-  owner?: Owner;
-  /** The run that last reached this site. */
-  seen?: number;
-  /** A prop a run feeds a child, held so the child keeps its instance. */
-  cell?: Signal<unknown>;
+export type InsertOptions = {
+  /**
+   * A region already claimed, handed down rather than looked up.
+   *
+   * How a part that turns out to produce another part gives the markup it
+   * claimed to the part that will actually own it — see the `function` branch
+   * in `run` below.
+   */
+  seed?: Claimed | null;
+  /**
+   * Told what this part currently has in the document, after every run.
+   *
+   * A keyed list needs it: a row that is a view owns nodes that change without
+   * the list running, and a reorder has to move what the row has now rather
+   * than what it had when it was made.
+   */
+  report?: Report;
 };
-
-/**
- * Where a run keeps its sites.
- *
- * One per instance, made in the setup — which runs once, so there is nothing
- * to look up and nothing ambient. What a site makes belongs to `owner`, the
- * component's own, rather than to the run that happened to make it: a run's
- * scope is cleared before it runs again, and anything left there would be
- * disposed by the second run.
- */
-export type Store = {
-  slots: (Slot | undefined)[];
-  owner: Owner | null;
-  /** Which run is in progress, so that what it did not reach can be found. */
-  generation: number;
-  /** The component this belongs to, for what development has to say about it. */
-  name: string;
-  /** Whether this run has changed anything. Development only. */
-  busy?: boolean;
-  /** How many runs in a row have changed nothing. Development only. */
-  quiet?: number;
-};
-
-/** Declared once per instance by the compiler, in the setup. */
-export function store(name = ''): Store {
-  return { slots: [], owner: getOwner(), generation: 0, name };
-}
-
-/** Notes that this run has actually changed something. */
-export function wrote(store: Store): void {
-  store.busy = true;
-}
-
-/** The record for one site, made the first time a run reaches it. */
-export function site(store: Store, index: number): Slot {
-  const existing = store.slots[index];
-  if (existing !== undefined) {
-    existing.seen = store.generation;
-    return existing;
-  }
-  const slot: Slot = { seen: store.generation };
-  store.slots[index] = slot;
-  return slot;
-}
-
-/**
- * Opens a site: what it makes now belongs to the instance, not to this run.
- *
- * Returns the owner to restore, which the compiler hands back to `close`.
- */
-export function open(store: Store, slot: Slot): Owner | null {
-  const owner = createOwner(store.owner);
-  slot.owner = owner;
-  return setOwner(owner);
-}
-
-export function close(previous: Owner | null): void {
-  setOwner(previous);
-}
-
-/**
- * Ends a run, and disposes what it did not reach.
- *
- * A branch the run has left is gone, not hidden: its components run their
- * cleanups and its parts stop, exactly as if the markup had never been there.
- * Coming back builds it again. That is what the control flow says, so it is
- * what happens.
- */
-export function ran<T>(store: Store, value: T): T {
-  devRan(store);
-  const generation = store.generation;
-  const slots = store.slots;
-  for (let i = 0; i < slots.length; i++) {
-    const slot = slots[i];
-    if (slot === undefined || slot.seen === generation) {
-      continue;
-    }
-    if (slot.owner !== undefined) {
-      disposeOwner(slot.owner);
-    }
-    slots[i] = undefined;
-  }
-  store.generation = generation + 1;
-  return value;
-}
-
-/**
- * A prop whose value belongs to the run, as something the child can hold.
- *
- * The child keeps its instance across runs, so its props cannot be getters
- * over the run that made them — that value belongs to one call. It gets a cell
- * instead, made the first time and written afterwards, so a prop that did not
- * change wakes nothing.
- */
-export function cell(store: Store, index: number, value: unknown): Signal<unknown> {
-  const slot = site(store, index);
-  const existing = slot.cell;
-  if (existing === undefined) {
-    const made = signal(value);
-    slot.cell = made;
-    return made;
-  }
-  if (existing.peek() !== value) {
-    devHandedNewFunction(store, value);
-    wrote(store);
-    existing.value = value;
-  }
-  return existing;
-}
-
-/**
- * Writes a child position a run owns.
- *
- * The same text twice is not a write: `data` would accept it, and measuring
- * says that comparing a remembered string costs half what setting one does.
- * Anything else goes through `applyChild`, where a node that has not moved is
- * recognised and left where it is.
- */
-export function writeChild(
-  store: Store,
-  index: number,
-  parent: Node,
-  marker: Node | null,
-  value: unknown,
-): void {
-  const slot = site(store, index);
-  if (slot.node === undefined && hydration.current !== null) {
-    // The first run of a render function over markup the server already sent.
-    // The site starts out owning what is there, so the comparisons below find
-    // the value already written and the run writes nothing.
-    const claimed = hydration.current.claim(parent, marker);
-    if (claimed !== null) {
-      if (typeof value === 'object' && value !== null && isDynamicChild(value)) {
-        // The child's anchor is the client's own — markup has no way to
-        // express one — so hydration puts it in place and hands the region to
-        // the `insert` below, which is where the child was going to come from
-        // anyway.
-        slot.last = value;
-        hydration.current.keep(slot, parent, value.anchor, claimed);
-        runWithOwner(value.owner, () => {
-          insert(parent, value.thunk, value.anchor);
-        });
-        return;
-      }
-      slot.node = claimed.nodes;
-      slot.text = claimed.text;
-    }
-  }
-  const type = typeof value;
-  if (type === 'string' || type === 'number') {
-    const text = String(value);
-    if (text === slot.text) {
-      return;
-    }
-    wrote(store);
-    slot.text = text;
-    slot.node = applyChild(parent, marker, slot.node ?? null, text);
-    return;
-  }
-  slot.text = undefined;
-  // The same thing again is not a write. It is how a child a run keeps stays
-  // where it is: the run hands back the very object it handed back last time.
-  if (value === slot.last) {
-    return;
-  }
-  wrote(store);
-  slot.last = value;
-  slot.node = applyChild(parent, marker, slot.node ?? null, value);
-}
 
 /**
  * Binds a dynamic child position.
@@ -324,29 +156,17 @@ export function insert(
   parent: Node,
   value: unknown,
   marker: Node | null = null,
-  /**
-   * A region already claimed, handed down rather than looked up.
-   *
-   * The compiler never passes this. It is how a part that turns out to
-   * produce another part gives the markup it claimed to the part that will
-   * actually own it — see the `function` branch below.
-   */
-  seed?: Claimed | null,
-  /**
-   * Told what this part currently has in the document, after every run.
-   *
-   * The compiler never passes this either. A keyed list needs it: a row that
-   * is a view owns nodes that change without the list running, and a reorder
-   * has to move what the row has now rather than what it had when it was
-   * made.
-   */
-  report?: Report,
+  options?: InsertOptions,
 ): void {
   if (typeof value !== 'function') {
     applyChild(parent, marker, null, value);
     return;
   }
-  let current: ChildSlot = null;
+  // What the server already put here. The first run then finds the value it
+  // produces already on the page — the same text, or the very nodes it just
+  // adopted — and writes nothing.
+  const claimed = claimFor(parent, marker, options?.seed);
+  let current: ChildSlot = claimed === null ? null : claimed.nodes;
   /**
    * What this part last wrote, when what it wrote was text.
    *
@@ -356,28 +176,9 @@ export function insert(
    * of writing unconditionally, because most of a view is unchanged on most
    * updates.
    */
-  let written: string | undefined;
-  // What the server already put here. The first run then finds the value it
-  // produces already on the page — the same text, or the very nodes it just
-  // adopted — and writes nothing.
-  const claimed =
-    seed !== undefined
-      ? seed
-      : hydration.current === null
-        ? null
-        : hydration.current.claim(parent, marker);
+  let written = claimed?.text;
   /** Whether the run in progress is the one that found the markup in place. */
   let adopting = claimed !== null;
-  if (claimed !== null) {
-    current = claimed.nodes;
-    written = claimed.text;
-  }
-  const body = (): void => {
-    run();
-    // `marker` is the part's own anchor wherever a report was asked for: only
-    // `bindPart` passes one, and it passes the anchor with it.
-    report?.(nodesOf(current, marker as Node));
-  };
   const run = (): void => {
     const next = (value as () => unknown)();
     const type = typeof next;
@@ -401,31 +202,29 @@ export function insert(
       // selected it. Evaluating it inline instead would make the conditional
       // depend on the list's data, and every change to that data would rebuild
       // every row — which is exactly what the benchmark caught.
-      if (adopting) {
-        // A component whose setup returned a render function, over markup a
-        // server sent. What was claimed belongs to that function's part, not
-        // to this one — handed over rather than cleared, which is the
-        // difference between adopting the page and rebuilding it.
-        current = null;
-        insert(parent, next, marker, claimed);
-        return;
-      }
-      current = clear(current);
-      insert(parent, next, marker, null);
+      //
+      // While adopting, what was claimed belongs to that function's part
+      // rather than to this one: handed over rather than cleared, which is the
+      // difference between adopting the page and rebuilding it.
+      current = adopting ? null : clear(current);
+      insert(parent, next, marker, { seed: adopting ? claimed : null });
       return;
     }
     current = applyChild(parent, marker, current, next);
   };
-  if (claimed === null) {
-    bind(body);
-  } else {
-    // The first run happens inside the region, so that a `template()` reached
-    // from here adopts this child's nodes rather than the next child's.
-    // `current` is what produced the claim a moment ago, so it is still here.
-    (hydration.current as NonNullable<typeof hydration.current>).within(claimed.region, () => {
-      bind(body);
-    });
-  }
+  // A report is a frame on every run, so a part nobody asked about is bound to
+  // `run` itself. `marker` is the part's own anchor wherever one was asked for:
+  // only `bindPart` asks, and it passes the anchor with it.
+  const report = options?.report;
+  bindIn(
+    claimed,
+    report === undefined
+      ? run
+      : () => {
+          run();
+          report(nodesOf(current, marker as Node));
+        },
+  );
   adopting = false;
   // A dynamic child owns the nodes it inserted, so disposing the scope that
   // created it removes them — including the nodes a nested part inserted.
@@ -452,7 +251,47 @@ function nodesOf(current: ChildSlot, anchor: Node): Node[] {
   return nodes;
 }
 
-/** Applies one value to a child slot and returns the slot's new contents. */
+/**
+ * The region this part adopts, if any.
+ *
+ * `undefined` means nobody handed one down, so ask hydration; `null` means a
+ * caller looked and there was nothing.
+ */
+function claimFor(
+  parent: Node,
+  marker: Node | null,
+  seed: Claimed | null | undefined,
+): Claimed | null {
+  if (seed !== undefined) {
+    return seed;
+  }
+  return hydration.current === null ? null : hydration.current.claim(parent, marker);
+}
+
+/**
+ * Runs the first pass, inside the claimed region when there is one.
+ *
+ * Inside, so that a `template()` reached from here adopts this child's nodes
+ * rather than the next child's.
+ */
+function bindIn(claimed: Claimed | null, body: () => void): void {
+  if (claimed === null) {
+    bind(body);
+    return;
+  }
+  (hydration.current as NonNullable<typeof hydration.current>).within(claimed.region, () => {
+    bind(body);
+  });
+}
+
+/**
+ * Applies one value to a child slot and returns the slot's new contents.
+ *
+ * The two branches that answer for almost every write are first and inline:
+ * nothing, and a primitive. Everything else is a shape that costs more than the
+ * call to reach it, so it lives in `applyOther` and this function stays small
+ * enough to read in one go.
+ */
 export function applyChild(
   parent: Node,
   marker: Node | null,
@@ -480,57 +319,78 @@ export function applyChild(
     }
     return single(parent, marker, current, document.createTextNode(text));
   }
-  if (type === 'function') {
+  return applyOther(parent, marker, current, value);
+}
+
+/** Everything that is not nothing and not a primitive. */
+function applyOther(
+  parent: Node,
+  marker: Node | null,
+  current: ChildSlot,
+  value: unknown,
+): ChildSlot {
+  if (typeof value === 'function') {
     return applyChild(parent, marker, current, (value as () => unknown)());
   }
   if (Array.isArray(value)) {
-    if (FLAT in value) {
-      // Nodes already, in order. The only thing left is to put them in place.
-      const rows = value as unknown as Node[];
-      if (rows.length === 0) {
-        return clearIn(parent, marker, current);
-      }
-      reconcile(
-        parent,
-        marker,
-        current === null ? [] : Array.isArray(current) ? current : [current],
-        rows,
-      );
-      (value as { [PENDING]?: (parent: Node) => void })[PENDING]?.(parent);
-      return rows;
-    }
-    const next: Node[] = [];
-    const dynamic: DynamicChild[] = [];
-    flatten(value, next, dynamic);
-    if (next.length === 0) {
-      return clearIn(parent, marker, current);
-    }
-    reconcile(
-      parent,
-      marker,
-      current === null ? [] : Array.isArray(current) ? current : [current],
-      next,
-    );
-    // Bound only now: the anchors are in the DOM, so each part has a parent to
-    // insert before.
-    for (let i = 0; i < dynamic.length; i++) {
-      bindPart(dynamic[i] as DynamicChild, parent);
-    }
-    return next;
+    return applyArray(parent, marker, current, value);
   }
-  if (isDynamicChild(value)) {
+  if (isDynamicChild(value as object)) {
     // A fragment with a single dynamic child. The array path already knows how
     // to anchor and bind one, so reuse it rather than duplicating the logic.
-    return applyChild(parent, marker, current, [value]);
+    return applyArray(parent, marker, current, [value]);
   }
-  if (isNode(value)) {
-    return single(parent, marker, current, value);
+  if (isNode(value as object)) {
+    return single(parent, marker, current, value as Node);
   }
   // Everything else is stringified, which is the platform's own behaviour —
   // but an object here is almost always a mistake, most often a signal read
   // without `.value`, so development says so.
-  devWarnRenderedObject(value);
+  devWarnRenderedObject(value as object);
   return applyChild(parent, marker, current, String(value));
+}
+
+/** What the slot already has, as the list `reconcile` compares against. */
+function asList(current: ChildSlot): Node[] {
+  return current === null ? [] : Array.isArray(current) ? current : [current];
+}
+
+/**
+ * An array of children, reconciled into place.
+ *
+ * A keyed list has already flattened itself and says so with `FLAT`: it has the
+ * nodes, it made the array, and nobody else can reach it. Walking it again
+ * would be one allocation and ten thousand steps for a list of ten thousand
+ * rows.
+ */
+function applyArray(
+  parent: Node,
+  marker: Node | null,
+  current: ChildSlot,
+  value: readonly unknown[],
+): ChildSlot {
+  if (FLAT in value) {
+    const rows = value as unknown as Node[];
+    if (rows.length === 0) {
+      return clearIn(parent, marker, current);
+    }
+    reconcile(parent, marker, asList(current), rows);
+    (value as { [PENDING]?: (parent: Node) => void })[PENDING]?.(parent);
+    return rows;
+  }
+  const next: Node[] = [];
+  const dynamic: DynamicChild[] = [];
+  flatten(value, next, dynamic);
+  if (next.length === 0) {
+    return clearIn(parent, marker, current);
+  }
+  reconcile(parent, marker, asList(current), next);
+  // Bound only now: the anchors are in the DOM, so each part has a parent to
+  // insert before.
+  for (let i = 0; i < dynamic.length; i++) {
+    bindPart(dynamic[i] as DynamicChild, parent);
+  }
+  return next;
 }
 
 /**
@@ -540,11 +400,6 @@ export function applyChild(
  * disposal and error ownership lexical. A part created outside any scope —
  * runtime JSX at module level, say — is bound under the scope doing the
  * inserting, so that it is still disposed by something rather than by nothing.
- *
- * A part that is already mounted is left alone. A run hands back what it made
- * rather than making it again, so the same part arrives here on every run of
- * the run that owns it, and binding it twice would put a second copy of the
- * whole child on the page beside the first.
  */
 export function bindPart(child: DynamicChild, parent: Node, report?: Report): void {
   if (mounted.has(child)) {
@@ -552,7 +407,7 @@ export function bindPart(child: DynamicChild, parent: Node, report?: Report): vo
   }
   mounted.add(child);
   runWithOwner(child.owner ?? getOwner(), () => {
-    insert(parent, child.thunk, child.anchor, undefined, report);
+    insert(parent, child.thunk, child.anchor, report === undefined ? undefined : { report });
     // Forgotten when the part is disposed, because a child a conditional takes
     // away and puts back is the same object and does need mounting again.
     onCleanup(() => {
@@ -584,194 +439,4 @@ function flatten(value: readonly unknown[], out: Node[], dynamic: DynamicChild[]
       out.push(document.createTextNode(String(item)));
     }
   }
-}
-
-/**
- * Removes a node from wherever it currently is.
- *
- * Usually that is `parent`, but a node can legitimately have been moved — an
- * element host relocated in the document, for instance — and disposal must
- * still clean up rather than throw.
- */
-function detach(node: Node): void {
-  const owner = node.parentNode;
-  if (owner !== null) {
-    owner.removeChild(node);
-  }
-}
-
-/**
- * Empties a child slot that is everything its parent has.
- *
- * Removing ten thousand rows one at a time is ten thousand mutations, each one
- * a chance for the engine to do bookkeeping it is about to throw away. When
- * the slot *is* the parent's content — no marker after it, nothing beside it —
- * the platform has one call that says so, and it is what clearing a table
- * actually costs: `removeChild` was 85 % of that scenario before this.
- *
- * Falls back to removing them one by one whenever the slot is anything less
- * than the whole, including when a node has been moved out from under it.
- */
-function clearIn(parent: Node, marker: Node | null, current: ChildSlot): null {
-  if (
-    marker === null &&
-    Array.isArray(current) &&
-    current.length > 1 &&
-    parent.childNodes.length === current.length
-  ) {
-    (parent as Element).textContent = '';
-    return null;
-  }
-  return clear(current);
-}
-
-function clear(current: ChildSlot): null {
-  if (current !== null) {
-    if (Array.isArray(current)) {
-      for (let i = 0; i < current.length; i++) {
-        detach(current[i] as Node);
-      }
-    } else {
-      detach(current);
-    }
-  }
-  return null;
-}
-
-function single(parent: Node, marker: Node | null, current: ChildSlot, node: Node): Node {
-  if (current === node) {
-    return node;
-  }
-  if (current !== null && !Array.isArray(current)) {
-    parent.replaceChild(node, current);
-    return node;
-  }
-  clear(current);
-  parent.insertBefore(node, marker);
-  return node;
-}
-
-/**
- * Reconciles two node lists in place, by node identity.
- *
- * Keyed lists reuse their rows' DOM nodes across reorders, so identity is
- * exactly the right key here: a row that survived is the same node, and only
- * nodes that genuinely moved are touched.
- *
- * The algorithm is a common-prefix/suffix trim, then a longest-increasing-
- * subsequence over the surviving nodes, moving only the ones outside it — the
- * provably minimal number of `insertBefore` calls.
- *
- * This is the outcome of the comparison ADR-0010 required, not an assumption:
- * three candidates were measured over ten operations at two sizes, with the
- * order rotated per repetition and correctness asserted on every run. LIS came
- * out ahead overall (1.02 against 1.17 for the two-ended scan and 1.49 for the
- * naive baseline) and decisively where moves are few and far apart — a swap at
- * 10 000 rows costs it 2 moves instead of 9 997. It loses one case: a full
- * reverse, where the subsequence is length 1 and the analysis buys nothing.
- * That trade is published in `benchmarks/results/reconcilers.json`.
- */
-export function reconcile(parent: Node, marker: Node | null, a: Node[], b: Node[]): void {
-  let aStart = 0;
-  let bStart = 0;
-  let aEnd = a.length - 1;
-  let bEnd = b.length - 1;
-
-  while (aStart <= aEnd && bStart <= bEnd && a[aStart] === b[bStart]) {
-    aStart++;
-    bStart++;
-  }
-  while (aStart <= aEnd && bStart <= bEnd && a[aEnd] === b[bEnd]) {
-    aEnd--;
-    bEnd--;
-  }
-
-  const after = bEnd + 1 < b.length ? (b[bEnd + 1] as Node) : marker;
-
-  if (aStart > aEnd) {
-    // Pure insertion.
-    for (let i = bStart; i <= bEnd; i++) {
-      parent.insertBefore(b[i] as Node, after);
-    }
-    return;
-  }
-  if (bStart > bEnd) {
-    // Pure removal.
-    for (let i = aStart; i <= aEnd; i++) {
-      parent.removeChild(a[i] as Node);
-    }
-    return;
-  }
-
-  // Where each surviving node sits in the old middle.
-  const oldIndex = new Map<Node, number>();
-  for (let i = aStart; i <= aEnd; i++) {
-    oldIndex.set(a[i] as Node, i);
-  }
-
-  const middle = bEnd - bStart + 1;
-  // `sources[j]` is the old index of the node that ends up at new position j,
-  // or -1 when the node is new.
-  const sources = new Int32Array(middle).fill(-1);
-  for (let j = 0; j < middle; j++) {
-    const node = b[bStart + j] as Node;
-    const found = oldIndex.get(node);
-    if (found !== undefined) {
-      sources[j] = found;
-      // Consuming the entry leaves exactly the departed nodes behind, so the
-      // removal pass needs no second set.
-      oldIndex.delete(node);
-    }
-  }
-  for (const node of oldIndex.keys()) {
-    parent.removeChild(node);
-  }
-
-  const keep = longestIncreasing(sources);
-  let k = keep.length - 1;
-  let anchor: Node | null = after;
-  for (let j = middle - 1; j >= 0; j--) {
-    const node = b[bStart + j] as Node;
-    if (k >= 0 && keep[k] === j) {
-      // Already in the right relative order: leave it where it is.
-      k--;
-    } else {
-      parent.insertBefore(node, anchor);
-    }
-    anchor = node;
-  }
-}
-
-/** Indices of a longest increasing subsequence of `sources`, skipping `-1`. */
-function longestIncreasing(sources: Int32Array): number[] {
-  const length = sources.length;
-  const predecessor = new Int32Array(length).fill(-1);
-  const tails: number[] = [];
-  for (let i = 0; i < length; i++) {
-    const value = sources[i] as number;
-    if (value === -1) {
-      continue;
-    }
-    let low = 0;
-    let high = tails.length;
-    while (low < high) {
-      const mid = (low + high) >> 1;
-      if ((sources[tails[mid] as number] as number) < value) {
-        low = mid + 1;
-      } else {
-        high = mid;
-      }
-    }
-    if (low > 0) {
-      predecessor[i] = tails[low - 1] as number;
-    }
-    tails[low] = i;
-  }
-  const result: number[] = [];
-  let cursor = tails.length > 0 ? (tails[tails.length - 1] as number) : -1;
-  while (cursor !== -1) {
-    result.push(cursor);
-    cursor = predecessor[cursor] as number;
-  }
-  return result.reverse();
 }

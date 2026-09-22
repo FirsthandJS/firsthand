@@ -5,8 +5,19 @@
     "outDir": "dist",
     "types": [],
     "emitDeclarationOnly": true,
-    "jsx": "preserve"
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src"],
-  "references": [{ "path": "../core" }, { "path": "../dom" }]
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../dom"
+    }
+  ]
 }

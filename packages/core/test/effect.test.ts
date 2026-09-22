@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { batch, computed, createRoot, effect, onCleanup, signal } from '../src/index.js';
+import { batch, computed, createRoot, effect, onCleanup, signal } from '@/index.js';
 
 describe('effect', () => {
   it('runs immediately and on every relevant change', () => {

@@ -13,10 +13,10 @@
 import { describe, expect, it } from 'vitest';
 import { createRoot, getOwner, signal, type Signal } from '@firsthandjs/core';
 import { Cell } from '@firsthandjs/core';
-import { component, createComponent } from '../src/component.js';
-import { insert } from '../src/insert.js';
-import { list } from '../src/list.js';
-import { render } from '../src/render.js';
+import { component, createComponent } from '@/component.js';
+import { insert } from '@/insert.js';
+import { list } from '@/list.js';
+import { render } from '@/render.js';
 
 function subscriberCount(source: unknown): number {
   let link = (source as Cell).subs;

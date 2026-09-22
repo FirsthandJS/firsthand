@@ -1,11 +1,39 @@
+/* eslint-disable max-lines -- see "Why this is one module", below. */
 /**
  * The reactive graph, the owner tree and the scheduler.
  *
  * These three live in one module because they are one algorithm: an effect run
  * needs to reset its owner scope, and owner disposal needs to unlink graph
- * edges. Splitting them would buy a module boundary and cost an indirection in
- * the hottest path in the framework. The public API is layered on top in
- * `signal.ts`, `computed.ts`, `effect.ts`, `lifecycle.ts` and `context.ts`.
+ * edges. The public API is layered on top in `signal.ts`, `computed.ts`,
+ * `effect.ts`, `lifecycle.ts` and `context.ts`.
+ *
+ * ## Why this is one module
+ *
+ * It is 561 statements against a 300-statement limit
+ * (docs/architecture/code-rules.md §1), and it is the only file in the
+ * repository that does not meet it. That is a decision rather than an
+ * oversight, and this is the evidence for it.
+ *
+ * Four of the sections below write the same three module variables:
+ *
+ * | Variable        | Written by                                          |
+ * | --------------- | --------------------------------------------------- |
+ * | `activeSub`     | `evaluate`, `runEffect`, `untrack`                  |
+ * | `currentOwner`  | `evaluate`, `runEffect`, `setOwner`, `deferOwner`   |
+ * | `deferred`      | the same four                                        |
+ *
+ * A module cannot assign a binding it imported, so splitting those sections
+ * apart means one of two things: a shared state object, which puts a property
+ * load in front of every `activeSub` read — including the one in `Cell.value`,
+ * the hottest read in the framework — or setter functions, which put a call
+ * there instead. Both are changes to exactly what `npm run bench:ic` exists to
+ * watch, and CONTRIBUTING §2 does not accept "probably fine" for that.
+ *
+ * So the limit stands and this file is the documented exception, not a
+ * precedent: it has one reason to change, which is the reactive algorithm. If
+ * somebody wants the split, the way to get it is a branch that does it, a
+ * before-and-after from `bench`, `bench:micro` and `bench:ic`, and a number
+ * showing the reads stayed monomorphic.
  *
  * Model (ADR-0001): a write pushes *invalidation* through the subscriber graph
  * and queues effects; values are pulled lazily on read. Nothing recomputes
@@ -42,6 +70,10 @@ export class Link {
   declare prevSub: Link | undefined;
   declare nextSub: Link | undefined;
 
+  // One allocation per dependency edge (ADR-0002). An options object would be
+  // a second one, on the path that exists to allocate nothing in the common
+  // case — see docs/architecture/code-rules.md §5.
+  // eslint-disable-next-line max-params -- measured hot path; see above
   constructor(
     dep: Cell,
     sub: Cell,

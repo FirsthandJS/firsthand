@@ -7,8 +7,8 @@ import {
   signal,
   useContext,
   type Signal,
-} from '../src/index.js';
-import { FirsthandContextError } from '../src/errors.js';
+} from '@/index.js';
+import { FirsthandContextError } from '@/errors.js';
 
 type Theme = { mode: 'light' | 'dark' };
 
