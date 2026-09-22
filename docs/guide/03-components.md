@@ -279,6 +279,14 @@ Three consequences worth holding on to:
 | In a statement                       | the whole run happens again               |
 | In the markup, from a signal or prop | that one site updates; the run sleeps     |
 | In the markup, from a run local      | the run writes it, and only if it changed |
+| As a keyed list's data, from a local | the list is made once and reconciles      |
+| As a prop or a child, from a local   | the child keeps its instance              |
+
+The last three are the same mechanism: anything a run hands to something built
+once goes through a cell the run writes, so what was made survives and only
+what changed is written. A keyed list over a run local therefore keeps its
+rows — it did not always, which was
+[issue #40](https://github.com/FirsthandJS/firsthand/issues/40).
 
 You choose between the first two by where you put a normal JavaScript line:
 

@@ -1,6 +1,6 @@
 # @firsthandjs/deep
 
-[Reference index](../README.md#reference) · 0.74 kB gzip · depends on
+[Reference index](../README.md#reference) · 0.72 kB gzip · depends on
 `@firsthandjs/core`
 
 Reactivity that follows an object all the way down — the shape Vue calls

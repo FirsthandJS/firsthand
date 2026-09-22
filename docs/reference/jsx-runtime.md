@@ -1,6 +1,6 @@
 # @firsthandjs/jsx-runtime
 
-[Reference index](../README.md#reference) · 0.60 kB gzip · depends on
+[Reference index](../README.md#reference) · 0.59 kB gzip · depends on
 `@firsthandjs/dom`
 
 The JSX type namespace, and a runtime fallback for environments where the

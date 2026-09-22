@@ -1,6 +1,6 @@
 # @firsthandjs/react
 
-[Reference index](../README.md#reference) · 0.68 kB gzip · peer dependencies
+[Reference index](../README.md#reference) · 0.66 kB gzip · peer dependencies
 `react` and `react-dom` (18 or 19)
 
 Runs a React component inside a Firsthand tree, which is how MUI, Ant Design,

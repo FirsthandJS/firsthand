@@ -1,6 +1,6 @@
 # @firsthandjs/styled
 
-[Reference index](../README.md#reference) · 2.02 kB gzip · depends on
+[Reference index](../README.md#reference) · 2.03 kB gzip · depends on
 `@firsthandjs/dom`
 
 Styled components, compiled once per template rather than once per instance.

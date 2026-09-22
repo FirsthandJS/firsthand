@@ -1,6 +1,6 @@
 # @firsthandjs/server
 
-[Reference index](../README.md#reference) · 1.17 kB gzip · depends on
+[Reference index](../README.md#reference) · 1.26 kB gzip · depends on
 `@firsthandjs/core`
 
 Rendering a Firsthand application to markup. The same components, the same

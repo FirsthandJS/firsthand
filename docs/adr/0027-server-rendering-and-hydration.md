@@ -1,7 +1,7 @@
 # ADR-0027: Server rendering is a second compiler target, and hydration adopts
 
 **Status:** accepted · 2026-09-22 · extends
-[ADR-0005](0005-props-are-accessors.md), [ADR-0009](0009-compiler-templates-and-thunks.md),
+[ADR-0005](0005-reactive-props-via-accessors.md), [ADR-0009](0009-compiler-templates-and-thunks.md),
 [ADR-0022](0022-resources-not-a-cache.md)
 
 ## Problem

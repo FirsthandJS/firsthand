@@ -9,7 +9,7 @@
  * Run it after `npm run bench`. `--check` fails if the README has drifted, and
  * CI runs that check.
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -381,13 +381,54 @@ const updated = splice(splice(readme, START, END, body), HEAD_START, HEAD_END, h
 const withoutBrotli = (text) =>
   text.replaceAll(/^(\|.*\*\*[\d.]+ kB\*\* \| )[\d.]+ kB \|$/gmu, '$1');
 
+/**
+ * The same rule for the reference pages, which each open with the size of the
+ * package they document.
+ *
+ * They were all wrong — one of them by a factor of three — because a number
+ * typed once rots the first time anybody changes the code. Generated from the
+ * same measurement as the README, and checked by the same `--check`.
+ */
+const referenceSizes = new Map(
+  [...bundle.sizes, ...bundle.optional].map((entry) => [entry.module, entry.gzip]),
+);
+
+const drifted = [];
+for (const file of readdirSync(resolve(root, 'docs/reference'))) {
+  const page = resolve(root, 'docs/reference', file);
+  const text = readFileSync(page, 'utf8');
+  const named = /^# (@firsthandjs\/[a-z-]+(?:\/[a-z-]+)?)\s*$/m.exec(text);
+  const bytes = named === null ? undefined : referenceSizes.get(named[1]);
+  if (bytes === undefined) {
+    // The compiler and the test helpers are not in the browser budget, so
+    // there is nothing measured to put here.
+    continue;
+  }
+  const next = text.replace(/· [0-9.]+ kB gzip/, `· ${kb(bytes)} gzip`);
+  if (next === text) {
+    continue;
+  }
+  drifted.push(file);
+  if (!check) {
+    writeFileSync(page, next);
+  }
+}
+
 if (check) {
-  if (withoutBrotli(updated) !== withoutBrotli(readme)) {
-    console.error('README.md is out of sync with benchmarks/results/. Run `npm run bench:readme`.');
+  const readmeDrifted = withoutBrotli(updated) !== withoutBrotli(readme);
+  if (readmeDrifted || drifted.length > 0) {
+    const where = readmeDrifted ? ['README.md', ...drifted] : drifted;
+    console.error(
+      `${where.join(', ')} out of sync with benchmarks/results/. Run \`npm run bench:readme\`.`,
+    );
     process.exit(1);
   }
-  console.log('README performance numbers are in sync with the committed results.');
+  console.log('README and reference sizes are in sync with the committed results.');
 } else {
   writeFileSync(path, updated);
-  console.log('README performance numbers regenerated from benchmarks/results/.');
+  console.log(
+    `README regenerated from benchmarks/results/${
+      drifted.length > 0 ? `, and ${String(drifted.length)} reference page sizes` : ''
+    }.`,
+  );
 }

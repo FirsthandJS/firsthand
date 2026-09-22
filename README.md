@@ -553,12 +553,16 @@ Stated plainly, because a README that hides them wastes your time:
   document and hands it over — `renderToString` for markup that needs no data,
   `renderToStringAsync` for markup that does. Sending a shell first and the
   rest as it resolves is not implemented.
+- **A server render runs no effects.** There is no later for a second run to
+  happen in: `effect` does not run, `ref` is not called and listeners are not
+  attached — `hydrate` attaches them when the browser takes over. A
+  `useResource` runs once and is awaited by `renderToStringAsync`, and one
+  without a `persist` name renders its markup but arrives unanswered, so the
+  browser loads it again
+  ([the guide](docs/guide/17-server-rendering.md),
+  [ADR-0027](docs/adr/0027-server-rendering-and-hydration.md)).
 - **Benchmarked on Chromium only.** Firefox and WebKit run the correctness
   suite — all of it, including 100 000 rows — but not the benchmark.
-- **`.value` access sites have not been checked for inline-cache state.** One
-  node shape is used for signals, computeds and effects so that they stay
-  monomorphic, but nothing has measured whether they do (R2 in the risk
-  register — the one risk still open).
 - **Namespaced element names** (`<svg:circle>`) are rejected by the compiler;
   write the element without a namespace.
 - **The runtime JSX fallback does not hoist templates** and does not give you
