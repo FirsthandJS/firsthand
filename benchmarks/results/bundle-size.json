@@ -1,11 +1,11 @@
 {
-  "measuredAt": "2026-09-22T16:38:26.761Z",
+  "measuredAt": "2026-09-22T16:54:14.903Z",
   "sizes": [
     {
       "module": "@firsthandjs/core",
-      "minified": 6971,
-      "gzip": 2540,
-      "brotli": 2312
+      "minified": 6960,
+      "gzip": 2534,
+      "brotli": 2295
     },
     {
       "module": "@firsthandjs/dom",
@@ -27,9 +27,9 @@
     },
     {
       "module": "full runtime (core + dom, everything imported)",
-      "minified": 19022,
-      "gzip": 7018,
-      "brotli": 6353
+      "minified": 19011,
+      "gzip": 7010,
+      "brotli": 6339
     }
   ],
   "optional": [

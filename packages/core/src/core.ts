@@ -523,10 +523,10 @@ function runEffect(cell: Cell): void {
 // Owners (ADR-0008)
 // ---------------------------------------------------------------------------
 
-export function createOwner(parent: Owner | null, attach = true): Owner {
+export function createOwner(parent: Owner | null): Owner {
   const owner: Owner = {
     parent,
-    attached: attach && parent !== null,
+    attached: parent !== null,
     prev: null,
     next: null,
     head: null,
@@ -537,7 +537,7 @@ export function createOwner(parent: Owner | null, attach = true): Owner {
     ctx: parent !== null ? parent.ctx : null,
     handler: null,
   };
-  if (attach && parent !== null) {
+  if (parent !== null) {
     const tail = parent.tail;
     owner.prev = tail;
     if (tail !== null) {

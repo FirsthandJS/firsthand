@@ -399,11 +399,11 @@ different sample sizes would quietly weaken the confidence interval.
 
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
-| `@firsthandjs/core` | 6.81 kB | **2.48 kB** | 2.26 kB |
+| `@firsthandjs/core` | 6.80 kB | **2.47 kB** | 2.24 kB |
 | `@firsthandjs/dom` | 13.09 kB | **5.13 kB** | 4.60 kB |
 | `@firsthandjs/dom/internal` | 12.54 kB | **5.07 kB** | 4.55 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
-| full runtime (core + dom, everything imported) | 18.58 kB | **6.85 kB** | 6.20 kB |
+| full runtime (core + dom, everything imported) | 18.57 kB | **6.85 kB** | 6.19 kB |
 
 
 Optional packages, downloaded only by an application that imports them:
