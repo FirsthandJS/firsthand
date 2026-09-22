@@ -300,6 +300,12 @@ function versionOf(name) {
  * one that matters: it says whether tearing a thousand rows down gives the
  * memory back.
  */
+/** The same list, starting one place further along each time. */
+function rotate(names, by) {
+  const at = by % names.length;
+  return [...names.slice(at), ...names.slice(0, at)];
+}
+
 async function measureMemory(page, url) {
   const client = await page.context().newCDPSession(page);
   await client.send('HeapProfiler.enable');
@@ -453,7 +459,20 @@ async function main() {
 
   for (let repetition = 0; repetition < WARMUP + REPEATS; repetition++) {
     for (const scenario of SCENARIOS) {
-      for (const name of FRAMEWORKS) {
+      /*
+       * Rotated, so that going first is not a framework's permanent lot.
+       *
+       * A measurement ends by forcing layout, and how much that costs depends
+       * on what the page was left in by whoever ran before. With a fixed
+       * order the same framework always follows the previous scenario's
+       * teardown, every scenario, every repetition — which is a systematic
+       * cost handed to whichever name happens to be first in the list. It is
+       * invisible where the framework's own work dominates and decisive where
+       * it does not: on `portal-update` the four are identical with layout
+       * off and three times apart with it on.
+       */
+      const order = rotate(FRAMEWORKS, repetition);
+      for (const name of order) {
         const duration = await page.evaluate(
           async ({ impl, setup, op, seed, mode, modeArgument }) => {
             await globalThis.harness.mount(impl, seed, mode, modeArgument);

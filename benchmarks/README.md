@@ -199,6 +199,7 @@ npm run bench:reconcilers   # which keyed reconciler to ship (ADR-0010)
 npm run bench:micro         # element host cost, delegated vs direct events
 npm run bench:profile       # what allocates, and where the self time goes
 npm run bench:deep          # an array in a signal against `deepSignal`
+npm run bench:latency       # where the two sub-millisecond scenarios go
 npm run bench:ic            # whether `.value` goes megamorphic (R2)
 ```
 
@@ -215,12 +216,57 @@ again:
 | `signal<Row[]>`                | 26.6 ms | 33.7 ms |               1.850 ms |
 | `deepSignal`                   | 43.6 ms | 32.3 ms |           **0.008 ms** |
 
-Two things follow, and both are worth knowing before optimising anything. The
-scenario is **94 % layout**: the framework's share of it is under two
+Solid uses a fine-grained store here; Firsthand's equivalent data-model path
+is `deepSignal`: **0.008 ms of framework work instead of 1.850 ms, against a
+higher mount cost.**
+
+And the scenario is **94 % layout**. The framework's share of it is under two
 milliseconds either way, and no list API can win back what the browser spends
-laying out ten thousand rows. And Firsthand already has the fine-grained
-answer — `deepSignal` does for this what a store does, at 231× less work per
-update, in exchange for 1.6× on mount.
+laying out ten thousand rows.
+
+**The main suite is not changed because of this, and should not be.** The rule
+there is that each framework is written the way its own documentation writes
+it, which makes Solid with a store legitimate and Firsthand with a
+`signal<Row[]>` legitimate. What would not be legitimate is switching to
+`deepSignal` for `update-single-row-10k` and keeping the cheaper plain signal
+for `mount-10k` — that hides the 1.6× mount cost and picks the best data model
+per scenario. So this measurement lives here, beside the suite, and feeds no
+aggregate.
+
+`bench:latency` answers the other question the comparison raises.
+`portal-update` and `input-event-latency` are the two rows Firsthand is
+furthest behind on, and in a geometric mean every scenario weighs the same —
+so a 0.135 ms miss there moves the aggregate more than a 2.5 ms miss on a
+ten-thousand-row update does. Before optimising either, it is worth knowing
+what is being paid for. Five variants, Firsthand only, each timed twice: once
+for the framework's own work and once with the browser made to lay the page
+out again.
+
+| 50 operations, median per operation  | framework | with layout |
+| ------------------------------------ | --------: | ----------: |
+| text update, in place                |   0.50 µs |     12.1 µs |
+| text update, through a portal        |   0.50 µs |     12.1 µs |
+| input event to text, delegated       |   5.00 µs |     41.4 µs |
+| input event to text, direct listener |   5.70 µs |     41.7 µs |
+| input event, handler does nothing    |   3.80 µs |     30.2 µs |
+
+Both hypotheses it was built to test are refuted, and that is the result:
+
+- **A portal costs nothing.** Writing through one and writing in place are the
+  same number to two decimal places, with layout and without. Whatever
+  `portal-update` measures, it is not the portal.
+- **Delegation is not the slower path.** It was suspected because a delegated
+  listener rebuilds `composedPath` and redefines `currentTarget`; measured, it
+  is 0.7 µs _faster_ than a direct listener, and indistinguishable once the
+  page is laid out. There is no policy to add — no "high-cardinality events
+  delegated, latency-sensitive form events direct" — because there is nothing
+  to choose between.
+
+What the last row says is where the time actually is: an event whose handler
+does nothing still costs 3.8 µs of the 5.0. The dispatch, not the update, is
+most of it, and 30.2 µs of the 41.4 is the browser laying the page out after
+a keystroke. So no API changed and no compiler path was rewritten on the
+strength of these two rows, which is what the measurement was for.
 
 Each writes its own file under `results/`. None of them feeds an aggregate,
 because none of them is a comparison.

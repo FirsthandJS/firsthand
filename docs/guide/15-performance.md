@@ -96,6 +96,11 @@ browser spent **33 ms** laying the table out again, either way. Where a list
 is large enough for this to matter, the layout is usually the bill — which is
 why the next section is about measuring rather than guessing.
 
+It is a choice about the whole table, not about one interaction. Picking the
+data model per operation — a plain array because it mounts faster, a deep one
+because it updates faster — is not a choice you can make, because the table
+has one data model.
+
 ### Query identity
 
 A query's identity is its tags plus its `variables`. A value in neither is
