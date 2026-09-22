@@ -173,173 +173,221 @@ type Entry = {
 };
 
 export function createCacheClient(options: CacheOptions = {}): CacheClient {
-  const ttl = options.ttl ?? 0;
-  const max = options.max ?? 100;
-  const now = options.now ?? ((): number => Date.now());
-  // Insertion order is the eviction order, and a read moves an entry to the
-  // end: a `Map` already keeps that order, so there is no list to maintain.
-  const entries = new Map<string, Entry>();
-
-  const drop = (key: string): void => {
-    const entry = entries.get(key);
-    entry?.controller?.abort();
-    entries.delete(key);
+  const store: Store = {
+    ttl: options.ttl ?? 0,
+    max: options.max ?? 100,
+    now: options.now ?? ((): number => Date.now()),
+    // Insertion order is the eviction order, and a read moves an entry to the
+    // end: a `Map` already keeps that order, so there is no list to maintain.
+    entries: new Map<string, Entry>(),
   };
-
-  /** An answer somebody handed over, rather than one a producer returned. */
-  const put = (key: string, value: unknown): void => {
-    keep(key, {
-      value,
-      tags: [],
-      expires: ttl === 0 ? Infinity : now() + ttl,
-      inflight: null,
-      controller: null,
-      waiting: 0,
-    });
+  const write = (key: string, value: unknown): void => {
+    put(store, key, value);
   };
-
-  const keep = (key: string, entry: Entry): void => {
-    entries.delete(key);
-    entries.set(key, entry);
-    if (entries.size > max) {
-      // The first key is the one read longest ago, and there is always one:
-      // the size is over the bound, so the map is not empty.
-      for (const oldest of entries.keys()) {
-        drop(oldest);
-        break;
-      }
-    }
-  };
-
   return {
     get size(): number {
-      return entries.size;
+      return store.entries.size;
     },
-    dump: (): Record<string, unknown> => {
-      const out: Record<string, unknown> = {};
-      for (const [key, entry] of entries) {
-        // Freshness is not asked about. This is a handover, not a read: the
-        // answers were produced by the render that is being sent, and with the
-        // default `ttl` of 0 they are stale the moment they arrive — which
-        // would make a dump of a default cache empty, which is useless. What
-        // is left out is what has no answer yet.
-        if (entry.inflight === null) {
-          out[key] = entry.value;
-        }
-      }
-      return out;
-    },
+    dump: () => dump(store),
     seed: (values: Record<string, unknown>): void => {
       for (const key in values) {
-        put(key, values[key]);
+        write(key, values[key]);
       }
     },
-    settle: async (passes = 10): Promise<void> => {
-      for (let pass = 0; pass < passes; pass++) {
-        const waiting: Promise<unknown>[] = [];
-        for (const entry of entries.values()) {
-          if (entry.inflight !== null) {
-            waiting.push(entry.inflight);
-          }
-        }
-        if (waiting.length === 0) {
-          return;
-        }
-        // A producer that fails is still a producer that finished.
-        await Promise.all(waiting.map(async (one) => one.catch(() => undefined)));
-      }
-    },
+    settle: (passes = 10) => settle(store, passes),
     peek: (key: string): unknown => {
-      const entry = entries.get(key);
-      if (entry === undefined || entry.expires <= now()) {
-        return undefined;
-      }
-      return entry.value;
+      const entry = store.entries.get(key);
+      return entry === undefined || entry.expires <= store.now() ? undefined : entry.value;
     },
-    write: put,
+    write,
     forget: (key?: string): void => {
-      if (key === undefined) {
-        for (const held of [...entries.keys()]) {
-          drop(held);
-        }
-        return;
+      for (const held of key === undefined ? [...store.entries.keys()] : [key]) {
+        drop(store, held);
       }
-      drop(key);
     },
     forgetTagged: (patterns: readonly Tag[]): void => {
-      for (const [key, entry] of [...entries]) {
+      for (const [key, entry] of [...store.entries]) {
         if (entry.tags.length > 0 && anyTagMatches(patterns, entry.tags)) {
-          drop(key);
+          drop(store, key);
         }
       }
     },
     read:
       <T>(key: string, produce: Loader<T>): Loader<T> =>
-      async (request: DataRequest): Promise<T> => {
-        if (request.mutating === true) {
-          // An action. It is not answered from here and it does not end up
-          // here: a write is not a representation, and two writes are two
-          // writes rather than one to share.
-          return await produce(request);
-        }
-        const held = entries.get(key);
-        if (request.force) {
-          // The invalidation reaches through: whatever is here is the answer
-          // that was just declared wrong, and a run in flight was started
-          // before it was.
-          drop(key);
-        } else if (held !== undefined) {
-          if (held.inflight !== null) {
-            return await share(held, request);
-          }
-          if (held.expires > now()) {
-            keep(key, held);
-            return held.value as T;
-          }
-          entries.delete(key);
-        }
-
-        // The cache's own controller, not the caller's: the run belongs to
-        // everybody waiting for it, and ends when the last of them leaves.
-        const controller = new AbortController();
-        const entry: Entry = {
-          value: undefined,
-          // What the request has been declared to be about by now. A client
-          // declares before it looks here, which is what makes this possible.
-          tags: request.declared ?? [],
-          expires: 0,
-          inflight: null,
-          controller,
-          waiting: 0,
-        };
-        const run = produce({ signal: controller.signal, force: request.force })
-          .then((value): T => {
-            if (entries.get(key) === entry) {
-              if (ttl === 0) {
-                // Nothing to keep: with no lifetime, the entry existed only so
-                // that callers overlapping in time could share one run.
-                entries.delete(key);
-              } else {
-                entry.value = value;
-                entry.expires = now() + ttl;
-                entry.inflight = null;
-                entry.controller = null;
-              }
-            }
-            return value;
-          })
-          .catch((error: unknown): never => {
-            // A failure is not an answer: the next caller asks again.
-            if (entries.get(key) === entry) {
-              entries.delete(key);
-            }
-            throw error as Error;
-          });
-        entry.inflight = run;
-        keep(key, entry);
-        return await share(entry, request);
-      },
+      async (request: DataRequest): Promise<T> =>
+        read(store, key, produce, request),
   };
+}
+
+/** One cache: what it holds and the three numbers that govern it. */
+type Store = {
+  /** How long an answer is good for. `0` means only for a run in flight. */
+  ttl: number;
+  max: number;
+  now: () => number;
+  entries: Map<string, Entry>;
+};
+
+function drop(store: Store, key: string): void {
+  const entry = store.entries.get(key);
+  entry?.controller?.abort();
+  store.entries.delete(key);
+}
+
+/**
+ * Puts an entry at the end, which is the youngest position, and evicts the
+ * oldest if that put the cache over its bound.
+ */
+function keep(store: Store, key: string, entry: Entry): void {
+  store.entries.delete(key);
+  store.entries.set(key, entry);
+  if (store.entries.size > store.max) {
+    // The first key is the one read longest ago, and there is always one: the
+    // size is over the bound, so the map is not empty.
+    for (const oldest of store.entries.keys()) {
+      drop(store, oldest);
+      break;
+    }
+  }
+}
+
+/** An answer somebody handed over, rather than one a producer returned. */
+function put(store: Store, key: string, value: unknown): void {
+  keep(store, key, {
+    value,
+    tags: [],
+    expires: store.ttl === 0 ? Infinity : store.now() + store.ttl,
+    inflight: null,
+    controller: null,
+    waiting: 0,
+  });
+}
+
+/**
+ * Everything answered, for a server to hand to the page it is sending.
+ *
+ * Freshness is not asked about. This is a handover, not a read: the answers
+ * were produced by the render that is being sent, and with the default `ttl`
+ * of 0 they are stale the moment they arrive — which would make a dump of a
+ * default cache empty, which is useless. What is left out is what has no
+ * answer yet.
+ */
+function dump(store: Store): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, entry] of store.entries) {
+    if (entry.inflight === null) {
+      out[key] = entry.value;
+    }
+  }
+  return out;
+}
+
+/** Waits for everything in flight, and for whatever those runs start. */
+async function settle(store: Store, passes: number): Promise<void> {
+  for (let pass = 0; pass < passes; pass++) {
+    const waiting: Promise<unknown>[] = [];
+    for (const entry of store.entries.values()) {
+      if (entry.inflight !== null) {
+        waiting.push(entry.inflight);
+      }
+    }
+    if (waiting.length === 0) {
+      return;
+    }
+    // A producer that fails is still a producer that finished.
+    await Promise.all(waiting.map(async (one) => one.catch(() => undefined)));
+  }
+}
+
+/**
+ * The answer for a key: from here, from a run already in flight, or from a run
+ * this call starts.
+ */
+async function read<T>(
+  store: Store,
+  key: string,
+  produce: Loader<T>,
+  request: DataRequest,
+): Promise<T> {
+  if (request.mutating === true) {
+    // An action. It is not answered from here and it does not end up here: a
+    // write is not a representation, and two writes are two writes rather than
+    // one to share.
+    return await produce(request);
+  }
+  const held = store.entries.get(key);
+  if (request.force) {
+    // The invalidation reaches through: whatever is here is the answer that
+    // was just declared wrong, and a run in flight was started before it was.
+    drop(store, key);
+  } else if (held !== undefined) {
+    if (held.inflight !== null) {
+      return await share(held, request);
+    }
+    if (held.expires > store.now()) {
+      keep(store, key, held);
+      return held.value as T;
+    }
+    store.entries.delete(key);
+  }
+  return await start(store, key, produce, request);
+}
+
+/**
+ * Starts a run everybody who asks meanwhile will share.
+ *
+ * The controller is the cache's own, not the caller's: the run belongs to
+ * everybody waiting for it, and ends when the last of them leaves.
+ */
+async function start<T>(
+  store: Store,
+  key: string,
+  produce: Loader<T>,
+  request: DataRequest,
+): Promise<T> {
+  const controller = new AbortController();
+  const entry: Entry = {
+    value: undefined,
+    // What the request has been declared to be about by now. A client declares
+    // before it looks here, which is what makes this possible.
+    tags: request.declared ?? [],
+    expires: 0,
+    inflight: null,
+    controller,
+    waiting: 0,
+  };
+  const run = produce({ signal: controller.signal, force: request.force })
+    .then((value): T => {
+      if (store.entries.get(key) === entry) {
+        settleEntry(store, key, entry, value);
+      }
+      return value;
+    })
+    .catch((error: unknown): never => {
+      // A failure is not an answer: the next caller asks again.
+      if (store.entries.get(key) === entry) {
+        store.entries.delete(key);
+      }
+      throw error as Error;
+    });
+  entry.inflight = run;
+  keep(store, key, entry);
+  return await share(entry, request);
+}
+
+/**
+ * A run answered. With no lifetime there is nothing to keep — the entry
+ * existed only so that callers overlapping in time could share one run.
+ */
+function settleEntry(store: Store, key: string, entry: Entry, value: unknown): void {
+  if (store.ttl === 0) {
+    store.entries.delete(key);
+    return;
+  }
+  entry.value = value;
+  entry.expires = store.now() + store.ttl;
+  entry.inflight = null;
+  entry.controller = null;
 }
 
 /**

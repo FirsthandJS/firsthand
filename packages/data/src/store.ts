@@ -245,105 +245,144 @@ export type DataStore = {
 };
 
 export function createData(options: DataOptions = {}): DataStore {
-  const held = new Set<Held>();
-  const remember = options.remember ?? 60_000;
-  /** Invalidations young enough to matter to a resource that did not see them. */
-  let recent: Recent[] = [];
-
-  const now = (): number => Date.now();
-
+  const state: StoreState = {
+    options,
+    held: new Set<Held>(),
+    recent: [],
+    remember: options.remember ?? 60_000,
+  };
   return {
     storage: options.storage,
-    missed: (entry, tags) => {
-      if (remember === 0 || recent.length === 0) {
-        return false;
-      }
-      const since = now() - remember;
-      recent = recent.filter((one) => one.at >= since);
-      return recent.some(
-        // Younger than this resource's last answer, and about what it has just
-        // said it is about. A resource that has answered *since* the
-        // invalidation has already taken it into account.
-        (one) => one.at > entry.answeredAt && anyTagMatches(one.patterns, tags),
-      );
-    },
+    missed: (entry, tags) => missed(state, entry, tags),
     settled: (tags) => {
-      if (recent.length === 0) {
-        return;
-      }
-      // Somebody has been to the server about this. Whatever a transport is
-      // holding for those tags is that answer, so the debt is paid — and
-      // keeping it would force every resource created in the next minute.
-      recent = recent.filter((one) => !anyTagMatches(one.patterns, tags));
+      settled(state, tags);
     },
-    settle: async (passes = 10): Promise<void> => {
-      for (let pass = 0; pass < passes; pass++) {
-        const waiting: Promise<unknown>[] = [];
-        for (const entry of held) {
-          if (entry.inflight !== null) {
-            waiting.push(entry.inflight);
-          }
-        }
-        if (waiting.length === 0) {
-          return;
-        }
-        await Promise.all(waiting);
-      }
-    },
+    settle: (passes = 10) => settle(state, passes),
     hold: (entry) => {
-      held.add(entry);
-      return () => held.delete(entry);
+      state.held.add(entry);
+      return () => state.held.delete(entry);
     },
-    invalidate: async (...patterns: Tag[]): Promise<void> => {
-      const waiting: Promise<unknown>[] = [];
-      // Thrown out of the caches that were handed over, so an answer that is
-      // now wrong is not waiting for whoever asks next. This is the precise
-      // half of the fix; `recent` below is the half that also reaches a cache
-      // we were not given.
-      for (const cache of options.caches ?? []) {
-        cache.forgetTagged(patterns);
-      }
-      if (remember > 0) {
-        // Kept for the resources that are not here yet: a list two pages away
-        // is nobody's subscriber, and it is created — not reloaded — when you
-        // walk back to it.
-        recent.push({ patterns, at: now() });
-      }
-      for (const entry of [...held]) {
-        if (entry.controller !== null) {
-          // In flight, and its tags may not be known yet: a loader is allowed
-          // to name what it is about only after the server has answered.
-          // Remembered here and checked again when it does, so an invalidation
-          // sent during the first run is not silently lost.
-          entry.pending.push(...patterns);
-        }
-        if (!anyTagMatches(patterns, entry.tags)) {
-          continue;
-        }
-        // Reported per matched resource rather than per call: an invalidation
-        // that hits nothing is indistinguishable from one never sent, and that
-        // is the confusion this exists to end.
-        devQuery('invalidated', entry.name ?? '(call site)', entry.tags);
-        waiting.push(entry.run(true));
-      }
-      await Promise.all(waiting);
-    },
+    invalidate: (...patterns: Tag[]) => invalidate(state, patterns),
     clear: () => {
-      recent = [];
-      for (const entry of [...held]) {
-        entry.controller?.abort();
-        held.delete(entry);
-      }
-      try {
-        options.storage?.clear?.();
-      } catch {
-        // Storage never breaks a caller.
-      }
+      clear(state);
     },
     get size(): number {
-      return held.size;
+      return state.held.size;
     },
   };
+}
+
+/**
+ * What one store keeps.
+ *
+ * An object rather than a closure per method: the methods are the store's
+ * whole surface, and each one reads far better beside the others than nested
+ * inside the factory that made them.
+ */
+type StoreState = {
+  options: DataOptions;
+  held: Set<Held>;
+  /** Invalidations young enough to matter to a resource that did not see them. */
+  recent: Recent[];
+  /** How long an invalidation is owed to a resource that has not appeared yet. */
+  remember: number;
+};
+
+/**
+ * Whether this resource missed an invalidation about what it has just said it
+ * is about.
+ *
+ * A resource that has answered *since* the invalidation has already taken it
+ * into account, which is what the timestamp comparison says.
+ */
+function missed(state: StoreState, entry: Held, tags: readonly Tag[]): boolean {
+  if (state.remember === 0 || state.recent.length === 0) {
+    return false;
+  }
+  const since = Date.now() - state.remember;
+  state.recent = state.recent.filter((one) => one.at >= since);
+  return state.recent.some(
+    (one) => one.at > entry.answeredAt && anyTagMatches(one.patterns, tags),
+  );
+}
+
+/**
+ * Somebody has been to the server about these tags.
+ *
+ * Whatever a transport is holding for them is that answer, so the debt is
+ * paid — and keeping it would force every resource created in the next minute.
+ */
+function settled(state: StoreState, tags: readonly Tag[]): void {
+  if (state.recent.length === 0) {
+    return;
+  }
+  state.recent = state.recent.filter((one) => !anyTagMatches(one.patterns, tags));
+}
+
+/** Waits for everything in flight, and for whatever those runs start. */
+async function settle(state: StoreState, passes: number): Promise<void> {
+  for (let pass = 0; pass < passes; pass++) {
+    const waiting: Promise<unknown>[] = [];
+    for (const entry of state.held) {
+      if (entry.inflight !== null) {
+        waiting.push(entry.inflight);
+      }
+    }
+    if (waiting.length === 0) {
+      return;
+    }
+    await Promise.all(waiting);
+  }
+}
+
+/** Throws out what is now wrong, and re-runs whoever was showing it. */
+async function invalidate(state: StoreState, patterns: Tag[]): Promise<void> {
+  const waiting: Promise<unknown>[] = [];
+  // Thrown out of the caches that were handed over, so an answer that is now
+  // wrong is not waiting for whoever asks next. This is the precise half of
+  // the fix; `recent` below is the half that also reaches a cache we were not
+  // given.
+  for (const cache of state.options.caches ?? []) {
+    cache.forgetTagged(patterns);
+  }
+  if (state.remember > 0) {
+    // Kept for the resources that are not here yet: a list two pages away is
+    // nobody's subscriber, and it is created — not reloaded — when you walk
+    // back to it.
+    state.recent.push({ patterns, at: Date.now() });
+  }
+  for (const entry of [...state.held]) {
+    if (entry.controller !== null) {
+      // In flight, and its tags may not be known yet: a loader is allowed to
+      // name what it is about only after the server has answered. Remembered
+      // here and checked again when it does, so an invalidation sent during
+      // the first run is not silently lost.
+      entry.pending.push(...patterns);
+    }
+    if (!anyTagMatches(patterns, entry.tags)) {
+      continue;
+    }
+    // Reported per matched resource rather than per call: an invalidation that
+    // hits nothing is indistinguishable from one never sent, and that is the
+    // confusion this exists to end.
+    devQuery('invalidated', entry.name ?? '(call site)', entry.tags);
+    waiting.push(entry.run(true));
+  }
+  await Promise.all(waiting);
+}
+
+/** Forgets everything, including whatever storage was holding. */
+function clear(state: StoreState): void {
+  state.recent = [];
+  for (const entry of [...state.held]) {
+    entry.controller?.abort();
+    state.held.delete(entry);
+  }
+  try {
+    state.options.storage?.clear?.();
+  } catch {
+    // Storage never breaks a caller.
+  }
 }
 
 /**
