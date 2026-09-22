@@ -184,10 +184,13 @@ function listFedByRun(call: t.CallExpression, host: Host): t.Expression {
         t.callExpression(runtime(state, 'cell'), [
           t.cloneNode(run.store),
           t.numericLiteral(run.next()),
-          // The source as `rewriteKeyedMaps` wrote it: a thunk over the data.
-          // Called here, so what the cell holds is the array rather than a
-          // function that would be a new identity on every run.
-          t.callExpression(source, []),
+          // What the cell holds is the data itself, not a thunk over it: a
+          // list's source is a value, unlike a child, which is a reading that
+          // belongs to the part displaying it (ADR-0026).
+          //
+          // `rewriteKeyedMaps` always writes the source as `() => <data>`, so
+          // the body is the data and there is no other shape to answer for.
+          (source as t.ArrowFunctionExpression).body as t.Expression,
         ]),
       ),
     ]),
