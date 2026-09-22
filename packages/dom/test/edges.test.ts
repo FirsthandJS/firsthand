@@ -1,7 +1,8 @@
 /** Remaining edge cases, kept apart so the behavioural suites stay readable. */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, signal, type ReadonlyCell } from '@firsthandjs/core';
-import { applyChild, insert, reconcile } from '@/insert.js';
+import { applyChild, insert } from '@/insert.js';
+import { reconcile } from '@/reconcile.js';
 import { applyProp } from '@/props.js';
 import { list } from '@/list.js';
 import { component, createComponent } from '@/component.js';

@@ -10,7 +10,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { adopt, claimRegion, hydrateWith, place, within } from '@/hydrate.js';
 import { first, next } from '@/claim.js';
 import { devHydrationMismatch } from '@/dev.js';
-import { store, writeChild } from '@/insert.js';
+import { store, writeChild } from '@/store.js';
 
 function tree(html: string): HTMLElement {
   const host = document.createElement('div');

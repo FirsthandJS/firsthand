@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, signal } from '@firsthandjs/core';
-import { applyChild, FLAT, insert, reconcile } from '@/insert.js';
+import { applyChild, FLAT, insert } from '@/insert.js';
+import { reconcile } from '@/reconcile.js';
 import { on, off, resetDelegation } from '@/events.js';
 import { path, template } from '@/template.js';
 import { applyProp, mergeProps, spread } from '@/props.js';

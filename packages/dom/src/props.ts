@@ -18,27 +18,11 @@ import { on } from './events.js';
  */
 export function applyProp(node: Element, name: string, value: unknown): void {
   if (name === 'class' || name === 'className') {
-    if (Array.isArray(value)) {
-      // An array is a list of names, not a record of flags. Read as a record
-      // it would toggle "0" and "1", which is what it used to do.
-      setClass(node, value.filter(Boolean).join(' '));
-    } else if (value !== null && typeof value === 'object') {
-      setClassList(node, value as Record<string, unknown>, remember(node, 'class', value));
-    } else {
-      setClass(node, value);
-    }
+    applyClass(node, value);
     return;
   }
   if (name === 'style') {
-    if (value !== null && typeof value === 'object') {
-      setStyleObject(
-        node as unknown as ElementCSSInlineStyle,
-        value as Record<string, string>,
-        remember(node, 'style', value) as Record<string, string> | undefined,
-      );
-    } else {
-      setStyle(node as unknown as ElementCSSInlineStyle, value);
-    }
+    applyStyle(node, value);
     return;
   }
   if (name === 'ref') {
@@ -62,6 +46,35 @@ export function applyProp(node: Element, name: string, value: unknown): void {
     return;
   }
   setAttribute(node, name, value);
+}
+
+/** A string, a list of names, or a record of flags. */
+function applyClass(node: Element, value: unknown): void {
+  if (Array.isArray(value)) {
+    // An array is a list of names, not a record of flags. Read as a record it
+    // would toggle "0" and "1", which is what it used to do.
+    setClass(node, value.filter(Boolean).join(' '));
+    return;
+  }
+  if (value !== null && typeof value === 'object') {
+    setClassList(node, value as Record<string, unknown>, remember(node, 'class', value));
+    return;
+  }
+  setClass(node, value);
+}
+
+/** A string, or a record of declarations. */
+function applyStyle(node: Element, value: unknown): void {
+  const style = node as unknown as ElementCSSInlineStyle;
+  if (value !== null && typeof value === 'object') {
+    setStyleObject(
+      style,
+      value as Record<string, string>,
+      remember(node, 'style', value) as Record<string, string> | undefined,
+    );
+    return;
+  }
+  setStyle(style, value);
 }
 
 /**
