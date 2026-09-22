@@ -17,6 +17,7 @@ benchmarks/reconcilers/dist/
 .stryker-tmp/
 reports/
 benchmarks/micro/dist/
+benchmarks/runs/dist/
 integrations/storybook/storybook-static/
 release/
 

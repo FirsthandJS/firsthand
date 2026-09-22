@@ -38,6 +38,9 @@ jobs:
           cache: npm
 
       - run: npm ci
+      # The frameworks Firsthand is measured against, with their own toolchains
+      # and their own lockfile. See benchmarks/README.md.
+      - run: npm ci --prefix benchmarks/frameworks
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - name: Run the benchmark suite

@@ -163,7 +163,7 @@ a `JSON.parse` of something large, or an image decode.
 The repository's own harness, if you want to compare implementations:
 
 ```bash
-npm run bench            # against React, same browser session, DOM verified identical
+npm run bench            # against React, Solid and Vue, one session, same DOM
 npm run bench:micro      # element host, delegation, individual operations
 npm run bench:profile    # allocation per binding and per signal write
 npm run bench:reconcilers
@@ -177,15 +177,16 @@ copying whether or not you use this framework.
 
 ## The numbers, and their caveats
 
-The README publishes them in full, including the scenarios React wins and the
-rows whose spread makes a median unreliable. The short version: about 1.54×
-faster than React 19 on the render/update set, 4.1 s against 30.9 s at 100 000
-rows, less memory retained and less left behind after disposal, all in
-Chromium.
+The README publishes them in full, including the scenarios Firsthand loses and
+the rows whose spread makes a median unreliable. The short version: clearly
+ahead of React 19 on the render/update set, and **level with Solid** — which is
+the honest and the interesting result, because Solid makes the same bet from a
+different direction. Where a confidence interval includes 1.0 the README says
+so rather than rounding it into a win.
 
 Those absolute milliseconds are worth less than the ratio. The same machine
 measures 4–6 % differently from one day to the next — thermal state, what else
-the operating system is doing — and both implementations move together when it
+the operating system is doing — and every implementation moves together when it
 does. That is the reason every scenario is measured in one interleaved browser
 session: the ratio survives a slow day, the medians do not.
 

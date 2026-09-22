@@ -6,10 +6,14 @@
  */
 import { createFirsthandImplementation } from './firsthand.tsx';
 import { createReactImplementation } from './react.jsx';
+import { createSolidImplementation } from './solid.jsx';
+import { createVueImplementation } from './vue.js';
 
 const factories = {
   firsthand: createFirsthandImplementation,
   react: createReactImplementation,
+  solid: createSolidImplementation,
+  vue: createVueImplementation,
 };
 
 let current = null;
@@ -22,12 +26,15 @@ globalThis.harness = {
    * component tree, a provider with many consumers, or a single counter. Both
    * implementations expose the same four.
    */
-  mount(name, seed, mode = 'table', argument = 0) {
+  async mount(name, seed, mode = 'table', argument = 0) {
     this.unmount();
     const container = document.createElement('div');
     container.id = 'app';
     document.body.appendChild(container);
     current = { impl: factories[name](container, seed, mode, argument), container };
+    // A framework that mounts through its own scheduler has not finished when
+    // `mount` returns; one hop is enough for all of them.
+    await Promise.resolve();
   },
 
   unmount() {
@@ -38,18 +45,25 @@ globalThis.harness = {
     }
   },
 
-  /** Runs an operation and returns the time until the DOM has been laid out. */
-  measure(operation, argument) {
+  /**
+   * Runs an operation and returns the time until the DOM has been laid out.
+   *
+   * Awaited, because one of the frameworks flushes on a microtask and cannot
+   * be drained synchronously. Every framework pays the same hop: an `await` of
+   * a value that is not a promise still yields once, so the constant is shared
+   * rather than charged to the one that needs it.
+   */
+  async measure(operation, argument) {
     const start = performance.now();
-    current.impl.run(operation, argument);
+    await current.impl.run(operation, argument);
     // Forces style and layout, so the measurement covers the DOM work rather
     // than stopping at the last JavaScript statement.
     void document.body.offsetHeight;
     return performance.now() - start;
   },
 
-  run(operation, argument) {
-    current.impl.run(operation, argument);
+  async run(operation, argument) {
+    await current.impl.run(operation, argument);
     void document.body.offsetHeight;
   },
 

@@ -1,10 +1,19 @@
 /**
  * Bundles the benchmark page.
  *
- * Both implementations are built as production bundles in one pass: React with
- * `NODE_ENV=production` (so no development warnings path), Firsthand through the
- * published compiler and the published package entry points.
+ * Every implementation is built as a production bundle in one pass, each with
+ * its own toolchain: React and Vue with `NODE_ENV=production` so neither takes
+ * a development warnings path, Solid through `babel-preset-solid` because its
+ * compiler is not an optional extra, and Firsthand through the published
+ * compiler and the published package entry points.
+ *
+ * Solid and Vue are resolved out of `benchmarks/frameworks`, which has its own
+ * install. `babel-preset-solid` wants Babel 7 and this repository is built on
+ * Babel 8; giving the measured frameworks their own node_modules means neither
+ * toolchain has to be bent to fit the other, and the exact versions the
+ * published numbers came from are pinned there.
  */
+import { createRequire } from 'node:module';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
@@ -13,6 +22,27 @@ import * as esbuild from 'esbuild';
 import { transform } from '../packages/compiler/dist/index.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
+
+/** Resolves out of `benchmarks/frameworks`, not out of the repository root. */
+const frameworks = createRequire(resolve(here, 'frameworks', 'package.json'));
+
+/** Solid's own compiler, which is how Solid is meant to be built. */
+const solidCompiler = {
+  name: 'solid',
+  setup(build) {
+    build.onLoad({ filter: /solid\.jsx$/ }, async (args) => {
+      const babel = frameworks('@babel/core');
+      const preset = frameworks('babel-preset-solid');
+      const output = await babel.transformAsync(readFileSync(args.path, 'utf8'), {
+        filename: args.path,
+        presets: [[preset.default ?? preset, {}]],
+        babelrc: false,
+        configFile: false,
+      });
+      return { contents: output.code, loader: 'js' };
+    });
+  },
+};
 
 /** Runs the real Firsthand compiler over `.tsx`, exactly as the Vite plugin does. */
 /**
@@ -98,12 +128,25 @@ export async function buildBenchmark({ minify = true } = {}) {
     keepNames: !minify,
     metafile: true,
     legalComments: 'none',
-    define: { 'process.env.NODE_ENV': '"production"' },
+    define: {
+      'process.env.NODE_ENV': '"production"',
+      // Vue's bundler build expects a build tool to answer these. Options API
+      // is on because the components below are declared with `template`.
+      __VUE_OPTIONS_API__: 'true',
+      __VUE_PROD_DEVTOOLS__: 'false',
+      __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
+    },
     // The published bundles are built this way, and the point of the
     // source-resolved build is readable names for the *same* code — not
     // different code.
     pure: pureDevHooks,
-    plugins: minify ? [firsthandCompiler] : [firsthandSources, productionDev, firsthandCompiler],
+    // Where Solid and Vue are found. Left to esbuild rather than resolved by
+    // hand, so that they are picked up under browser conditions — resolving
+    // them from Node hands back Solid's server build, which refuses to run.
+    nodePaths: [resolve(here, 'frameworks', 'node_modules')],
+    plugins: minify
+      ? [solidCompiler, firsthandCompiler]
+      : [solidCompiler, firsthandSources, productionDev, firsthandCompiler],
   });
   return result.metafile;
 }
