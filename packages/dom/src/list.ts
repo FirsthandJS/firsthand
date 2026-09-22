@@ -86,7 +86,7 @@ export function list<T>(
       // running. This array is what the next reconcile compares against.
       placed.length = 0;
       for (const row of rows.values()) {
-        for (const node of nodesOf(row)) {
+        for (const node of row.pieces === undefined ? row.nodes : nodesOf(row)) {
           placed.push(node);
         }
       }
@@ -209,13 +209,15 @@ function bindRow<T>(row: Row<T>, into: Node | null): boolean {
   return true;
 }
 
-/** A row's nodes, in order, out of the pieces it is made of. */
+/**
+ * A row's nodes, in order, out of the pieces it is made of.
+ *
+ * Only for a row that has pieces — a row that is a tree has its nodes and
+ * nothing that can change underneath them, and both callers say so.
+ */
 function nodesOf<T>(row: Row<T>): Node[] {
-  if (row.pieces === undefined) {
-    return row.nodes;
-  }
   const nodes: Node[] = [];
-  for (const piece of row.pieces) {
+  for (const piece of row.pieces as Piece[]) {
     if (isNode(piece)) {
       nodes.push(piece);
     } else {

@@ -314,3 +314,54 @@ describe('a keyed row that is a view of several nodes', () => {
     expect(view.container.textContent).toBe('two2');
   });
 });
+
+describe('a keyed list of both at once', () => {
+  it('holds rows that are views beside rows that are trees', () => {
+    // One component, deciding per row: a setup may hand back markup or a
+    // render function, and which it is can depend on the props. So a list can
+    // hold both, and what each row is made of has to be asked of the row.
+    const rows = signal<Row[]>([
+      { id: 1, label: 'one' },
+      { id: 2, label: 'two' },
+      { id: 3, label: 'three' },
+    ]);
+    const open = signal(false);
+    const Item = component((props: { row: Row }) =>
+      props.row.id === 2 ? (
+        () => <li>{open.value ? `${props.row.label}!` : props.row.label}</li>
+      ) : (
+        <li>{props.row.label}</li>
+      ),
+    );
+    const view = mount(() => (
+      <ul>
+        {rows.value.map((row) => (
+          <Item key={row.id} row={row} />
+        ))}
+      </ul>
+    ));
+    const host = view.container;
+    const initial = [...host.querySelectorAll('li')];
+
+    expect(initial.map((li) => li.textContent)).toEqual(['one', 'two', 'three']);
+
+    // The view row writes; the trees around it are untouched.
+    open.value = true;
+    expect([...host.querySelectorAll('li')].map((li) => li.textContent)).toEqual([
+      'one',
+      'two!',
+      'three',
+    ]);
+    expect(host.querySelectorAll('li')[0]).toBe(initial[0]);
+
+    // And a reorder moves both kinds, by the nodes each of them has.
+    rows.value = [...rows.value].reverse();
+    expect([...host.querySelectorAll('li')].map((li) => li.textContent)).toEqual([
+      'three',
+      'two!',
+      'one',
+    ]);
+    expect(host.querySelectorAll('li')[0]).toBe(initial[2]);
+    expect(host.querySelectorAll('li')[2]).toBe(initial[0]);
+  });
+});
