@@ -4,6 +4,45 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **The benchmark measures Solid and Vue as well as React.** React alone is the
+  model most readers know, but it is not the hardest test: Solid makes the same
+  bet from the other direction — fine-grained reactivity and a compiler — and
+  Vue's template compiler is good enough that a hand-written `h()` version would
+  have flattered us. Each implementation is written the way its own
+  documentation writes it, all four are verified to render the same DOM before
+  anything is timed, and the result is published as measured:
+
+  - **React 19.2.0**: geometric mean 1.589× (95 % CI 1.240–2.164) — the interval excludes 1.0.
+  - **Solid 1.9.15**: geometric mean 1.040× (95 % CI 0.925–1.162) — the interval includes 1.0, so **no advantage is claimed**.
+  - **Vue 3.5.43**: geometric mean 1.336× (95 % CI 1.087–1.647) — the interval excludes 1.0.
+
+  Firsthand was the fastest of the four, or level with whoever was, in 16 of 27
+  scenarios. Memory after disposal and cold start are published for all four as
+  well.
+
+  At 100 000 rows the losses are Solid's wins: it clears the table 1.14× faster
+  and updates every tenth row 1.05× faster, and the geometric mean over those
+  three scenarios is 0.932× — below 1.0, with an interval that
+  includes it. Firsthand mounts 100 000 rows 1.11× faster than Solid and
+  3.88× faster than React across the three.
+
+  Two things about the harness had to change, and both are in
+  `benchmarks/README.md`: the measurement is **awaited**, because Vue's
+  scheduler flushes on a microtask that cannot be drained synchronously and a
+  synchronous clock would have credited it for work it had not done; and
+  `class=""` is treated as equal to an absent `class`, which is the one
+  difference in rendered markup the equality phase accepts, because Vue
+  normalises an empty class binding to a string. Nothing else is normalised.
+
+  Solid and Vue live in `benchmarks/frameworks` with their own install:
+  `babel-preset-solid` wants Babel 7 and this repository is built on Babel 8,
+  and giving them their own `node_modules` means neither toolchain has to be
+  bent to fit the other.
+
 ## [0.8.0] - 2026-09-21
 
 ### Added

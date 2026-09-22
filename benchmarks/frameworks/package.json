@@ -1,0 +1,13 @@
+{
+  "name": "firsthand-benchmark-frameworks",
+  "private": true,
+  "type": "module",
+  "description": "The frameworks Firsthand is measured against, with their own toolchains.",
+  "//": "Kept out of the root install on purpose. babel-preset-solid needs Babel 7 and this repository builds on Babel 8; putting Solid's toolchain here means neither has to be bent to fit the other, and the versions the published numbers came from are pinned exactly.",
+  "dependencies": {
+    "@babel/core": "7.28.4",
+    "babel-preset-solid": "1.9.15",
+    "solid-js": "1.9.15",
+    "vue": "3.5.43"
+  }
+}

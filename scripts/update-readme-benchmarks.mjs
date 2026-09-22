@@ -31,13 +31,62 @@ const HEAD_END = '<!-- headline:end -->';
 
 const kb = (bytes) => `${(bytes / 1024).toFixed(2)} kB`;
 const ms = (value) => `${value.toFixed(2)} ms`;
-const verdict = (ratio) =>
-  ratio > 1 ? `Firsthand ${ratio.toFixed(2)}×` : `React ${(1 / ratio).toFixed(2)}×`;
 
 const meta = bench.metadata;
-const aggregate = bench.aggregate;
-const wins = bench.scenarios.filter((scenario) => scenario.ratio > 1).length;
+/** Older result files predate the three-rival comparison. */
+const frameworks = bench.frameworks ?? ['firsthand', 'react'];
+const rivals = frameworks.slice(1);
+const aggregates = bench.aggregates ?? { react: bench.aggregate };
+const label = (key) => (key === 'firsthand' ? 'Firsthand' : key[0].toUpperCase() + key.slice(1));
+const named = (key) => `${label(key)} ${meta[`${key}Version`] ?? ''}`.trim();
 const full = bundle.sizes[bundle.sizes.length - 1];
+
+/** Which framework won a scenario, and by how much over the next one. */
+const fastest = (scenario, among = frameworks) => {
+  const best = among.reduce((a, b) => (scenario[a].median <= scenario[b].median ? a : b));
+  const runnerUp = among
+    .filter((one) => one !== best)
+    .reduce((a, b) => (scenario[a].median <= scenario[b].median ? a : b));
+  const margin = scenario[runnerUp].median / scenario[best].median;
+  // A margin that rounds to nothing is a tie, and calling a winner on it would
+  // be reading the timer's resolution as a result.
+  return margin < 1.005 ? 'level' : `${label(best)} ${margin.toFixed(2)}×`;
+};
+
+/**
+ * The headline sentence, which may only say what the intervals support.
+ *
+ * A rival whose interval includes 1.0 is reported as level rather than being
+ * rounded into a win — that rule is the reason this section can be trusted at
+ * all, and it costs something here.
+ */
+const list = (parts) =>
+  parts.length <= 1 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
+
+const claims = () => {
+  const faster = [];
+  const slower = [];
+  const level = [];
+  for (const one of rivals) {
+    const { geometricMeanRatio, ci95 } = aggregates[one];
+    if (ci95[0] > 1) {
+      faster.push(`**${geometricMeanRatio.toFixed(2)}×** faster than ${named(one)}`);
+    } else if (ci95[1] < 1) {
+      slower.push(`**${(1 / geometricMeanRatio).toFixed(2)}×** slower than ${named(one)}`);
+    } else {
+      level.push(named(one));
+    }
+  }
+  const phrases = [...faster, ...slower];
+  if (level.length > 0) {
+    phrases.push(`level with ${list(level)}`);
+  }
+  return list(phrases);
+};
+
+const wins = bench.scenarios.filter((scenario) =>
+  frameworks.every((one) => scenario.firsthand.median <= scenario[one].median),
+).length;
 
 /**
  * Marks a row whose median is not a reliable point estimate.
@@ -48,17 +97,32 @@ const full = bundle.sizes[bundle.sizes.length - 1];
  * it is more honest than quietly reporting the median.
  */
 const unstable = (scenario) =>
-  scenario.firsthand.mad > scenario.firsthand.median * 0.1 ||
-  scenario.react.mad > scenario.react.median * 0.1;
+  frameworks.some((one) => scenario[one].mad > scenario[one].median * 0.1);
 
 const anyUnstable = bench.scenarios.some(unstable);
 
 const scenarioRows = bench.scenarios
   .map(
     (scenario) =>
-      `| \`${scenario.id}\`${unstable(scenario) ? ' ~' : ''} | ${ms(scenario.firsthand.median)} | ${ms(scenario.react.median)} | ` +
-      `${ms(scenario.firsthand.p95)} | ${ms(scenario.react.p95)} | ${verdict(scenario.ratio)} |`,
+      `| \`${scenario.id}\`${unstable(scenario) ? ' ~' : ''} | ` +
+      `${frameworks.map((one) => ms(scenario[one].median)).join(' | ')} | ${fastest(scenario)} |`,
   )
+  .join('\n');
+
+const aggregateRows = rivals
+  .map((one) => {
+    const { geometricMeanRatio, ci95 } = aggregates[one];
+    const verdict =
+      ci95[0] > 1
+        ? 'yes — the interval excludes 1.0'
+        : ci95[1] < 1
+          ? 'yes, against Firsthand'
+          : '**no** — the interval includes 1.0';
+    return (
+      `| ${named(one)} | **${geometricMeanRatio.toFixed(3)}×** | ` +
+      `${ci95[0].toFixed(3)}–${ci95[1].toFixed(3)} | ${verdict} |`
+    );
+  })
   .join('\n');
 
 const row = (entry) =>
@@ -74,9 +138,9 @@ function memorySection() {
     return '';
   }
   const mb = (bytes) => `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-  const row = (name, label) => {
+  const row = (name, text) => {
     const entry = bench.memory[name];
-    return `| ${label} | ${mb(entry.afterMountBytes)} | ${mb(entry.afterUpdatesBytes)} | ${mb(entry.afterDisposalBytes)} | ${ms(bench.startup[name].median)} |`;
+    return `| ${text} | ${mb(entry.afterMountBytes)} | ${mb(entry.afterUpdatesBytes)} | ${mb(entry.afterDisposalBytes)} | ${ms(bench.startup[name].median)} |`;
   };
   return [
     '### Memory and cold start',
@@ -88,8 +152,7 @@ function memorySection() {
     '',
     '| | after mounting 1 000 rows | after 100 update cycles | after disposal | cold start |',
     '| --- | ---: | ---: | ---: | ---: |',
-    row('firsthand', '**Firsthand**'),
-    row('react', 'React'),
+    ...frameworks.map((one) => row(one, one === 'firsthand' ? '**Firsthand**' : label(one))),
     '',
     'The third column is the one to read: it is what the page still holds once',
     'the tree has been torn down.',
@@ -102,11 +165,13 @@ function heavySection() {
   if (heavy === null) {
     return '';
   }
+  const heavyFrameworks = heavy.frameworks ?? ['firsthand', 'react'];
   const rows = heavy.scenarios
     .map(
       (scenario) =>
-        `| \`${scenario.id}\` | ${ms(scenario.firsthand.median)} | ` +
-        `${ms(scenario.react.median)} | ${verdict(scenario.ratio)} |`,
+        `| \`${scenario.id}\` | ` +
+        `${heavyFrameworks.map((one) => ms(scenario[one].median)).join(' | ')} | ` +
+        `${fastest(scenario, heavyFrameworks)} |`,
     )
     .join('\n');
   return [
@@ -117,8 +182,8 @@ function heavySection() {
     'above rather than folded into it: averaging measurements taken with',
     'different sample sizes would quietly weaken the confidence interval.',
     '',
-    '| Scenario | Firsthand median | React median | Faster |',
-    '| --- | ---: | ---: | :--- |',
+    `| Scenario | ${heavyFrameworks.map(label).join(' | ')} | Fastest |`,
+    `| --- | ${heavyFrameworks.map(() => '---:').join(' | ')} | :--- |`,
     rows,
     '',
     '',
@@ -130,7 +195,7 @@ function heavySection() {
 const body = `${START}
 <!-- prettier-ignore-start -->
 
-### Firsthand vs React ${meta.reactVersion}
+### Firsthand vs ${rivals.map(named).join(', ')}
 
 ${meta.cpu}, ${meta.cores} cores · Chromium via Playwright · Node ${meta.nodeVersion} ·
 ${meta.measuredRepetitions} measured repetitions after ${meta.warmupRepetitions} warmups ·
@@ -138,14 +203,24 @@ production builds · interleaved in one browser session ·
 DOM equality verified before timing · commit \`${meta.gitCommit.slice(0, 8)}\` ·
 ${meta.timestamp.slice(0, 10)}
 
-| Scenario | Firsthand median | React median | Firsthand p95 | React p95 | Faster |
-| --- | ---: | ---: | ---: | ---: | :--- |
+Each implementation is written the way its own documentation writes it: React
+with memoised components and \`flushSync\`, Solid with a store and \`<For>\`,
+compiled by \`babel-preset-solid\`, Vue with \`shallowRef\` and templates so that
+its compiler emits the patch flags a real application gets. Medians, in
+milliseconds; every scenario is here, including the ones Firsthand loses.
+
+| Scenario | ${frameworks.map(label).join(' | ')} | Fastest |
+| --- | ${frameworks.map(() => '---:').join(' | ')} | :--- |
 ${scenarioRows}
 
-**Geometric mean of the per-scenario ratios: ${aggregate.geometricMeanRatio.toFixed(3)}×**
-(95 % bootstrap CI ${aggregate.ci95[0].toFixed(3)}–${aggregate.ci95[1].toFixed(3)}). The interval
-excludes 1.0, which is the condition this project set before it would make an
-aggregate claim at all. Firsthand was faster in ${wins} of ${bench.scenarios.length} scenarios in this run.
+| Against | Geometric mean of the per-scenario ratios | 95 % bootstrap CI | Claimable |
+| --- | ---: | :---: | :--- |
+${aggregateRows}
+
+A ratio above 1.0 means Firsthand is faster by that factor. Where the interval
+includes 1.0 the two are level as far as this suite can tell, and this project
+publishes that rather than rounding it into a claim. Firsthand was the fastest
+of the ${frameworks.length}, or level with whoever was, in ${wins} of ${bench.scenarios.length} scenarios in this run.
 ${
   anyUnstable
     ? [
@@ -192,10 +267,10 @@ ${END}`;
 const headline = `${HEAD_START}
 <!-- prettier-ignore-start -->
 The whole runtime is **${kb(full.gzip)} gzip** with no production dependencies. On the
-render/update set it is **${aggregate.geometricMeanRatio.toFixed(2)}× faster** than React ${meta.reactVersion} (geometric mean of ${bench.scenarios.length}
-scenarios, 95 % CI ${aggregate.ci95[0].toFixed(2)}–${aggregate.ci95[1].toFixed(2)}) — measured in the same browser session with
-byte-identical DOM verified before any timing, and with every scenario published,
-including the ${bench.scenarios.length - wins} React wins.
+render/update set it is ${claims()}
+(geometric means of ${bench.scenarios.length} scenarios, 95 % bootstrap intervals) — measured in the same browser session,
+with the same data and the same rendered DOM verified before any timing, and
+with every scenario published, including the ${bench.scenarios.length - wins} that Firsthand does not win.
 <!-- prettier-ignore-end -->
 ${HEAD_END}`;
 

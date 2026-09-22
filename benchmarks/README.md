@@ -1,38 +1,103 @@
 # Benchmarks
 
-Firsthand versus React, measured in the same browser session, on the same data,
-with the same visible DOM.
+Firsthand versus **React, Solid and Vue**, measured in the same browser session,
+on the same data, with the same visible DOM.
 
 ```bash
-npm run build      # the packages the benchmark imports
-npm run bench      # builds the page, verifies, measures, writes results
+npm run build                        # the packages the benchmark imports
+npm --prefix benchmarks/frameworks i # React's rivals, with their own toolchains
+npm run bench                        # builds the page, verifies, measures, writes results
 node benchmarks/report.mjs --markdown
 ```
+
+## Who is measured, and how they are written
+
+|           | written as                                   | compiled by                           |
+| --------- | -------------------------------------------- | ------------------------------------- |
+| Firsthand | components, signals, keyed lists             | the published `@firsthandjs/compiler` |
+| React     | memoised components, `useState`, `flushSync` | esbuild, `NODE_ENV=production`        |
+| Solid     | `createStore`, `<For>`, `<Show>`             | `babel-preset-solid`                  |
+| Vue       | `shallowRef`, `v-for` with `:key`, templates | Vue's own template compiler           |
+
+Each is written the way its own documentation writes it, because a comparison
+against a strawman is worth nothing. Two details that matter:
+
+- **Solid is compiled.** Its JSX transform is not an optional extra, and
+  measuring its hyperscript runtime would measure a Solid nobody ships.
+- **Vue uses templates, not hand-written `h()`.** Vue's template compiler emits
+  patch flags that a hand-written render function does not get, so `h()` would
+  understate it.
+
+Solid and Vue live in [`frameworks/`](frameworks/package.json) with their own
+install. `babel-preset-solid` wants Babel 7 and this repository is built on
+Babel 8; giving them their own `node_modules` means neither toolchain has to be
+bent to fit the other, and the exact versions the published numbers came from
+are pinned there.
 
 ## What the runner enforces
 
 The rules in [`../PERFORMANCE_PLAN.md`](../PERFORMANCE_PLAN.md) are implemented
 in `run.mjs`, not just described:
 
-1. **DOM equality first.** Before any timing, both implementations walk a nine
-   step operation sequence and their `innerHTML` is compared after every step.
-   A mismatch aborts the run. This has already caught one real bug in the Firsthand
-   implementation, which is the point.
-2. **Same session, interleaved.** Both frameworks run in one browser process,
-   alternating per repetition, so CPU frequency drift and GC state hit both.
-3. **Production builds, pinned versions.** React is bundled with
-   `NODE_ENV=production`, and `react` and `react-dom` are pinned to exact
-   versions in `package.json` so the number the README publishes cannot drift
-   under it. Firsthand is compiled by the published compiler and imports the
-   published entry points.
-4. **Seeded data.** One deterministic generator, identical rows for both.
+1. **DOM equality first.** Before any timing, every implementation walks the
+   same operation sequences and its `innerHTML` is compared against Firsthand's
+   after every step. A mismatch aborts the run. This has already caught one real
+   bug in the Firsthand implementation and one in the Solid one, which is the
+   point.
+2. **Same session, interleaved.** All four run in one browser process,
+   alternating per repetition, so CPU frequency drift and GC state hit them
+   equally.
+3. **Production builds, pinned versions.** Every framework is bundled for
+   production and pinned to an exact version, so the numbers the README
+   publishes cannot drift under it. Firsthand is compiled by the published
+   compiler and imports the published entry points.
+4. **Seeded data.** One deterministic generator, identical rows for all four.
 5. **Warmups discarded**, then ≥ 25 measured repetitions, reported as median,
    p95, mean, standard deviation, median absolute deviation, min and max.
 6. **Full environment recorded** in every result file: OS, CPU, cores, RAM,
    browser, versions, git commit, build mode, timestamp.
 7. **Aggregate honesty.** The headline is the geometric mean of the
-   per-scenario ratios with a bootstrap 95 % interval, and the report refuses to
-   state an advantage when the interval includes 1.0.
+   per-scenario ratios with a bootstrap 95 % interval, per rival, and neither
+   the runner nor the report will state an advantage when the interval includes
+   1.0 — which, against one of these three, it does.
+
+## The one thing that is normalised
+
+Vue writes `class=""` where the others leave the attribute off: a class binding
+that evaluates to nothing is normalised to an empty string before it is
+patched. The comparison treats the two as equal, because they are the same
+element with the same classes and the same layout, and writing the benchmark's
+markup around one framework's attribute handling would be worse.
+
+Nothing else is normalised. A comment node, a text node, an attribute value or
+an element out of place still fails the run.
+
+## What "one update" means to each of them
+
+A measurement is only fair if every framework is asked for the same thing: the
+DOM, changed, before the clock stops.
+
+|           | how the operation is made to reach the DOM                |
+| --------- | --------------------------------------------------------- |
+| Firsthand | synchronous by design (ADR-0006); nothing to ask for      |
+| React     | `flushSync` around every operation                        |
+| Solid     | synchronous; `batch` where the scenario asks for batching |
+| Vue       | `await nextTick()`, because its scheduler is a microtask  |
+
+The unbatched scenario is the one to read carefully. It asks for _n_ updates
+that each reach the DOM, which Firsthand and Solid do synchronously, React does
+with _n_ calls to `flushSync`, and Vue can only do with _n_ microtask turns —
+Vue has no synchronous flush at all. That is a real difference in what the
+frameworks offer, not a trick of the harness, but it is worth knowing before
+reading that row as a verdict on Vue's speed.
+
+## Why the measurement is awaited
+
+Vue's scheduler flushes on a microtask, which cannot be drained from inside a
+synchronous function. A measurement that stopped at the last statement would
+stop before Vue's DOM had changed and would credit it for work it had not done.
+So the harness awaits every operation — which costs all four the same one
+microtask hop, rather than charging it to the one that needs it.
 
 ## What the numbers include
 
@@ -82,14 +147,15 @@ all.
 
 ## Adding a scenario
 
-Add it to `SCENARIOS` in `run.mjs` and implement the operation in **both**
-`app/firsthand.tsx` and `app/react.jsx`. If the two implementations stop producing
-identical DOM, the equality phase will say so before any number is produced.
+Add it to `SCENARIOS` in `run.mjs` and implement the operation in **all four**
+of `app/firsthand.tsx`, `app/react.jsx`, `app/solid.jsx` and `app/vue.js`. If any
+of them stops producing the same DOM, the equality phase will say so before a
+number is produced.
 
 ## Micro-benchmarks
 
-Two questions are about Firsthand's own defaults rather than about React, so they
-live apart from the comparison:
+Some questions are about Firsthand's own defaults rather than about anyone
+else, so they live apart from the comparison:
 
 ```bash
 npm run bench:reconcilers   # which keyed reconciler to ship (ADR-0010)
@@ -97,8 +163,8 @@ npm run bench:micro         # element host cost, delegated vs direct events
 npm run bench:profile       # what allocates, and where the self time goes
 ```
 
-Each writes its own file under `results/`. None of them feeds the React
-aggregate, because none of them is a comparison.
+Each writes its own file under `results/`. None of them feeds an aggregate,
+because none of them is a comparison.
 
 ## Spotting a regression
 
@@ -107,7 +173,8 @@ node benchmarks/compare.mjs <new-result.json> --baseline benchmarks/results/late
 ```
 
 Prints every scenario whose ratio against React moved by more than 10 %, in
-either direction, and marks the rows whose samples were too widely spread for
+either direction — React is the reference there because it is the one with the
+longest run of committed baselines — and marks the rows whose samples were too widely spread for
 the movement to mean anything. It compares _ratios_, not raw times, so a
 machine that is generally faster or slower than the last one does not look like
 a change.

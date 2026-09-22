@@ -3,11 +3,12 @@
  *
  * It enforces the rules in PERFORMANCE_PLAN.md in code rather than in prose:
  *
- *  1. Both implementations run in the **same browser session**, interleaved per
- *     repetition, so drift in CPU frequency or GC state hits both equally.
- *  2. A **DOM-equality phase runs first**. If the two implementations do not
- *     produce byte-identical markup for the same data, the run aborts before
- *     any timing happens.
+ *  1. Every implementation runs in the **same browser session**, interleaved
+ *     per repetition, so drift in CPU frequency or GC state hits all of them
+ *     equally.
+ *  2. A **DOM-equality phase runs first**. If the implementations do not render
+ *     the same thing for the same data, the run aborts before any timing
+ *     happens.
  *  3. Production builds, one seeded dataset, warmup repetitions discarded.
  *  4. Every scenario is recorded, including the ones Firsthand loses.
  *  5. The raw result file carries the full environment, so a number can never
@@ -15,7 +16,7 @@
  */
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { extname, join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,6 +42,26 @@ const WARMUP = Number(process.env.BENCH_WARMUP ?? (HEAVY ? 1 : 5));
 const REPEATS = Number(process.env.BENCH_REPEATS ?? (HEAVY ? 7 : 25));
 const SEED = 0x51a2d;
 const NL = String.fromCharCode(10);
+
+/** Firsthand first, then everything it is measured against. */
+const FRAMEWORKS = ['firsthand', 'react', 'solid', 'vue'];
+const RIVALS = FRAMEWORKS.slice(1);
+
+/**
+ * The one difference in rendered markup that is accepted, and why.
+ *
+ * Vue writes `class=""` where the others leave the attribute off, because a
+ * class binding that evaluates to nothing is normalised to an empty string
+ * before it is patched. The two are the same element with the same classes and
+ * the same layout; insisting on the byte would mean writing the benchmark's
+ * markup around one framework's attribute handling.
+ *
+ * Nothing else is normalised. A comment node, a text node, an attribute value
+ * or an element out of place still fails the run.
+ */
+function comparable(html) {
+  return html.replaceAll(' class=""', '');
+}
 
 /**
  * One scenario: a setup sequence that is not timed, then the operation that is.
@@ -261,6 +282,17 @@ function gitCommit() {
   }
 }
 
+/** The version of a framework installed in `benchmarks/frameworks`. */
+function frameworkVersionOf(name) {
+  try {
+    return JSON.parse(
+      readFileSync(resolve(here, 'frameworks', 'node_modules', name, 'package.json'), 'utf8'),
+    ).version;
+  } catch {
+    return 'unknown';
+  }
+}
+
 function versionOf(name) {
   try {
     return JSON.parse(
@@ -287,8 +319,8 @@ async function measureMemory(page, url) {
   await client.send('HeapProfiler.enable');
   const readings = {};
 
-  for (const name of ['firsthand', 'react']) {
-    // A fresh page per framework, so neither inherits the other's garbage.
+  for (const name of FRAMEWORKS) {
+    // A fresh page per framework, so none inherits another's garbage.
     await page.goto(url);
     await page.waitForFunction(() => globalThis.harness !== undefined);
     const heap = async () => {
@@ -298,15 +330,15 @@ async function measureMemory(page, url) {
     };
 
     const baseline = await heap();
-    await page.evaluate((impl) => {
-      globalThis.harness.mount(impl, 1, 'table', 0);
-      globalThis.harness.run('create', 1000);
+    await page.evaluate(async (impl) => {
+      await globalThis.harness.mount(impl, 1, 'table', 0);
+      await globalThis.harness.run('create', 1000);
     }, name);
     const afterMount = await heap();
 
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
       for (let i = 0; i < 100; i++) {
-        globalThis.harness.run('updateEveryTenth', 0);
+        await globalThis.harness.run('updateEveryTenth', 0);
       }
     });
     const afterUpdates = await heap();
@@ -335,7 +367,7 @@ async function measureMemory(page, url) {
  */
 async function measureStartup(browser, url) {
   const readings = {};
-  for (const name of ['firsthand', 'react']) {
+  for (const name of FRAMEWORKS) {
     const samples = [];
     for (let i = 0; i < 5; i++) {
       const context = await browser.newContext();
@@ -343,10 +375,10 @@ async function measureStartup(browser, url) {
       await page.goto(url);
       await page.waitForFunction(() => globalThis.harness !== undefined);
       samples.push(
-        await page.evaluate((impl) => {
+        await page.evaluate(async (impl) => {
           const start = performance.now();
-          globalThis.harness.mount(impl, 1, 'table', 0);
-          globalThis.harness.run('create', 1000);
+          await globalThis.harness.mount(impl, 1, 'table', 0);
+          await globalThis.harness.run('create', 1000);
           return performance.now() - start;
         }, name),
       );
@@ -369,13 +401,13 @@ async function main() {
   // --- Phase 1: identical output, before anything is timed -------------------
   for (const suite of EQUALITY_SUITES) {
     const snapshots = {};
-    for (const name of ['firsthand', 'react']) {
+    for (const name of FRAMEWORKS) {
       snapshots[name] = await page.evaluate(
-        ({ impl, sequence, seed, mode, modeArgument }) => {
-          globalThis.harness.mount(impl, seed, mode, modeArgument);
+        async ({ impl, sequence, seed, mode, modeArgument }) => {
+          await globalThis.harness.mount(impl, seed, mode, modeArgument);
           const results = [];
           for (const [operation, argument] of sequence) {
-            globalThis.harness.run(operation, argument);
+            await globalThis.harness.run(operation, argument);
             results.push(globalThis.harness.snapshot());
           }
           globalThis.harness.unmount();
@@ -391,40 +423,43 @@ async function main() {
       );
     }
     for (let step = 0; step < suite.steps.length; step++) {
-      if (snapshots.firsthand[step] !== snapshots.react[step]) {
-        await browser.close();
-        server.close();
-        console.error(
-          `DOM equality failed in the "${suite.mode}" suite at step ${step} ` +
-            `(${suite.steps[step].join(' ')}) — the implementations do not render the same thing:`,
-        );
-        console.error(`  firsthand: ${snapshots.firsthand[step].slice(0, 300)}`);
-        console.error(`  react:  ${snapshots.react[step].slice(0, 300)}`);
-        process.exitCode = 1;
-        return;
+      for (const name of RIVALS) {
+        if (comparable(snapshots[name][step]) !== comparable(snapshots.firsthand[step])) {
+          await browser.close();
+          server.close();
+          console.error(
+            `DOM equality failed in the "${suite.mode}" suite at step ${step} ` +
+              `(${suite.steps[step].join(' ')}) — Firsthand and ${name} do not render the same thing:`,
+          );
+          console.error(`  firsthand: ${snapshots.firsthand[step].slice(0, 300)}`);
+          console.error(`  ${name}: ${snapshots[name][step].slice(0, 300)}`);
+          process.exitCode = 1;
+          return;
+        }
       }
     }
     console.log(
-      `DOM equality (${suite.mode}): ${suite.steps.length} steps identical between Firsthand and React.`,
+      `DOM equality (${suite.mode}): ${suite.steps.length} steps identical across ` +
+        `${FRAMEWORKS.join(', ')}.`,
     );
   }
 
   // --- Phase 2: interleaved measurement -------------------------------------
   const timings = {};
   for (const scenario of SCENARIOS) {
-    timings[scenario.id] = { firsthand: [], react: [] };
+    timings[scenario.id] = Object.fromEntries(FRAMEWORKS.map((name) => [name, []]));
   }
 
   for (let repetition = 0; repetition < WARMUP + REPEATS; repetition++) {
     for (const scenario of SCENARIOS) {
-      for (const name of ['firsthand', 'react']) {
+      for (const name of FRAMEWORKS) {
         const duration = await page.evaluate(
-          ({ impl, setup, op, seed, mode, modeArgument }) => {
-            globalThis.harness.mount(impl, seed, mode, modeArgument);
+          async ({ impl, setup, op, seed, mode, modeArgument }) => {
+            await globalThis.harness.mount(impl, seed, mode, modeArgument);
             for (const [operation, argument] of setup) {
-              globalThis.harness.run(operation, argument);
+              await globalThis.harness.run(operation, argument);
             }
-            const elapsed = globalThis.harness.measure(op[0], op[1]);
+            const elapsed = await globalThis.harness.measure(op[0], op[1]);
             globalThis.harness.unmount();
             return elapsed;
           },
@@ -458,15 +493,20 @@ async function main() {
   server.close();
 
   const scenarios = SCENARIOS.map((scenario) => {
-    const firsthand = summarise(timings[scenario.id].firsthand);
-    const react = summarise(timings[scenario.id].react);
+    const summaries = Object.fromEntries(
+      FRAMEWORKS.map((name) => [name, summarise(timings[scenario.id][name])]),
+    );
+    // Above 1 means Firsthand is faster by that factor. Below 1 means it is
+    // not, and that is published exactly the same way.
+    const ratios = Object.fromEntries(
+      RIVALS.map((name) => [name, summaries[name].median / summaries.firsthand.median]),
+    );
     return {
       id: scenario.id,
-      firsthand,
-      react,
-      // Above 1 means Firsthand is faster by that factor. Below 1 means it is not,
-      // and that is published exactly the same way.
-      ratio: react.median / firsthand.median,
+      ...summaries,
+      ratios,
+      /** Kept so that older result files and `compare.mjs` still line up. */
+      ratio: ratios.react,
     };
   });
 
@@ -483,6 +523,8 @@ async function main() {
       playwrightVersion: versionOf('playwright'),
       reactVersion: versionOf('react'),
       reactDomVersion: versionOf('react-dom'),
+      solidVersion: frameworkVersionOf('solid-js'),
+      vueVersion: frameworkVersionOf('vue'),
       firsthandVersion: JSON.parse(
         await readFile(resolve(root, 'packages/dom/package.json'), 'utf8'),
       ).version,
@@ -493,8 +535,13 @@ async function main() {
       measuredRepetitions: REPEATS,
       domEqualityVerified: true,
     },
+    frameworks: FRAMEWORKS,
     scenarios,
-    aggregate: aggregate(scenarios.map((scenario) => scenario.ratio)),
+    aggregates: Object.fromEntries(
+      RIVALS.map((name) => [name, aggregate(scenarios.map((scenario) => scenario.ratios[name]))]),
+    ),
+    /** Kept so that older result files and `compare.mjs` still line up. */
+    aggregate: aggregate(scenarios.map((scenario) => scenario.ratios.react)),
     // Kept apart from the timing aggregate: these are sizes and cold-start
     // times, not the per-operation durations the geometric mean is over.
     memory,
@@ -513,25 +560,32 @@ async function main() {
   writeFileSync(resolve(here, 'results', HEAVY ? 'latest-heavy.json' : 'latest.json'), serialised);
 
   console.log(`\nRaw results written to ${file}\n`);
+  console.log(
+    `  ${'scenario'.padEnd(22)}${FRAMEWORKS.map((name) => `${name} (ms)`.padStart(14)).join('')}`,
+  );
   for (const scenario of scenarios) {
-    const verdict =
-      scenario.ratio > 1
-        ? `Firsthand ${scenario.ratio.toFixed(2)}x faster`
-        : `React ${(1 / scenario.ratio).toFixed(2)}x faster`;
     console.log(
-      `  ${scenario.id.padEnd(22)} firsthand ${scenario.firsthand.median.toFixed(2).padStart(9)} ms   ` +
-        `react ${scenario.react.median.toFixed(2).padStart(9)} ms   ${verdict}`,
+      `  ${scenario.id.padEnd(22)}` +
+        FRAMEWORKS.map((name) => scenario[name].median.toFixed(2).padStart(14)).join(''),
     );
   }
-  const { geometricMeanRatio, ci95 } = result.aggregate;
-  console.log(
-    `\nGeometric mean of react/firsthand medians: ${geometricMeanRatio.toFixed(3)} ` +
-      `(95% CI ${ci95[0].toFixed(3)}–${ci95[1].toFixed(3)})`,
-  );
+  for (const name of RIVALS) {
+    const { geometricMeanRatio, ci95 } = result.aggregates[name];
+    const verdict =
+      ci95[0] > 1
+        ? 'the interval excludes 1.0'
+        : ci95[1] < 1
+          ? 'the interval is below 1.0'
+          : 'the interval includes 1.0, so no aggregate claim may be published';
+    console.log(
+      `${NL}Geometric mean of ${name}/firsthand medians: ${geometricMeanRatio.toFixed(3)} ` +
+        `(95% CI ${ci95[0].toFixed(3)}–${ci95[1].toFixed(3)}) — ${verdict}`,
+    );
+  }
   if (result.memory !== null) {
     const mb = (bytes) => `${(bytes / 1024 / 1024).toFixed(2)} MB`;
     console.log(`${NL}  retained heap (after a forced collection, relative to an empty page):`);
-    for (const name of ['firsthand', 'react']) {
+    for (const name of FRAMEWORKS) {
       const entry = result.memory[name];
       console.log(
         `    ${name.padEnd(8)} mount ${mb(entry.afterMountBytes).padStart(9)}   ` +
@@ -540,16 +594,10 @@ async function main() {
       );
     }
     console.log(`${NL}  cold start (fresh page, first mount of 1 000 rows):`);
-    for (const name of ['firsthand', 'react']) {
+    for (const name of FRAMEWORKS) {
       console.log(`    ${name.padEnd(8)} ${result.startup[name].median.toFixed(1)} ms median`);
     }
   }
-
-  console.log(
-    ci95[0] > 1
-      ? 'The interval excludes 1.0: the advantage is statistically supported.'
-      : 'The interval includes or falls below 1.0: no aggregate claim may be published.',
-  );
 }
 
 await main();
