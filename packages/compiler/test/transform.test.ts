@@ -463,6 +463,73 @@ export const List = component(() => () => {
 `);
     expect(out).not.toContain('_$cell(');
   });
+
+  it('feeds its children through a cell too, not only its props', () => {
+    const out = compile(`
+import { component } from '@firsthandjs/dom';
+import { Box } from './box.js';
+export const Panel = component(() => () => {
+  const failed = status.value === 'error';
+  return <Box>{failed ? <p>no</p> : <ul>yes</ul>}</Box>;
+});
+`);
+    // The cell holds the reading rather than the result: the child is a part,
+    // and what it reads belongs to the part rather than to the run.
+    expect(out).toMatch(/_\$cell\(_store, \d+, \(\) =>/);
+    expect(out).toMatch(/_\$part\(\(\) => _cell\$\d+\.value\(\)\)/);
+  });
+
+  it('leaves a child that is nobody’s local where it is', () => {
+    const out = compile(`
+import { component } from '@firsthandjs/dom';
+import { Box } from './box.js';
+export const Panel = component(() => () => {
+  const failed = status.value === 'error';
+  return <Box>{other.value}</Box>;
+});
+`);
+    expect(out).not.toContain('_$cell(');
+    expect(out).toContain('_$part(() => other.value)');
+  });
+
+  it('gives a keyed list its data from the run, and makes the list once', () => {
+    const out = compile(`
+import { component } from '@firsthandjs/dom';
+import { Box, Row } from './box.js';
+export const Panel = component(() => () => {
+  const shown = rows.value.filter((row) => row.on);
+  return <Box>{shown.map((row) => <Row key={row.id} row={row} />)}</Box>;
+});
+`);
+    // The data is read from the cell; the list itself is still made once, or
+    // a list that reuses its rows would have nothing to reuse.
+    expect(out).toMatch(/_\$list\(\(\) => _cell\$\d+\.value/);
+    expect(out).toMatch(/_kept\$\d+\.last = _\$part/);
+  });
+
+  it('leaves a keyed list whose data is nobody’s local alone', () => {
+    const out = compile(`
+import { component } from '@firsthandjs/dom';
+import { Box, Row } from './box.js';
+export const Panel = component(() => () => {
+  const unrelated = other.value;
+  return <Box>{rows.value.map((row) => <Row key={row.id} row={row} />)}</Box>;
+});
+`);
+    expect(out).toContain('_$list(() => rows.value');
+  });
+
+  it('leaves a keyed list outside a run alone', () => {
+    const out = compile(`
+import { component } from '@firsthandjs/dom';
+import { Box, Row } from './box.js';
+export const Panel = component(() => (
+  <Box>{rows.value.map((row) => <Row key={row.id} row={row} />)}</Box>
+));
+`);
+    expect(out).toContain('_$list(() => rows.value');
+    expect(out).not.toContain('_$cell(');
+  });
 });
 
 describe('runs, in every shape they come in', () => {
