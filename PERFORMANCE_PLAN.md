@@ -5,46 +5,54 @@
 > after they exist. If a target is missed, the measured value is published and
 > the target is marked as missed.
 >
-> Status: the bundle-size budget and the React comparison have been measured —
-> see the README. Allocation profiling, the reconciler comparison (ADR-0010) and
-> the Firefox/WebKit benchmark runs have not.
+> Status: the bundle-size budget and the comparison against React, Solid and
+> Vue have been measured — see the README. Allocation profiling, the reconciler
+> comparison (ADR-0010) and the Firefox/WebKit benchmark runs have not.
 
 ---
 
 ## 1. Rules of measurement
 
-These rules exist to make the eventual "faster than React" statement falsifiable
-rather than promotional.
+These rules exist to make any "faster than X" statement falsifiable rather than
+promotional. **X is React, Solid and Vue**: React because it is the model most
+readers know, Solid because it is the closest neighbour and therefore the
+hardest test, Vue because it is the other mainstream answer.
 
-1. **Same run, same machine, same browser process.** Firsthand and React are
-   measured interleaved within one browser session. Cross-CI-run comparisons are
-   never published as ratios.
-2. **Locked versions.** React and ReactDOM versions are pinned in
-   `benchmarks/package.json` with an exact version and a lockfile, and the
-   resolved version is written into every result file.
-3. **Identical output.** A DOM-equality assertion runs before timing: both
-   implementations must produce byte-identical serialised DOM for the same data,
-   modulo framework-internal marker comments, which are asserted to be absent
-   from both. A mismatch fails the benchmark.
-4. **Production builds** on both sides (`NODE_ENV=production`, minified, no dev
-   warnings path).
-5. **Same data.** A seeded PRNG generates the dataset once per run and both
-   implementations receive the same array contents.
-6. **Warmup + repetitions.** >= 5 warmup iterations discarded, >= 25 measured
+1. **Same run, same machine, same browser process.** Every implementation is
+   measured interleaved within one browser session. Cross-CI-run comparisons
+   are never published as ratios.
+2. **Locked versions.** Every framework is pinned to an exact version with a
+   lockfile — React in the root `package.json`, Solid and Vue in
+   `benchmarks/frameworks` — and every resolved version is written into every
+   result file.
+3. **Identical output.** A DOM-equality assertion runs before timing: every
+   implementation must produce the same serialised DOM as Firsthand for the same
+   data, modulo framework-internal marker comments, which are asserted to be
+   absent from all of them, and modulo `class=""` against an absent `class`,
+   which Vue writes and the others do not. A mismatch fails the benchmark.
+4. **Production builds** on every side (`NODE_ENV=production`, minified, no dev
+   warnings path), each through its own compiler where it has one.
+5. **Same data.** A seeded PRNG generates the dataset once per run and every
+   implementation receives the same array contents.
+6. **Same idiom.** Each implementation is written the way its own documentation
+   writes it. A comparison against a strawman measures nothing.
+7. **Warmup + repetitions.** >= 5 warmup iterations discarded, >= 25 measured
    iterations, reported as median, p95, and median absolute deviation. Mean and
    standard deviation are reported alongside but the median is the headline.
-7. **No benchmark-only code paths.** The benchmark imports the published
+8. **No benchmark-only code paths.** The benchmark imports the published
    package entry points and is compiled by the published compiler. CI asserts
    that no `benchmarks/**` import reaches a non-exported module.
-8. **Raw results are committed** as JSON, with full environment metadata: OS,
+9. **Raw results are committed** as JSON, with full environment metadata: OS,
    CPU model, core count, RAM, browser, browser version, Node version, Firsthand
-   version, React version, git commit, build mode, timestamp.
-9. **No cherry-picking.** The summary table contains every measured scenario.
-   Scenarios where React wins are printed with the same prominence.
-10. **Aggregate claim form.** The headline metric is the geometric mean of the
+   version, every framework version, git commit, build mode, timestamp.
+10. **No cherry-picking.** The summary table contains every measured scenario.
+    Scenarios another framework wins are printed with the same prominence.
+11. **Aggregate claim form.** The headline metric is the geometric mean of the
     per-scenario ratios across the update/render set, with a bootstrap
-    confidence interval. A claim is publishable only if the interval excludes
-    1.0.
+    confidence interval — **one per framework compared against**. A claim is
+    publishable only if that framework's interval excludes 1.0. As of the 0.8.0
+    measurement it does for React and Vue and does not for Solid, and the README
+    says _level_ there rather than quoting the mean.
 
 ---
 
@@ -142,9 +150,9 @@ what users actually download) is published next to it.
 
 ## 6. Acceptance condition
 
-"Faster than React" is a condition to be met, not a claim to be made. The
+"Faster than X" is a condition to be met, not a claim to be made. The
 sequence when a scenario loses is: profile, identify the hotspot, fix, re-measure.
-If React remains faster in a scenario after that loop, the result is published as
+If another framework remains faster in a scenario after that loop, the result is published as
 a loss with an explanation of the structural reason.
 
 No result is ever hand-edited. Result files are written by the benchmark runner
