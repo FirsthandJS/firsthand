@@ -7,10 +7,10 @@
  * where the markup says it should be, and regions inside regions.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { adopt, claimRegion, hydrateWith, place, within } from '../src/hydrate.js';
-import { first, next } from '../src/claim.js';
-import { devHydrationMismatch } from '../src/dev.js';
-import { store, writeChild } from '../src/insert.js';
+import { adopt, claimRegion, hydrateWith, place, within } from '@/hydrate.js';
+import { first, next } from '@/claim.js';
+import { devHydrationMismatch } from '@/dev.js';
+import { store, writeChild } from '@/insert.js';
 
 function tree(html: string): HTMLElement {
   const host = document.createElement('div');

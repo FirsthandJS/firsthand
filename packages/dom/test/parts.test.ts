@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, signal } from '@firsthandjs/core';
-import { applyChild, FLAT, insert, reconcile } from '../src/insert.js';
-import { on, off, resetDelegation } from '../src/events.js';
-import { path, template } from '../src/template.js';
-import { applyProp, mergeProps, spread } from '../src/props.js';
-import { portal } from '../src/portal.js';
-import { render } from '../src/render.js';
+import { applyChild, FLAT, insert, reconcile } from '@/insert.js';
+import { on, off, resetDelegation } from '@/events.js';
+import { path, template } from '@/template.js';
+import { applyProp, mergeProps, spread } from '@/props.js';
+import { portal } from '@/portal.js';
+import { render } from '@/render.js';
 
 let host: HTMLElement;
 

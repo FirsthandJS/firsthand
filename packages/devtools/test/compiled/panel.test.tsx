@@ -11,7 +11,7 @@ import { DataContext, createData, tag, useResource } from '@firsthandjs/data';
 import { provide, signal } from '@firsthandjs/core';
 import { component, render } from '@firsthandjs/dom';
 import { attach, detach } from '@firsthandjs/devtools';
-import { close, open, refresh, show } from '../../src/panel.js';
+import { close, open, refresh, show } from '@/panel.js';
 
 let host: HTMLElement;
 

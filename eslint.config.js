@@ -2,6 +2,70 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
 
+/**
+ * Lint rules, in three groups.
+ *
+ * 1. Correctness — `strictTypeChecked`, plus the handful this project tightens.
+ * 2. Shape — the SOLID and clean-code limits from
+ *    `docs/architecture/code-rules.md`. Every one of them is a number, so that
+ *    "this module is doing too much" is a build failure rather than a review
+ *    opinion.
+ * 3. Layering — which package may import which, and which globals a package
+ *    may not see at all. This is dependency inversion expressed as a lint rule.
+ *
+ * The limits below skip blank lines and comments on purpose. This codebase
+ * explains its reasoning in prose above the code, and a size limit that counted
+ * those lines would be a limit on explanation. Deleting a comment to get under
+ * one of these numbers is breaking the rule, not keeping it.
+ */
+
+/**
+ * `../` is banned; `@/` is the way out of a directory (code-rules §3).
+ *
+ * Only inside a package, because that is the only place `@/` has a meaning —
+ * it resolves to the current package's `src/`. `benchmarks/` and `scripts/`
+ * are not packages and keep relative paths.
+ */
+const parentRelative = {
+  group: ['../*', '../**'],
+  message: "Use '@/…' (this package's src) instead of '../…' — docs/architecture/code-rules.md §3.",
+};
+
+/**
+ * The parent-relative ban, plus whatever layering this package is under.
+ * Composed in one place because a later `no-restricted-imports` replaces an
+ * earlier one wholesale rather than merging with it — the per-package blocks
+ * below would otherwise each punch a hole in the `../` rule.
+ */
+const imports = (...groups) => [
+  'error',
+  { patterns: [parentRelative, ...groups.map((group) => ({ group }))], paths: [] },
+];
+
+/** SOLID and clean-code limits for shipped code. */
+const shape = {
+  // S: one reason to change. Size is the proxy a linter can compute.
+  'max-lines': ['error', { max: 300, skipBlankLines: true, skipComments: true }],
+  'max-lines-per-function': ['error', { max: 50, skipBlankLines: true, skipComments: true }],
+  'max-statements': ['error', 30],
+  // O: a function that keeps being edited to admit one more case grows a
+  // branch each time. When the set is open-ended, use a table, not a chain.
+  complexity: ['error', 12],
+  'max-depth': ['error', 4],
+  'max-nested-callbacks': ['error', 3],
+  // I: four parameters, then an options object — unless it allocates in a hot
+  // path, which is one of the three documented reasons to disable a rule.
+  'max-params': ['error', 4],
+  // Clean code, the part of it a linter can hold.
+  'no-param-reassign': ['error', { props: false }],
+  'no-else-return': ['error', { allowElseIf: false }],
+  'no-lonely-if': 'error',
+  'prefer-const': 'error',
+  'no-var': 'error',
+  'object-shorthand': ['error', 'properties'],
+  'prefer-template': 'error',
+};
+
 // `tseslint.config` composes typed config arrays; ESLint's own `defineConfig`
 // does not accept them directly yet.
 // eslint-disable-next-line @typescript-eslint/no-deprecated
@@ -28,7 +92,11 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        project: ['./tsconfig.eslint.json'],
+        // One project per package, plus one for everything outside them. A
+        // single repo-wide project could not give `@/` a meaning: `paths` is
+        // global to a config, so `@/index.js` would resolve to whichever
+        // package was listed first.
+        project: ['./tsconfig.eslint.json', './packages/*/tsconfig.test.json'],
         tsconfigRootDir: import.meta.dirname,
       },
       globals: { ...globals.browser, ...globals.node },
@@ -44,6 +112,26 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-expressions': 'off',
       'no-console': ['error', { allow: ['warn', 'error'] }],
       eqeqeq: ['error', 'always', { null: 'ignore' }],
+    },
+  },
+  {
+    // The shape limits apply to every module that ships, and to the tests,
+    // which are read far more often than they are written.
+    files: ['packages/*/src/**/*.ts', 'packages/*/src/**/*.tsx'],
+    rules: { ...shape, 'no-restricted-imports': imports() },
+  },
+  {
+    // A test may be longer than the code it tests — a table of cases is one
+    // idea however many rows it has — but it is still code somebody has to
+    // read, so the limits are looser rather than absent.
+    files: ['packages/*/test/**/*.ts', 'packages/*/test/**/*.tsx'],
+    rules: {
+      'max-lines': ['error', { max: 400, skipBlankLines: true, skipComments: true }],
+      'max-lines-per-function': ['error', { max: 120, skipBlankLines: true, skipComments: true }],
+      'max-params': ['error', 4],
+      'max-depth': ['error', 4],
+      'max-nested-callbacks': ['error', 5],
+      'no-restricted-imports': imports(),
     },
   },
   {
@@ -67,7 +155,7 @@ export default tseslint.config(
         },
         { name: 'window', message: '@firsthandjs/core must not touch the DOM (ARCHITECTURE §1).' },
       ],
-      'no-restricted-imports': ['error', { patterns: ['@firsthandjs/*'], paths: [] }],
+      'no-restricted-imports': imports(['@firsthandjs/*']),
     },
   },
   {
@@ -78,10 +166,11 @@ export default tseslint.config(
     files: ['packages/server/src/**/*.ts'],
     rules: {
       '@typescript-eslint/no-base-to-string': 'off',
-      'no-restricted-imports': [
-        'error',
-        { patterns: ['@firsthandjs/compiler*', '@firsthandjs/dom*', '@firsthandjs/jsx-runtime*'] },
-      ],
+      'no-restricted-imports': imports([
+        '@firsthandjs/compiler*',
+        '@firsthandjs/dom*',
+        '@firsthandjs/jsx-runtime*',
+      ]),
     },
   },
   {
@@ -92,10 +181,7 @@ export default tseslint.config(
       // platform's own behaviour, including `[object Object]` for a plain
       // object. Firsthand does not second-guess it, and does not serialise.
       '@typescript-eslint/no-base-to-string': 'off',
-      'no-restricted-imports': [
-        'error',
-        { patterns: ['@firsthandjs/compiler*', '@firsthandjs/jsx-runtime*'] },
-      ],
+      'no-restricted-imports': imports(['@firsthandjs/compiler*', '@firsthandjs/jsx-runtime*']),
     },
   },
   {
@@ -104,7 +190,7 @@ export default tseslint.config(
     // without the router.
     files: [
       'packages/router/src/**/*.ts',
-      'packages/query/src/**/*.ts',
+      'packages/data/src/**/*.ts',
       'packages/styled/src/**/*.ts',
       'packages/react/src/**/*.ts',
     ],
@@ -113,18 +199,13 @@ export default tseslint.config(
       // platform's behaviour, including `[object Object]`. These packages do
       // not second-guess it, exactly as the DOM layer does not.
       '@typescript-eslint/no-base-to-string': 'off',
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            '@firsthandjs/compiler*',
-            '@firsthandjs/router*',
-            '@firsthandjs/query*',
-            '@firsthandjs/styled*',
-            '@firsthandjs/react*',
-          ],
-        },
-      ],
+      'no-restricted-imports': imports([
+        '@firsthandjs/compiler*',
+        '@firsthandjs/router*',
+        '@firsthandjs/data*',
+        '@firsthandjs/styled*',
+        '@firsthandjs/react*',
+      ]),
     },
   },
   {
@@ -137,10 +218,11 @@ export default tseslint.config(
     // The compiler is build-time only: it must not import the runtime.
     files: ['packages/compiler/src/**/*.ts'],
     rules: {
-      'no-restricted-imports': [
-        'error',
-        { patterns: ['@firsthandjs/core*', '@firsthandjs/dom*', '@firsthandjs/jsx-runtime*'] },
-      ],
+      'no-restricted-imports': imports([
+        '@firsthandjs/core*',
+        '@firsthandjs/dom*',
+        '@firsthandjs/jsx-runtime*',
+      ]),
     },
   },
   {

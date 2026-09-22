@@ -8,7 +8,7 @@ import {
   setProperty,
   setStyle,
   setStyleObject,
-} from '../src/attributes.js';
+} from '@/attributes.js';
 
 let node: HTMLInputElement;
 

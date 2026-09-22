@@ -1,0 +1,42 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "types": ["node"],
+    "jsx": "preserve",
+    "allowJs": true,
+    "checkJs": false,
+    "jsxImportSource": "@firsthandjs/jsx-runtime",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@firsthandjs/core": ["../core/src/index.ts"],
+      "@firsthandjs/deep": ["../deep/src/index.ts"],
+      "@firsthandjs/devtools": ["../devtools/src/index.ts"],
+      "@firsthandjs/i18n": ["../i18n/src/index.ts"],
+      "@firsthandjs/dom": ["../dom/src/index.ts"],
+      "@firsthandjs/dom/internal": ["../dom/src/internal.ts"],
+      "@firsthandjs/dom/hydrate": ["../dom/src/hydrate.ts"],
+      "@firsthandjs/server": ["../server/src/index.ts"],
+      "@firsthandjs/server/internal": ["../server/src/internal.ts"],
+      "@firsthandjs/jsx-runtime": ["../jsx-runtime/src/index.ts"],
+      "@firsthandjs/jsx-runtime/jsx-runtime": ["../jsx-runtime/src/index.ts"],
+      "@firsthandjs/jsx-runtime/jsx-dev-runtime": ["../jsx-runtime/src/index.ts"],
+      "@firsthandjs/data": ["../data/src/index.ts"],
+      "@firsthandjs/data/vite": ["../data/src/vite.ts"],
+      "@firsthandjs/data/codegen": ["../data/src/codegen.ts"],
+      "@firsthandjs/data-axios": ["../data-axios/src/index.ts"],
+      "@firsthandjs/data-urql": ["../data-urql/src/index.ts"],
+      "@firsthandjs/data-apollo": ["../data-apollo/src/index.ts"],
+      "@firsthandjs/react/auto": ["../react/src/auto.ts"],
+      "@firsthandjs/react": ["../react/src/index.ts"],
+      "@firsthandjs/router": ["../router/src/index.ts"],
+      "@firsthandjs/styled": ["../styled/src/index.ts"],
+      "@firsthandjs/testing": ["../testing/src/index.ts"]
+    }
+  },
+  "include": ["src", "test"]
+}

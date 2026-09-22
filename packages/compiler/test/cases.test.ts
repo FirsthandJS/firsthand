@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { compileModule, transform } from '../src/api.js';
-import { stableId } from '../src/ids.js';
-import { firsthand } from '../src/vite.js';
-import { escapeAttribute, escapeText, eventName } from '../src/html.js';
+import { compileModule, transform } from '@/api.js';
+import { stableId } from '@/ids.js';
+import { firsthand } from '@/vite.js';
+import { escapeAttribute, escapeText, eventName } from '@/html.js';
 
 const compile = (code: string, typescript = false): string =>
   transform(code, { filename: 'src/demo.tsx', packageName: 'demo', typescript });

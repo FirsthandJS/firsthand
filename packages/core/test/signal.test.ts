@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { computed, createRoot, effect, signal, untrack } from '../src/index.js';
-import { FirsthandReadonlyError } from '../src/errors.js';
+import { computed, createRoot, effect, signal, untrack } from '@/index.js';
+import { FirsthandReadonlyError } from '@/errors.js';
 
 describe('signal', () => {
   it('reads and writes a value', () => {

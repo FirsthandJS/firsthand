@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import { transform } from './packages/compiler/src/api.js';
+import { firsthandAlias } from './scripts/alias.mjs';
 
 /**
  * Runs the real Firsthand compiler over `test/compiled/**`, so the compiled path
@@ -42,8 +43,14 @@ const firsthandCompiler = {
 const source = (name: string): string =>
   fileURLToPath(new URL(`./packages/${name}/src/index.ts`, import.meta.url));
 
+/** The packages carrying `*.test-d.ts`, each type-checked against its own config. */
+const typeTested = ['core', 'deep', 'router', 'styled', 'compiler'];
+
 export default defineConfig({
-  plugins: [firsthandCompiler],
+  // `firsthandAlias` resolves `@/…` against the importing file's package, the
+  // same way `paths` does for the type checker and `esbuildAlias` does for the
+  // build. One implementation, in `scripts/alias.mjs`.
+  plugins: [firsthandCompiler, firsthandAlias()],
   resolve: {
     // Tests run against source, not against `dist`, so coverage is meaningful
     // and a change does not need a build step to be tested.
@@ -123,23 +130,29 @@ export default defineConfig({
           ],
         },
       },
-      {
-        extends: true,
+      // Type-level assertions: checked by the type checker rather than
+      // executed. They cover what a runtime test cannot — that a computed has
+      // no setter, that context tokens are not interchangeable, and that props
+      // are readonly all the way down.
+      //
+      // One project per package rather than one for the repo, because each
+      // package's tsconfig is what gives `@/` its meaning. A single config
+      // covering all sixteen could not: `paths` is global to a config, so
+      // `@/index.js` would resolve to whichever package happened to be listed
+      // first. `npm run test:types` runs them all.
+      ...typeTested.map((name) => ({
+        extends: true as const,
         test: {
-          name: 'types',
-          // Type-level assertions: checked by the type checker rather than
-          // executed. They cover what a runtime test cannot — that a computed
-          // has no setter, that context tokens are not interchangeable, and
-          // that props are readonly all the way down.
+          name: `types:${name}`,
           include: [],
           typecheck: {
             enabled: true,
             only: true,
-            include: ['packages/*/test/**/*.test-d.ts'],
-            tsconfig: './tsconfig.typecheck.json',
+            include: [`packages/${name}/test/**/*.test-d.ts`],
+            tsconfig: `./packages/${name}/tsconfig.test.json`,
           },
         },
-      },
+      })),
       {
         extends: true,
         test: {

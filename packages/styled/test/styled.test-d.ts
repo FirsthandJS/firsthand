@@ -13,7 +13,7 @@
  * working.
  */
 import { describe, expectTypeOf, it } from 'vitest';
-import { styled, type FirsthandTheme, type Theme } from '../src/index.js';
+import { styled, type FirsthandTheme, type Theme } from '@/index.js';
 
 describe('an undeclared theme', () => {
   it('is an indexable record', () => {

@@ -8,7 +8,7 @@
  * hydration navigates by end up.
  */
 import { describe, expect, it } from 'vitest';
-import { transform } from '../src/api.js';
+import { transform } from '@/api.js';
 
 /** A quote as it appears inside the emitted string literal. */
 const QUOTE = '\\"';

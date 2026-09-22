@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { computed, createRoot, effect, signal } from '../src/index.js';
+import { computed, createRoot, effect, signal } from '@/index.js';
 
 describe('computed', () => {
   it('is lazy: it does not run until it is read', () => {

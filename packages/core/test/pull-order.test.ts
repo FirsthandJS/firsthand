@@ -14,7 +14,7 @@
  * sat behind a second computed, which is exactly the missing case.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { batch, computed, createRoot, effect, signal } from '../src/index.js';
+import { batch, computed, createRoot, effect, signal } from '@/index.js';
 
 describe('pull order', () => {
   it('notifies a subscriber checked after a shared computed was refreshed', () => {

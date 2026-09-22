@@ -15,7 +15,7 @@ import {
   serialize,
   useResource,
   DataContext,
-} from '../src/index.js';
+} from '@/index.js';
 import { provide } from '@firsthandjs/core';
 
 describe('a memory storage', () => {

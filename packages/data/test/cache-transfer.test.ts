@@ -7,7 +7,7 @@
  * without inventing an identity for it.
  */
 import { describe, expect, it } from 'vitest';
-import { createCacheClient } from '../src/index.js';
+import { createCacheClient } from '@/index.js';
 
 const request = { signal: new AbortController().signal, force: false, tags: () => undefined };
 

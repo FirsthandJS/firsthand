@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { transform } from '../src/api.js';
+import { transform } from '@/api.js';
 
 const compile = (code: string): string =>
   transform(code, { filename: 'src/demo.tsx', packageName: 'demo' });
