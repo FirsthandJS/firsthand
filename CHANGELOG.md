@@ -6,6 +6,51 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-09-22
+
+### Fixed
+
+- **A keyed row may be a view.** A component's setup may return a render
+  function; as a list's row, that function was written into the page as its
+  own source. `collect` walked a row's result for nodes and had no branch for
+  a function. A row that is a view is now a part: anchored, bound under the
+  row's own owner, and — under hydration — placed where hydration has got to,
+  so it adopts the row the server sent rather than replacing it.
+
+- **A part is mounted once, however often the run hands it back.** A run that
+  keeps what it made hands back the same object every time it runs. Where that
+  is a component in the run's markup, the part was mounted again on every run:
+  a second copy of the whole component beside the first. It showed up in the
+  starter project as a panel that appeared twice as soon as its resource
+  answered.
+
+- **A child a run gives a component follows the run.** Props fed from a run's
+  locals go through a cell; children did not, so `<Box>{n}</Box>` showed
+  whatever `n` was on the first run, for ever, while `<Box label={n} />`
+  updated. It was silent — the page rendered and a branch simply never
+  changed. ADR-0026 gains the general rule: anything a run hands to something
+  built once goes through a cell.
+
+### Changed
+
+- **The benchmark rotates the framework order.** A measurement ends by forcing
+  layout, and what that costs depends on what the previous framework left the
+  page in — a systematic cost handed to whoever runs first. Measured both
+  ways: fixed order with Solid first gives 1.180 (CI 1.098–1.276), rotated
+  gives 1.127 (CI 1.054–1.210). Rotating produces the lower number, which is
+  the point of doing it.
+
+- **`bench:latency`**, for the two sub-millisecond scenarios that a geometric
+  mean weighs as heavily as a ten-thousand-row update. Both hypotheses it was
+  built to test are refuted: a portal costs nothing measurable, and a
+  delegated listener is faster than a direct one, not slower. Nothing was
+  optimised on the strength of them, which is what the measurement was for.
+
+- **Published sizes are reproducible.** Brotli is compressed with parameters
+  asked for by name, and the README check holds the file to minified and gzip
+  — two builds of the same Node major disagree on brotli by a few bytes, and a
+  README is not wrong for having been written on another platform.
+
 ## [0.9.0] - 2026-09-22
 
 ### Added
