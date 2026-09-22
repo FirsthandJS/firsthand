@@ -229,6 +229,37 @@ Anything else is a refactor that has not been done yet. `scripts/check-architect
 counts the disables and prints them, so the number is visible rather than
 discovered.
 
+## 7. The one file that does not meet these rules
+
+`packages/core/src/core.ts` is 561 statements against a limit of 300, and
+exports 18 names against a limit of 12. It is the only file in the repository
+in that position, it is deliberate, and the reasoning is at the top of the file
+so that nobody has to find this page to learn it.
+
+The short version. Four of its sections — pull evaluation, scheduling, the
+owner accessors and `untrack` — write the same three module variables:
+`activeSub`, `currentOwner` and `deferred`. A module cannot assign a binding it
+imported, so splitting those sections apart means either a shared state object,
+which puts a property load in front of every `activeSub` read including the one
+in `Cell.value`, or setter functions, which put a call there instead.
+`Cell.value` is the hottest read in the framework and `npm run bench:ic` exists
+to check that it stays monomorphic. §2 of `CONTRIBUTING.md` does not accept
+"probably fine" for that, and neither does this page.
+
+Its 18 exports are the same fact seen from the interface side: they are what
+the package's own modules call. What leaves `@firsthandjs/core` is `index.ts`,
+and that surface is governed by `CONTRIBUTING.md` §5 like every other.
+
+Both exceptions are **visible rather than silent**: the file carries an
+`eslint-disable` with the reason, and `npm run check:arch` prints the wide
+surface and the total number of disables in the repository every time it runs.
+
+What would remove the exception: a branch that does the split, with before and
+after from `bench`, `bench:micro` and `bench:ic`, and a number showing the
+reads stayed monomorphic. Until somebody has that, the file stays as it is —
+which is the same standard this page applies to changing any other number on
+it.
+
 ## See also
 
 - [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md) — coverage, benchmarks, ADRs

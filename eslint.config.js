@@ -37,9 +37,13 @@ const parentRelative = {
  * earlier one wholesale rather than merging with it — the per-package blocks
  * below would otherwise each punch a hole in the `../` rule.
  */
+/** @param {...string[]} groups */
 const imports = (...groups) => [
   'error',
-  { patterns: [parentRelative, ...groups.map((group) => ({ group }))], paths: [] },
+  {
+    patterns: [parentRelative, ...groups.map((group) => ({ group }))],
+    paths: /** @type {string[]} */ ([]),
+  },
 ];
 
 /** SOLID and clean-code limits for shipped code. */

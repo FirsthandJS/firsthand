@@ -49,7 +49,7 @@ export function useAction<I, R>(
   const store = useData();
   const entry = createHeld<R>(store, undefined);
 
-  const holder: Running = { controller: null };
+  const holder: Running = { controller: null, invalidating: [] };
   onCleanup(() => {
     entry.disposed = true;
     holder.controller?.abort();
@@ -66,7 +66,11 @@ export function useAction<I, R>(
 }
 
 /** The run in flight, if any. One object so `onCleanup` and `once` share it. */
-type Running = { controller: AbortController | null; invalidating?: Tag[] };
+type Running = {
+  controller: AbortController | null;
+  /** What this run said it changed. Reset before every run, so never absent. */
+  invalidating: Tag[];
+};
 
 /**
  * What an action is handed.
@@ -118,9 +122,8 @@ async function once<R>(
       return undefined;
     }
     succeed(entry, result);
-    const invalidating = holder.invalidating ?? [];
-    if (invalidating.length > 0) {
-      await store.invalidate(...invalidating);
+    if (holder.invalidating.length > 0) {
+      await store.invalidate(...holder.invalidating);
     }
     return result;
   } catch (error: unknown) {

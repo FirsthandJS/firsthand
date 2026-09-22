@@ -119,7 +119,6 @@ export function createUrqlClient(client: UrqlLike, options: UrqlClientOptions = 
         ? options.cache
         : createCacheClient(options.cache);
 
-
   const run =
     <T, V extends Variables>(
       kind: 'query' | 'mutation',
@@ -138,7 +137,12 @@ export function createUrqlClient(client: UrqlLike, options: UrqlClientOptions = 
       // A mutation is never cached, and neither is a query an action sends:
       // what an action gets back is the answer to doing something.
       if (cache === undefined || kind === 'mutation' || request.mutating === true) {
-        return await send<T>(client, options, { kind, source: document.source, variables }, request);
+        return await send<T>(
+          client,
+          options,
+          { kind, source: document.source, variables },
+          request,
+        );
       }
       // Stable whatever order the variables were written in, and carrying the
       // identity the answer belongs to.

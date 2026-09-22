@@ -51,6 +51,23 @@ const MAX_EXPORTS = 12;
 /** A barrel exists to re-export, so counting its names would measure nothing. */
 const barrels = new Set(['index.ts', 'internal.ts', 'types.ts']);
 
+/**
+ * Modules allowed a wider surface than the limit, and why.
+ *
+ * One entry, and it is the same decision as the `max-lines` disable at the top
+ * of that file: the reactive graph, the owner tree and the scheduler are one
+ * algorithm sharing mutable state that ESM will not let a second module
+ * assign. Its exports are what the package's own modules call, not a surface
+ * anything outside `@firsthandjs/core` can see — `index.ts` is that, and it is
+ * governed by CONTRIBUTING §5.
+ *
+ * Listed here rather than skipped silently, and printed in the report below,
+ * so the exception is something somebody has to look at.
+ */
+const wideSurface = new Map([
+  ['packages/core/src/core.ts', 'one algorithm, shared mutable state — see its header'],
+]);
+
 const failures = [];
 const fail = (category, message) => failures.push({ category, message });
 
@@ -253,7 +270,7 @@ for (const name of packages) {
       continue;
     }
     const names = exportsOf(file);
-    if (names.size > MAX_EXPORTS) {
+    if (names.size > MAX_EXPORTS && !wideSurface.has(short(file))) {
       fail(
         'surface',
         `${short(file)} exports ${names.size} names (max ${MAX_EXPORTS}) — it has two jobs, or a name should be internal`,
@@ -320,6 +337,14 @@ console.log(
 );
 for (const disable of disables) {
   console.log(`  ${disable}`);
+}
+
+console.log(
+  `
+${wideSurface.size} module${wideSurface.size === 1 ? '' : 's'} allowed a wider surface:`,
+);
+for (const [where, why] of wideSurface) {
+  console.log(`  ${where} — ${why}`);
 }
 
 if (failures.length > 0) {

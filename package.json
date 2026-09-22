@@ -37,7 +37,7 @@
     "check:benchmark-shared": "node scripts/check-benchmark-shared.mjs",
     "bench:micro": "node benchmarks/micro/run.mjs",
     "bench:runs": "node benchmarks/runs/run.mjs",
-    "test:types": "vitest run --project types",
+    "test:types": "vitest run --project \"types:*\"",
     "check:workflows": "node scripts/check-workflows.mjs",
     "bench:compare": "node benchmarks/compare.mjs",
     "check:no-deps": "node scripts/check-no-deps.mjs",
