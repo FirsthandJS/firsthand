@@ -38,6 +38,23 @@ const root = resolve(here, '..');
  * quietly weaken the confidence interval.
  */
 const HEAVY = process.env.BENCH_SCALE === 'heavy';
+
+/**
+ * `BENCH_LAYOUT=off` measures the framework's own work, without the forced
+ * layout that follows it.
+ *
+ * The published numbers include that layout deliberately — see the README —
+ * but every framework pays the same browser for the same DOM, so the totals
+ * understate how far apart the frameworks themselves are. Running both ways
+ * is how you find out whether a scenario is worth optimising at all.
+ */
+const LAYOUT = process.env.BENCH_LAYOUT !== 'off';
+
+/** `BENCH_ONLY=id,id` narrows the run to the scenarios worth looking at. */
+const ONLY = (process.env.BENCH_ONLY ?? '')
+  .split(',')
+  .map((one) => one.trim())
+  .filter((one) => one !== '');
 const WARMUP = Number(process.env.BENCH_WARMUP ?? (HEAVY ? 1 : 5));
 const REPEATS = Number(process.env.BENCH_REPEATS ?? (HEAVY ? 7 : 25));
 const SEED = 0x51a2d;
@@ -133,7 +150,9 @@ const DEFAULT_SCENARIOS = [
   { id: 'input-event-latency', mode: 'input', setup: [], op: ['type', 1] },
 ];
 
-const SCENARIOS = HEAVY ? HEAVY_SCENARIOS : DEFAULT_SCENARIOS;
+const SCENARIOS = (HEAVY ? HEAVY_SCENARIOS : DEFAULT_SCENARIOS).filter(
+  (scenario) => ONLY.length === 0 || ONLY.includes(scenario.id),
+);
 
 /**
  * The sequences the equality phase walks, asserting the DOM after every step.
@@ -203,12 +222,32 @@ const MIME = {
   '.map': 'application/json',
 };
 
+/**
+ * Serves the page **cross-origin isolated**, which is what buys the resolution.
+ *
+ * `performance.now()` is clamped to 100 µs in Chromium unless the page is
+ * isolated, and a scenario that takes a tenth of a millisecond is then reported
+ * as exactly that — one tick, for every framework, with no way to tell them
+ * apart. With `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`
+ * set, the clamp drops to 5 µs and the sub-millisecond rows become real
+ * measurements rather than a row of identical numbers.
+ *
+ * Nothing about what is measured changes; only how finely the clock reads.
+ * `crossOriginIsolated` is asserted in the page and recorded in the result
+ * file, so a run that silently lost the isolation cannot be mistaken for one
+ * that had it.
+ */
 async function serve(directory) {
   const server = createServer((request, response) => {
     const path = request.url === '/' ? '/index.html' : (request.url ?? '/');
     readFile(join(directory, path.split('?')[0]))
       .then((body) => {
-        response.writeHead(200, { 'content-type': MIME[extname(path)] ?? 'text/plain' });
+        response.writeHead(200, {
+          'content-type': MIME[extname(path)] ?? 'text/plain',
+          'cross-origin-opener-policy': 'same-origin',
+          'cross-origin-embedder-policy': 'require-corp',
+          'cross-origin-resource-policy': 'same-origin',
+        });
         response.end(body);
       })
       .catch(() => {
@@ -398,6 +437,21 @@ async function main() {
   await page.goto(url);
   await page.waitForFunction(() => globalThis.harness !== undefined);
 
+  await page.evaluate((on) => globalThis.harness.setLayout(on), LAYOUT);
+  const isolated = await page.evaluate(() => globalThis.crossOriginIsolated);
+  if (!isolated) {
+    await browser.close();
+    server.close();
+    console.error(
+      'The page is not cross-origin isolated, so `performance.now()` is clamped to ' +
+        '100 µs and the sub-millisecond scenarios cannot be told apart. Refusing to ' +
+        'publish numbers at that resolution.',
+    );
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`Timer resolution: cross-origin isolated (5 µs).`);
+
   // --- Phase 1: identical output, before anything is timed -------------------
   for (const suite of EQUALITY_SUITES) {
     const snapshots = {};
@@ -534,6 +588,8 @@ async function main() {
       warmupRepetitions: WARMUP,
       measuredRepetitions: REPEATS,
       domEqualityVerified: true,
+      crossOriginIsolated: true,
+      forcedLayoutIncluded: LAYOUT,
     },
     frameworks: FRAMEWORKS,
     scenarios,
@@ -552,12 +608,21 @@ async function main() {
   // The heavy run gets its own files: it measures different scenarios with a
   // different sample size, and folding it into the default results would make
   // the aggregate mean something else.
-  const prefix = HEAVY ? 'benchmark-heavy' : 'benchmark';
+  const prefix = `${HEAVY ? 'benchmark-heavy' : 'benchmark'}${LAYOUT ? '' : '-nolayout'}`;
   const day = result.metadata.timestamp.slice(0, 10);
   const file = resolve(here, 'results', `${prefix}-${day}.json`);
   const serialised = `${JSON.stringify(result, null, 2)}\n`;
   writeFileSync(file, serialised);
-  writeFileSync(resolve(here, 'results', HEAVY ? 'latest-heavy.json' : 'latest.json'), serialised);
+  if (ONLY.length === 0) {
+    writeFileSync(
+      resolve(
+        here,
+        'results',
+        `${HEAVY ? 'latest-heavy' : 'latest'}${LAYOUT ? '' : '-nolayout'}.json`,
+      ),
+      serialised,
+    );
+  }
 
   console.log(`\nRaw results written to ${file}\n`);
   console.log(

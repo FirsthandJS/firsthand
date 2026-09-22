@@ -18,7 +18,21 @@ const factories = {
 
 let current = null;
 
+/**
+ * Whether a measurement ends by forcing style and layout.
+ *
+ * On by default, because stopping the clock at the last JavaScript statement
+ * would credit a framework for work the browser has not done yet. Turning it
+ * off measures the framework's own work alone — which is the only way to see
+ * how much of a scenario is even a framework's to win.
+ */
+let forceLayout = true;
+
 globalThis.harness = {
+  setLayout(on) {
+    forceLayout = on;
+  },
+
   /**
    * Mounts one implementation into a fresh container.
    *
@@ -56,10 +70,16 @@ globalThis.harness = {
   async measure(operation, argument) {
     const start = performance.now();
     await current.impl.run(operation, argument);
-    // Forces style and layout, so the measurement covers the DOM work rather
-    // than stopping at the last JavaScript statement.
-    void document.body.offsetHeight;
-    return performance.now() - start;
+    if (forceLayout) {
+      void document.body.offsetHeight;
+    }
+    const elapsed = performance.now() - start;
+    if (!forceLayout) {
+      // The layout still has to happen before the next measurement, or it
+      // would land inside it.
+      void document.body.offsetHeight;
+    }
+    return elapsed;
   },
 
   async run(operation, argument) {
