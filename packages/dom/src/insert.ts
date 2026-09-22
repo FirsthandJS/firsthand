@@ -98,6 +98,20 @@ export type DynamicChild = {
   readonly owner: Owner | null;
 };
 
+/**
+ * The parts that are mounted somewhere.
+ *
+ * A run that keeps what it made hands back the very same part every time it
+ * runs — that is what a site is for. Binding it a second time would mount a
+ * second copy of it beside the first, with nothing to say the two are the
+ * same child, so the page ends up with the component twice.
+ *
+ * Held here rather than on the part: a `DynamicChild` is part of `View`, which
+ * is what an application's own props are typed with, and a field the runtime
+ * writes would be a field every one of those types has to carry.
+ */
+const mounted = new WeakSet<DynamicChild>();
+
 /** Marks a dynamic child of a fragment. Emitted by the compiler. */
 export function part(thunk: () => unknown): DynamicChild {
   return { [PART]: true, anchor: document.createTextNode(''), thunk, owner: getOwner() };
@@ -526,10 +540,24 @@ export function applyChild(
  * disposal and error ownership lexical. A part created outside any scope —
  * runtime JSX at module level, say — is bound under the scope doing the
  * inserting, so that it is still disposed by something rather than by nothing.
+ *
+ * A part that is already mounted is left alone. A run hands back what it made
+ * rather than making it again, so the same part arrives here on every run of
+ * the run that owns it, and binding it twice would put a second copy of the
+ * whole child on the page beside the first.
  */
 export function bindPart(child: DynamicChild, parent: Node, report?: Report): void {
+  if (mounted.has(child)) {
+    return;
+  }
+  mounted.add(child);
   runWithOwner(child.owner ?? getOwner(), () => {
     insert(parent, child.thunk, child.anchor, undefined, report);
+    // Forgotten when the part is disposed, because a child a conditional takes
+    // away and puts back is the same object and does need mounting again.
+    onCleanup(() => {
+      mounted.delete(child);
+    });
   });
 }
 
