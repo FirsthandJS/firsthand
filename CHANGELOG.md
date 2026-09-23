@@ -6,6 +6,35 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **`@firsthandjs/compiler/plugin`**, the Babel plugin with nothing around it.
+  The main entry imports `@babel/core` and is for Node; this one imports
+  `@babel/types` and is for anywhere else — `@babel/standalone` in a browser
+  tab, which is what the playground compiles with.
+
+- **A styled component hands its element to a `ref`.** `ref` is in no
+  element's prototype, and the rule deciding which props reach the DOM asks
+  exactly that — so `<Host ref={…} />` on a styled component was dropped in
+  silence, and a styled wrapper was the one element you could not reach. Which
+  is the first thing an editor, a canvas or a `<video>` needs. Found while
+  mounting Monaco in the playground.
+
+### Changed
+
+- **The compiler runs in a browser.** Module ids were hashed with
+  `node:crypto`, the one thing in the package a browser does not have. They are
+  hashed with FNV-1a now: the same eight hex characters, the same collision
+  space, the same value every time for one input, and an identity rather than a
+  checksum — which is all the id ever was. A test asserts that no module in the
+  package reaches for a Node built-in, because one import would quietly undo it.
+
+  **The ids themselves change**, which is what an id derived from a different
+  hash does. They are internal — devtools names and the compiler's own
+  bookkeeping — but a server rendered by one version and hydrated by another
+  would disagree, as it would across any version. Compile both sides with the
+  same one.
+
 ## [0.10.1] - 2026-09-23
 
 ### Fixed

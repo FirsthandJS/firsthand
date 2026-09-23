@@ -148,6 +148,9 @@ const expectations = [
     names: ['transform', 'compileModule', 'firsthandPlugin', 'stableId'],
   },
   { pkg: 'compiler', entry: './vite', names: ['firsthand'] },
+  // The plugin without `@babel/core` around it: what a browser imports when it
+  // compiles TSX with `@babel/standalone`, which is how the playground runs.
+  { pkg: 'compiler', entry: './plugin', names: ['default'] },
 ];
 
 for (const { pkg, entry, names } of expectations) {

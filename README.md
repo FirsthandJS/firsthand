@@ -418,7 +418,7 @@ Optional packages, downloaded only by an application that imports them:
 | `@firsthandjs/data-axios` | 1.31 kB | **0.62 kB** | 0.55 kB |
 | `@firsthandjs/data-urql` | 1.20 kB | **0.63 kB** | 0.55 kB |
 | `@firsthandjs/data-apollo` | 1.61 kB | **0.75 kB** | 0.68 kB |
-| `@firsthandjs/styled` | 4.45 kB | **2.03 kB** | 1.84 kB |
+| `@firsthandjs/styled` | 4.49 kB | **2.05 kB** | 1.86 kB |
 | `@firsthandjs/react` | 1.19 kB | **0.66 kB** | 0.58 kB |
 | `@firsthandjs/react/auto` | 1.20 kB | **0.66 kB** | 0.58 kB |
 | `@firsthandjs/server` | 2.84 kB | **1.26 kB** | 1.11 kB |
@@ -516,7 +516,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 1245 tests under Vitest and 102
+This repository is the demonstration: 1250 tests under Vitest and 102
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all eight examples.
 <!-- prettier-ignore-end -->

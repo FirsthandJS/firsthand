@@ -59,7 +59,13 @@ function forwards(element: Element, name: string): boolean {
     name.startsWith('aria-') ||
     name.startsWith('on') ||
     name === 'style' ||
-    name === 'role'
+    name === 'role' ||
+    // A styled component is the element it wraps, so it can be referenced
+    // like one. `ref` is in no element's prototype, so `name in element`
+    // never said yes to it and a styled `<Host ref={…} />` was silently a
+    // component nobody could reach — which is what an editor, a canvas or a
+    // media element needs first.
+    name === 'ref'
   );
 }
 
@@ -189,6 +195,14 @@ function instance<P>(props: Record<string, unknown>, spec: Spec, base: Component
   }
   for (const name of Object.keys(props)) {
     if (!forwards(element, name)) {
+      continue;
+    }
+    if (name === 'ref') {
+      // Once, and outside the binding. A ref is a handle on a node, not a
+      // value that can change with it: called again on every re-run it would
+      // hand the same element out over and over, and whatever it builds there
+      // — an editor, a chart, a map — would be built again each time.
+      (props[name] as (node: Element) => void)(element);
       continue;
     }
     bind(() => {
