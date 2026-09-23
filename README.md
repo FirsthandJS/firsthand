@@ -399,7 +399,7 @@ different sample sizes would quietly weaken the confidence interval.
 
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
-| `@firsthandjs/core` | 6.80 kB | **2.49 kB** | 2.26 kB |
+| `@firsthandjs/core` | 7.65 kB | **2.81 kB** | 2.55 kB |
 | `@firsthandjs/dom` | 13.61 kB | **5.37 kB** | 4.83 kB |
 | `@firsthandjs/dom/internal` | 14.21 kB | **5.69 kB** | 5.12 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
@@ -415,8 +415,8 @@ Optional packages, downloaded only by an application that imports them:
 | `@firsthandjs/devtools` | 17.44 kB | **6.40 kB** | 5.62 kB |
 | `@firsthandjs/i18n` | 0.63 kB | **0.37 kB** | 0.32 kB |
 | `@firsthandjs/router` | 8.36 kB | **3.36 kB** | 3.06 kB |
-| `@firsthandjs/data` | 12.44 kB | **4.80 kB** | 4.40 kB |
-| `@firsthandjs/data (.gql loader path, parser tree-shaken)` | 9.00 kB | **3.39 kB** | 3.10 kB |
+| `@firsthandjs/data` | 13.00 kB | **5.00 kB** | 4.59 kB |
+| `@firsthandjs/data (.gql loader path, parser tree-shaken)` | 9.56 kB | **3.58 kB** | 3.30 kB |
 | `@firsthandjs/data-axios` | 1.31 kB | **0.62 kB** | 0.55 kB |
 | `@firsthandjs/data-urql` | 1.20 kB | **0.63 kB** | 0.55 kB |
 | `@firsthandjs/data-apollo` | 1.61 kB | **0.75 kB** | 0.68 kB |

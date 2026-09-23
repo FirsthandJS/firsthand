@@ -125,12 +125,17 @@ nothing is leaked by the detachment.
 
   | entry                                          | minified | gzip    | `task` present |
   | ---------------------------------------------- | -------- | ------- | -------------- |
-  | budget entry (`dom` index + internal)          | 20 673 B | 7 623 B | no             |
-  | an app importing `component`/`signal`/`render` | 11 581 B | 4 457 B | no             |
-  | the same app, plus `task`                      | 14 141 B | 4 912 B | yes            |
+  | budget entry (`dom` index + internal)          | 20 737 B | 7 667 B | no             |
+  | an app importing `component`/`signal`/`render` | 11 644 B | 4 503 B | no             |
+  | the same app, plus `task`                      | 14 254 B | 4 983 B | yes            |
 
-  So an application that asks for `task` pays about 455 B gzip for it, and one
-  that does not pays nothing.
+  So an application that asks for `task` pays about 480 B gzip for it, and one
+  that does not pays nothing. The budget entry is unmoved by this work: it
+  measured 7 673 B on the commit this branched from and 7 667 B with everything
+  here applied, which is the tree-shaking doing exactly what the named
+  re-export list promises. `@firsthandjs/core` measured on its own does grow,
+  by 323 B, because its own entry point exports everything it has — that figure
+  is in the reference table and is not the runtime budget.
 
   **Adding `task` to `dom`'s re-export list would change that**, because the
   budget entry would then reach it and the figure would become an
