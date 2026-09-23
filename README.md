@@ -518,7 +518,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 1250 tests under Vitest and 102
+This repository is the demonstration: 1226 tests under Vitest and 102
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all eight examples.
 <!-- prettier-ignore-end -->

@@ -128,7 +128,45 @@ function runWithOwner<T>(owner: Owner | null, fn: () => T): T;
 
 `catchError` catches what `fn` throws and what anything created inside it
 throws later. `runWithOwner` re-enters a scope, which is how a callback outside
-the render creates something that is still disposed with its component.
+the render creates something that is still disposed with its component. It is
+synchronous and does not survive an `await` — use `task` for that.
+
+## task
+
+```ts
+function task<T>(body: (context: TaskContext) => Promise<T>): Task<T>;
+
+type TaskContext = {
+  readonly signal: AbortSignal;
+  readonly resume: <V>(awaited: PromiseLike<V> | V) => Promise<V>;
+  readonly run: <V>(fn: () => V) => V;
+};
+
+type Task<T> = {
+  readonly promise: Promise<T | undefined>;
+  readonly abort: () => void;
+};
+```
+
+Async work that belongs to a scope. The task holds an `AbortController`, hangs
+a scope off the current owner, and is aborted when that owner is disposed —
+which is also what supersedes it, because an effect that runs again disposes
+what its previous run made.
+
+`resume` awaits a value and then throws `FirsthandSupersededError` if the task
+was aborted while the value was on its way, so the code after it runs only while
+this is still the current run. `run` establishes the task's scope for a stretch
+of code after an `await`, where `useContext`, `onCleanup` and `effect` would
+otherwise have no owner. The scope ends when the work ends.
+
+`promise` never rejects: it resolves to `undefined` when the task was superseded
+or threw. An error that is not supersession goes to the nearest `catchError`
+above the task. Starting a task with no owner warns, because nothing would ever
+abort it.
+
+It is a separate export and is not re-exported by `@firsthandjs/dom`, so an
+application that never imports it does not pay for it
+([ADR-0028](../adr/0028-async-work-has-an-owner.md)).
 
 ## Context
 
@@ -150,6 +188,7 @@ one signal read, whatever the depth.
 class FirsthandCycleError extends Error {} // an effect that writes what it reads
 class FirsthandContextError extends Error {} // no provider, and no default
 class FirsthandReadonlyError extends Error {} // writing a readonly cell
+class FirsthandSupersededError extends Error {} // a task resumed after it was aborted
 ```
 
 `FirsthandCycleError` is deliberately not catchable by `catchError`.
@@ -161,6 +200,8 @@ type Dispose = () => void;
 type ReadonlyProps<T>; // deeply readonly view of a props object
 type DeepReadonly<T>;
 type Owner; // opaque: a scope in the owner tree
+type Task<T>; // see task, above
+type TaskContext; // see task, above
 ```
 
 ## Not the public contract

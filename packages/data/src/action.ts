@@ -7,7 +7,7 @@
  * `error` (ADR-0029).
  */
 
-import { onCleanup, untrack } from '@firsthandjs/core';
+import { batch, onCleanup, untrack } from '@firsthandjs/core';
 
 import { useData } from './resource.js';
 
@@ -33,6 +33,31 @@ export type Action<I, R> = {
 };
 
 /**
+ * What a second `run()` does while the first is still out.
+ *
+ * A resource has no such question — a newer read always wins, and an abandoned
+ * read costs nothing. A mutation is the opposite: aborting one does not undo
+ * it. The request may already have reached the server, so `switch` is the only
+ * policy here that can lose a write, and it is therefore the one that has to
+ * be asked for rather than assumed (ADR-0029).
+ *
+ * - `queue` — run them in order, one at a time. The default.
+ * - `switch` — abort the one in flight and start the new one. Correct for an
+ *   idempotent mutation whose latest input supersedes the earlier one, such as
+ *   an autosaved draft; wrong for anything that accumulates.
+ * - `drop` — while one is out, ignore the new call and hand back the promise
+ *   of the run already going. This is what a double-clicked button wants.
+ * - `all` — run them concurrently. Each settles on its own; the last to answer
+ *   is what `data` ends up holding.
+ */
+export type ActionConcurrency = 'queue' | 'switch' | 'drop' | 'all';
+
+export type ActionOptions = {
+  /** Defaults to `queue`. See {@link ActionConcurrency}. */
+  readonly concurrency?: ActionConcurrency;
+};
+
+/**
  * Changes something, and says what it changed.
  *
  * ```tsx
@@ -45,14 +70,21 @@ export type Action<I, R> = {
  */
 export function useAction<I, R>(
   run: (input: I, context: ActionContext) => Promise<R>,
+  options: ActionOptions = {},
 ): Action<I, R> {
   const store = useData();
   const entry = createHeld<R>(store, undefined);
+  const concurrency = options.concurrency ?? 'queue';
+  const holder: Running = { controller: null, invalidating: [], live: new Set(), outstanding: 0 };
+  /** The run `drop` hands back, and the one `queue` waits behind. */
+  let inflight: Promise<R | undefined> | null = null;
 
-  const holder: Running = { controller: null, invalidating: [] };
   onCleanup(() => {
     entry.disposed = true;
-    holder.controller?.abort();
+    for (const controller of holder.live) {
+      controller.abort();
+    }
+    holder.live.clear();
   });
 
   return {
@@ -60,8 +92,32 @@ export function useAction<I, R>(
     error: entry.error,
     status: entry.status,
     running: entry.loading,
-    run: (input: I): Promise<R | undefined> =>
-      once(entry, store, holder, () => run(input, contextFor(holder))),
+    run: (input: I): Promise<R | undefined> => {
+      if (entry.disposed) {
+        return Promise.resolve(undefined);
+      }
+      if (concurrency === 'drop' && inflight !== null) {
+        return inflight;
+      }
+      if (concurrency === 'switch') {
+        for (const controller of holder.live) {
+          controller.abort();
+        }
+      }
+      // `once` never rejects, so chaining on it needs no `catch` and one
+      // failed run does not stop the queue behind it.
+      const started =
+        concurrency === 'queue' && inflight !== null
+          ? inflight.then(() => once(entry, store, holder, (context) => run(input, context)))
+          : once(entry, store, holder, (context) => run(input, context));
+      inflight = started;
+      void started.then(() => {
+        if (inflight === started) {
+          inflight = null;
+        }
+      });
+      return started;
+    },
   };
 }
 
@@ -70,6 +126,10 @@ type Running = {
   controller: AbortController | null;
   /** What this run said it changed. Reset before every run, so never absent. */
   invalidating: Tag[];
+  /** Every run still out. More than one only under `all`. */
+  live: Set<AbortController>;
+  /** How many runs are out, which is what `running` reports. */
+  outstanding: number;
 };
 
 /**
@@ -80,8 +140,7 @@ type Running = {
  * invalidation, so a client that knows what a mutation changed — a document
  * with `@invalidates` — reports it without the call site repeating it.
  */
-function contextFor(holder: Running): ActionContext {
-  const current = holder.controller as AbortController;
+function contextFor(holder: Running, current: AbortController): ActionContext {
   const invalidates = (...tags: Tag[]): void => {
     holder.invalidating = tags;
   };
@@ -107,18 +166,31 @@ async function once<R>(
   entry: Held<R>,
   store: DataStore,
   holder: Running,
-  body: () => Promise<R>,
+  body: (context: ActionContext) => Promise<R>,
 ): Promise<R | undefined> {
-  holder.controller?.abort();
-  holder.controller = new AbortController();
-  const current = holder.controller;
+  // Checked here rather than at the call: a queued run may have been waiting
+  // behind another while the component went away.
+  if (entry.disposed) {
+    return undefined;
+  }
+  // Read through a call from here on. The check above narrows the property to
+  // `false` for the rest of the function, and the compiler has no way to know
+  // that a cleanup sets it during one of the awaits below.
+  const gone = (): boolean => entry.disposed;
+  const current = new AbortController();
+  holder.controller = current;
+  holder.live.add(current);
+  holder.outstanding++;
   holder.invalidating = [];
-  entry.loading.value = true;
-  entry.status.value = 'loading';
+  const context = contextFor(holder, current);
+  batch(() => {
+    entry.loading.value = true;
+    entry.status.value = 'loading';
+  });
 
   try {
-    const result = await untrack(body);
-    if (current.signal.aborted || entry.disposed) {
+    const result = await untrack(() => body(context));
+    if (current.signal.aborted || gone()) {
       return undefined;
     }
     succeed(entry, result);
@@ -127,10 +199,19 @@ async function once<R>(
     }
     return result;
   } catch (error: unknown) {
-    if (current.signal.aborted || entry.disposed) {
+    if (current.signal.aborted || gone()) {
       return undefined;
     }
     fail(entry, error);
     return undefined;
+  } finally {
+    holder.live.delete(current);
+    holder.outstanding--;
+    // `succeed` and `fail` each cleared it for their own run; under `all` that
+    // is too early, because somebody else is still out. This is the only place
+    // that knows.
+    if (!gone()) {
+      entry.loading.value = holder.outstanding > 0;
+    }
   }
 }

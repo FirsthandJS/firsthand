@@ -187,6 +187,43 @@ An action's body is **untracked** — it runs from an event handler, and what it
 reads on the way is nobody's dependency. It exposes `data`, `error`, `status`
 and `running`.
 
+### Two clicks
+
+A resource that is asked again abandons the older request, because a newer read
+always wins. An action does **not** do that, and the reason is worth stating
+plainly: aborting a request does not undo it. The body may already have reached
+the server, been parsed and been committed. Abandoning it on this side would
+leave the screen showing one result and the server holding two.
+
+So a second `run()` waits for the first by default:
+
+```tsx
+// Two quick clicks send two requests, in order, and both are reported.
+const addToCart = useAction((id: string, { request, invalidates }) => {
+  invalidates(tag('cart'));
+  return api.post<Cart>(`/cart/${id}`)(request);
+});
+```
+
+Say otherwise when your mutation wants something else:
+
+```tsx
+// An autosaved draft: the latest input supersedes the earlier one, and the
+// mutation is idempotent, so abandoning the older request is safe.
+const save = useAction((draft: Draft, { request }) => api.put('/draft')(request), {
+  concurrency: 'switch',
+});
+
+// A double-clicked button: ignore the second call and hand back the first.
+const submit = useAction(send, { concurrency: 'drop' });
+
+// Independent mutations that do not conflict.
+const track = useAction(report, { concurrency: 'all' });
+```
+
+`running` stays true until the last outstanding run lands, so a quick one
+finishing while a slow one is still out does not report the action as idle.
+
 **Nothing an action sends touches the cache.** Its request carries `force`, so
 it is never answered from memory, and `mutating`, so its answer is never _put_
 there — not even when the call has a `cacheKey`, and not even when it is a

@@ -170,7 +170,17 @@ and repeated with `force` rather than trusted.
 ## useAction
 
 ```ts
-function useAction<I, R>(run: (input: I, context: ActionContext) => Promise<R>): Action<I, R>;
+function useAction<I, R>(
+  run: (input: I, context: ActionContext) => Promise<R>,
+  options?: ActionOptions,
+): Action<I, R>;
+
+type ActionConcurrency = 'queue' | 'switch' | 'drop' | 'all';
+
+interface ActionOptions {
+  /** What a second `run()` does while the first is out. Default `queue`. */
+  readonly concurrency?: ActionConcurrency;
+}
 
 interface ActionContext {
   readonly signal: AbortSignal;
@@ -194,7 +204,24 @@ interface Action<I, R> {
 ```
 
 The body is **untracked**: an action runs from an event handler, and what it
-reads on the way is nobody's dependency. A second `run()` aborts the first.
+reads on the way is nobody's dependency.
+
+A second `run()` while the first is out **queues** by default. Aborting a
+request does not undo what the server already did with it, so the policy that
+can lose a write is the one you have to ask for
+([ADR-0029](../adr/0029-a-mutation-is-not-a-read.md)):
+
+| `concurrency` | what a second `run()` does                                    |
+| ------------- | ------------------------------------------------------------- |
+| `queue`       | waits for the first, then runs. Order preserved. **Default.** |
+| `switch`      | aborts the one in flight and starts the new one.              |
+| `drop`        | ignores the call and returns the promise already running.     |
+| `all`         | runs them concurrently; each settles on its own.              |
+
+`running` reports whether _any_ run is out, so it stays true under `all` until
+the last one lands. A queued run checks whether the scope is still alive when it
+starts, not when it was asked for, so one waiting behind another never begins if
+the component went away.
 
 Its request carries `force: true` **and** `mutating: true`, so nothing it sends
 is answered out of a cache or written into one.

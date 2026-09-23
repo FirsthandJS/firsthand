@@ -470,6 +470,26 @@ export function createOwner(parent: Owner | null): Owner {
   return owner;
 }
 
+/**
+ * An owner that inherits context and error boundaries from `parent`, but is
+ * not in its child list.
+ *
+ * For a scope whose teardown has to be ordered by whoever made it rather than
+ * by the parent's walk. `clearScope` disposes children *before* it runs its
+ * own cleanups, so a scope in that list is torn down before the cleanup that
+ * was supposed to end it has had a chance to say so — a task's own cleanups
+ * would then run while its `AbortSignal` still read as live, which is exactly
+ * backwards. Detaching puts that order back in the creator's hands; the
+ * creator is then responsible for disposing it, which `task` does on both of
+ * its paths.
+ */
+export function createDetachedOwner(parent: Owner | null): Owner {
+  const owner = createOwner(null);
+  owner.parent = parent;
+  owner.ctx = parent !== null ? parent.ctx : null;
+  return owner;
+}
+
 /** Runs cleanups and disposes children, leaving the owner itself reusable. */
 function clearScope(owner: Owner): void {
   let child = owner.head;

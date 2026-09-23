@@ -187,8 +187,26 @@ export type Forgetful = {
 /** What was invalidated, and when. See {@link DataOptions.remember}. */
 type Recent = {
   readonly patterns: readonly Tag[];
+  /** Wall clock, for the `remember` window only — a duration, not an order. */
   readonly at: number;
+  /** Monotonic, for ordering against {@link Held.answeredSeq}. */
+  readonly seq: number;
 };
+
+/**
+ * A monotonic tick, used to order an invalidation against an answer.
+ *
+ * `Date.now()` cannot do this job. It goes backwards — an NTP correction, a
+ * user setting the clock — and two events in the same millisecond compare
+ * equal, which for `one.seq > entry.answeredSeq` reads as "the answer came
+ * after the invalidation" and silently drops it. A counter is exact for
+ * ordering and costs one increment.
+ *
+ * Module-level rather than per-store: ordering only has to be consistent, and
+ * two stores never compare their ticks with each other.
+ */
+let clock = 0;
+const tick = (): number => ++clock;
 
 type Held<T = unknown> = {
   data: Signal<T | undefined>;
@@ -205,7 +223,7 @@ type Held<T = unknown> = {
   disposed: boolean;
   name: string | undefined;
   /** When this resource last carried an answer. 0 until it has one. */
-  answeredAt: number;
+  answeredSeq: number;
   /** The run that is out, while there is one. What `settle` waits for. */
   inflight: Promise<unknown> | null;
   run: (force: boolean) => Promise<T | undefined>;
@@ -301,7 +319,9 @@ function missed(state: StoreState, entry: Held, tags: readonly Tag[]): boolean {
   }
   const since = Date.now() - state.remember;
   state.recent = state.recent.filter((one) => one.at >= since);
-  return state.recent.some((one) => one.at > entry.answeredAt && anyTagMatches(one.patterns, tags));
+  return state.recent.some(
+    (one) => one.seq > entry.answeredSeq && anyTagMatches(one.patterns, tags),
+  );
 }
 
 /**
@@ -347,7 +367,7 @@ async function invalidate(state: StoreState, patterns: Tag[]): Promise<void> {
     // Kept for the resources that are not here yet: a list two pages away is
     // nobody's subscriber, and it is created — not reloaded — when you walk
     // back to it.
-    state.recent.push({ patterns, at: Date.now() });
+    state.recent.push({ patterns, at: Date.now(), seq: tick() });
   }
   for (const entry of [...state.held]) {
     if (entry.controller !== null) {
@@ -373,7 +393,22 @@ async function invalidate(state: StoreState, patterns: Tag[]): Promise<void> {
 function clear(state: StoreState): void {
   state.recent = [];
   for (const entry of [...state.held]) {
+    // Marked, not merely aborted. A resource is still mounted after a
+    // sign-out — its effect exists, and a dependency change would start
+    // another run — but the store has just dropped it, so nothing it does
+    // from here on can be reached by `invalidate` or waited for by `settle`.
+    // `disposed` is what `run` checks first, and it is the difference between
+    // a resource that is finished and one that is merely invisible.
+    entry.disposed = true;
     entry.controller?.abort();
+    // Forgotten means forgotten: leaving the last answer on the screen after
+    // a sign-out is the failure this exists to prevent.
+    batch(() => {
+      entry.data.value = undefined;
+      entry.error.value = undefined;
+      entry.status.value = 'idle';
+      entry.loading.value = false;
+    });
     state.held.delete(entry);
   }
   try {
@@ -403,7 +438,7 @@ export function createHeld<T>(store: DataStore, name: string | undefined): Held<
     inflight: null,
     superseded: false,
     disposed: false,
-    answeredAt: 0,
+    answeredSeq: 0,
     name,
   } as unknown as Held<T>;
   return entry;
@@ -413,7 +448,7 @@ export function createHeld<T>(store: DataStore, name: string | undefined): Held<
 export function succeed<T>(entry: Held<T>, value: T): void {
   // When it last carried an answer, which is what decides whether an
   // invalidation it never saw still applies to it.
-  entry.answeredAt = Date.now();
+  entry.answeredSeq = tick();
   batch(() => {
     entry.data.value = value;
     entry.error.value = undefined;
