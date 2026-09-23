@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/devtools",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Experimental devtools for Firsthand: see what updates what, why it ran, and when.",
   "license": "MIT",
   "type": "module",
@@ -19,7 +19,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@firsthandjs/core": "0.10.0"
+    "@firsthandjs/core": "0.10.1"
   },
   "engines": {
     "node": ">=20.11.0"

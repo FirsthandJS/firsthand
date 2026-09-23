@@ -6,6 +6,63 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-09-23
+
+### Fixed
+
+- **A component inside a fragment keeps its site.** A run keeps the children
+  it makes — made once, handed back, fed through cells — except where the
+  child stood inside a fragment. A dynamic child is emitted as
+  `part(() => …)`, and the compiler read that arrow as a scope of its own, so
+  markup inside it belonged to no run and was built again every time. Every
+  card, every lane and the frame around them were replaced on a change that
+  moved one card, and a run local given to such a child was read once and then
+  stale for ever. The wrapper is now stepped over exactly when the code that
+  creates it runs again; a list's rows are untouched, because a row sits in a
+  callback the author wrote. ADR-0026 gains the other half of its rule:
+  anything a run makes once should be made once (#47).
+
+## [0.10.0] - 2026-09-23
+
+### Changed
+
+- **SOLID and clean-code rules, enforced rather than described.**
+  `docs/architecture/code-rules.md` is the canonical page and ESLint is what
+  holds the line: 300 lines a module, 50 a function, 30 statements, a
+  complexity of 12, four parameters, four levels of depth — all counted with
+  blank lines and comments skipped, so that explaining a decision in prose
+  never costs anything. `npm run check:arch` adds what a linter cannot see:
+  package layering, import cycles, module surface, and a running total of
+  every `eslint-disable` in the repository. An escape hatch exists for four
+  named things and each use carries its reason.
+
+- **Imports are absolute.** `../` is refused; a package's own modules are
+  reached through `@/`, which resolves to that package's `src/`. Where it does
+  not reach — the compiler, which Vite must load before any plugin exists —
+  the page says so and says why rather than leaving an exception to be found.
+
+- **The code was refactored to meet the rules.** The compiler's 2576-line
+  `transform.ts` became seventeen modules behind a barrel; `packages/dom`'s
+  insert path became four; `Link` and `Cell` left `core.ts` for files of their
+  own, as did the error classes in `dom` and `data`. Nothing an application
+  imports moved: every published entry point resolves and `PROTOCOL_VERSION`
+  is unchanged.
+
+- **What the limits cost is written down.** Bringing `dom` under the function
+  and complexity limits cost 0.25 kB gzip, and the class split 26 bytes more:
+  the full runtime is 7.49 kB against a 7.50 kB budget, with seven bytes of
+  headroom. The number is in `code-rules.md` §6 beside the budget it spends,
+  because a budget nobody can see is not one.
+
+### Fixed
+
+- **A keyed list over a run local keeps its rows.** A list whose data comes
+  from the run — `shown.map(…)` where `shown` is a local — made the list again
+  on every run, so every row lost its identity and its state. The data now
+  arrives through a cell the run writes while the list itself is made once,
+  which is the only arrangement in which a list that reuses rows has rows to
+  reuse (#40).
+
 ## [0.9.1] - 2026-09-22
 
 ### Fixed
@@ -1290,6 +1347,9 @@ strictReactivity: false })` restores the previous behaviour.
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.10.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.10.1
+[0.10.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.10.0
+[0.9.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.9.1
 [0.9.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.9.0
 [0.8.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.8.0
 [0.7.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.7.1
