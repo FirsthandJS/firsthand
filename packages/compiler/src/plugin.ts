@@ -182,8 +182,9 @@ function hoistKept(path: NodePath): void {
   ) {
     return;
   }
-  const wrapper = thunk.parentPath;
-  if (wrapper.isCallExpression() && wrapper.node.arguments.length === 1) {
-    wrapper.replaceWith(path.node);
-  }
+  // The thunk's parent is the `part(…)` the child was built into: `throughRun`
+  // marks the first argument of a call and nothing else, and every producer of
+  // one passes exactly that argument. There is no other shape to be in, so
+  // there is nothing here to ask.
+  thunk.parentPath.replaceWith(path.node);
 }
