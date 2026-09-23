@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-23
+
 ### Added
 
 - **`@firsthandjs/compiler/plugin`**, the Babel plugin with nothing around it.
@@ -1376,6 +1378,7 @@ strictReactivity: false })` restores the previous behaviour.
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.11.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.11.0
 [0.10.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.10.1
 [0.10.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.10.0
 [0.9.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.9.1

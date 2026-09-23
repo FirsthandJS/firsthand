@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/data-axios",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "description": "Loaders for Axios, for @firsthandjs/data. Takes your client; never configures it.",
   "license": "MIT",
   "type": "module",
@@ -19,7 +19,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@firsthandjs/data": "0.10.1"
+    "@firsthandjs/data": "0.11.0"
   },
   "engines": {
     "node": ">=20.11.0"
