@@ -189,9 +189,16 @@ Releases are cut by maintainers through the release workflow, which publishes to
 npm with provenance over OIDC. Contributors do not need to touch versions;
 changelog entries under `## [Unreleased]` are welcome.
 
-The workflow ends with `npm run check:provenance`, which reads every package
-back off the registry and fails if what was published does not carry the
-attestation its manifest claims. That check exists because the claim was false
-for thirteen releases and nothing noticed: publishing needs npm 11.5.1 or later
-for OIDC, and the workflow's Node ships an older one ([#50](https://github.com/FirsthandJS/firsthand/issues/50)).
-A release published by hand cannot satisfy it, which is the point.
+The workflow publishes with `--provenance` and ends with
+`npm run check:provenance`, which reads every package back off the registry and
+fails if what was published does not carry the signed statement. That check
+exists because for thirteen releases nothing did, and nothing noticed
+([#50](https://github.com/FirsthandJS/firsthand/issues/50)).
+
+**A release published by hand has no provenance**, and the manifests no longer
+claim otherwise: `publishConfig` says `access` and nothing else. Provenance is
+something the release workflow asks for and the check confirms, rather than a
+property the package asserts about itself. Publishing from CI needs one of two
+things configured once — a trusted publisher per package on npmjs.com, or an
+`NPM_TOKEN` repository secret — and until then releases are manual and carry no
+attestation.

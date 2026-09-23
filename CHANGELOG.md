@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-09-23
+
+### Changed
+
+- **The packages no longer claim provenance they do not have.**
+  `publishConfig.provenance: true` is published in the manifest, where anyone
+  can read it, and no version has ever carried an attestation — every release
+  has gone out by hand, where npm refuses to publish at all unless provenance
+  is explicitly switched off. The flag is gone: the release workflow asks for
+  provenance with `npm publish --provenance` and `npm run check:provenance`
+  reads it back off the registry afterwards, so it is something a release
+  earns rather than something a package asserts about itself (#50).
+
+  Nothing about the code changed, and nothing an application imports moved.
+  What changed is that the metadata is true.
+
 ## [0.11.0] - 2026-09-23
 
 ### Added
@@ -1378,6 +1394,7 @@ strictReactivity: false })` restores the previous behaviour.
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.11.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.11.1
 [0.11.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.11.0
 [0.10.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.10.1
 [0.10.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.10.0
