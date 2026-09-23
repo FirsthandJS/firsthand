@@ -371,6 +371,31 @@ describe('a styled component is an element you can reach', () => {
     expect(given).toBe(view.get('div'));
   });
 
+  it('calls the ref once, however often anything else changes', () => {
+    // The whole reason a ref is applied outside the binding. What a ref is
+    // given a node for — an editor, a chart, a map — is built once, and a
+    // second call builds a second one on top of the first.
+    const hue = signal(0);
+    const Host = styled.div<{ $hue: number }>`
+      color: hsl(${(props) => String(props.$hue)} 90% 50%);
+    `;
+    let calls = 0;
+    const App = component(() => (
+      <Host
+        $hue={hue.value}
+        ref={() => {
+          calls += 1;
+        }}
+      />
+    ));
+    mount(() => <App />);
+
+    expect(calls).toBe(1);
+    hue.value = 120;
+    hue.value = 240;
+    expect(calls).toBe(1);
+  });
+
   it('gives the ref the element, not the wrapper, through a wrapped component', () => {
     const Base = styled.button`
       border: 0;

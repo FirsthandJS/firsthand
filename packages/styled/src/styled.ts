@@ -197,6 +197,14 @@ function instance<P>(props: Record<string, unknown>, spec: Spec, base: Component
     if (!forwards(element, name)) {
       continue;
     }
+    if (name === 'ref') {
+      // Once, and outside the binding. A ref is a handle on a node, not a
+      // value that can change with it: called again on every re-run it would
+      // hand the same element out over and over, and whatever it builds there
+      // — an editor, a chart, a map — would be built again each time.
+      (props[name] as (node: Element) => void)(element);
+      continue;
+    }
     bind(() => {
       applyProp(element, name, props[name]);
     });
