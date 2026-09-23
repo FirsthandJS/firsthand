@@ -19,9 +19,22 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
+/**
+ * A name and a version this script is willing to put in a URL.
+ *
+ * The two come out of a file, and a file is not a thing to build a request
+ * from unchecked — so the shape is stated rather than escaped. Both are what
+ * this repository publishes and nothing else.
+ */
+const PACKAGE = /^@firsthandjs\/[a-z][a-z0-9-]*$/;
+const VERSION = /^\d+\.\d+\.\d+(?:-[a-z0-9.]+)?$/;
+
 /** The published manifest, read the way a consumer's installer reads it. */
 async function published(name, version) {
-  const url = `https://registry.npmjs.org/${name.replace('/', '%2f')}/${version}`;
+  if (!PACKAGE.test(name) || !VERSION.test(version)) {
+    throw new Error(`not a name and version this script will request: ${name}@${version}`);
+  }
+  const url = `https://registry.npmjs.org/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
   const response = await fetch(url);
   if (!response.ok) {
     return undefined;
