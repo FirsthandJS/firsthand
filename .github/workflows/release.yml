@@ -30,11 +30,17 @@ jobs:
           # The whole history, so the anonymity check can look at all of it.
           fetch-depth: 0
 
+      # Deliberately no `registry-url`. It writes an `.npmrc` containing
+      # `_authToken=${NODE_AUTH_TOKEN}`, and with no token secret set that is
+      # the literal string `XXXXX-XXXXX-XXXXX-XXXXX` — which npm sends, and
+      # which the registry answers with a 404 for a package you may not write.
+      # That is the error every release in this repository's history ended on
+      # (#50). With no `.npmrc` at all there is nothing to authenticate with
+      # but OIDC, which is the point.
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v5.0.0
         with:
           node-version: 22
           cache: npm
-          registry-url: 'https://registry.npmjs.org'
 
       # Node 22 ships npm 10, which has no OIDC support at all: `npm publish`
       # then sends an unauthenticated PUT, and npm answers 404 for a scoped
