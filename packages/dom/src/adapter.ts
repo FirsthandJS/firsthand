@@ -11,6 +11,7 @@
  * else can fill it the same way. No name in this file mentions React.
  */
 import type { Component } from './component.js';
+import { FirsthandComponentError } from './errors.js';
 
 /** Turns a foreign component into a Firsthand one. Called once per target. */
 export type ComponentAdapter = (target: (props: never) => unknown) => Component<never>;
@@ -41,16 +42,6 @@ export function setComponentAdapter(next: ComponentAdapter | null): void {
 }
 
 /** Thrown for an element type this framework cannot run. */
-export class FirsthandComponentError extends Error {
-  constructor(name: string) {
-    super(
-      `${name} is not a Firsthand component. If it is a React component, import ` +
-        `'@firsthandjs/react/auto' once at startup to render React components ` +
-        `directly, or wrap it with fromReact(). Otherwise, declare it with component().`,
-    );
-    this.name = 'FirsthandComponentError';
-  }
-}
 
 /** Resolves a foreign element type, or says why it cannot be resolved. */
 export function adapt(target: object): Component<never> {

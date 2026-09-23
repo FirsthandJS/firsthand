@@ -7,14 +7,17 @@
  * edges. The public API is layered on top in `signal.ts`, `computed.ts`,
  * `effect.ts`, `lifecycle.ts` and `context.ts`.
  *
- * ## Why this is one module
+ * ## Why this is still one module
  *
- * It is 561 statements against a 300-statement limit
+ * It is 463 lines against a 300-line limit
  * (docs/architecture/code-rules.md §1), and it is the only file in the
  * repository that does not meet it. That is a decision rather than an
  * oversight, and this is the evidence for it.
  *
- * Four of the sections below write the same three module variables:
+ * The data structures have left: `Link` is in `link.ts` and `Cell` is in
+ * `cell.ts`, because neither writes the graph's state and a type-only import
+ * costs nothing. What remains is four sections that write the same three
+ * module variables:
  *
  * | Variable        | Written by                                          |
  * | --------------- | --------------------------------------------------- |
@@ -22,16 +25,19 @@
  * | `currentOwner`  | `evaluate`, `runEffect`, `setOwner`, `deferOwner`   |
  * | `deferred`      | the same four                                        |
  *
- * A module cannot assign a binding it imported, so splitting those sections
- * apart means one of two things: a shared state object, which puts a property
- * load in front of every `activeSub` read — including the one in `Cell.value`,
- * the hottest read in the framework — or setter functions, which put a call
- * there instead. Both are changes to exactly what `npm run bench:ic` exists to
+ * A module cannot assign a binding it imported, so splitting *those* apart
+ * means one of two things: a shared state object, which puts a property load
+ * in front of every `activeSub` read — including the one in `Cell.value`, the
+ * hottest read in the framework — or setter functions, which put a call there
+ * instead. Both are changes to exactly what `npm run bench:ic` exists to
  * watch, and CONTRIBUTING §2 does not accept "probably fine" for that.
  *
- * So the limit stands and this file is the documented exception, not a
- * precedent: it has one reason to change, which is the reactive algorithm. If
- * somebody wants the split, the way to get it is a branch that does it, a
+ * `Cell` reading `activeSub` across a module boundary is not that case: a read
+ * of an imported binding is a plain variable read once esbuild has
+ * concatenated the package, which `bench:ic` confirmed at 1.02x either way.
+ *
+ * So what is left has one reason to change, which is the reactive algorithm.
+ * Anything further comes the same way this split did: a branch, a
  * before-and-after from `bench`, `bench:micro` and `bench:ic`, and a number
  * showing the reads stayed monomorphic.
  *
@@ -46,132 +52,14 @@
  */
 
 import { DIRTY, DISPOSED, HAS_VALUE, MUTABLE, PENDING, STALE, WATCHING } from './flags.js';
-import { FirsthandCycleError, FirsthandReadonlyError } from './errors.js';
-import {
-  devCause,
-  devCheckSetupRead,
-  devEnterSnapshot,
-  devExitSnapshot,
-  devRunning,
-  reportUncaught,
-} from './dev.js';
+import { Link } from './link.js';
+import type { Cell } from './cell.js';
+import { FirsthandCycleError } from './errors.js';
+import { devCause, devEnterSnapshot, devExitSnapshot, devRunning, reportUncaught } from './dev.js';
 
 // ---------------------------------------------------------------------------
 // Structures
 // ---------------------------------------------------------------------------
-
-/** One dependency edge, shared by the source's subscriber list and the
- *  subscriber's dependency list. */
-export class Link {
-  declare dep: Cell;
-  declare sub: Cell;
-  declare prevDep: Link | undefined;
-  declare nextDep: Link | undefined;
-  declare prevSub: Link | undefined;
-  declare nextSub: Link | undefined;
-
-  // One allocation per dependency edge (ADR-0002). An options object would be
-  // a second one, on the path that exists to allocate nothing in the common
-  // case — see docs/architecture/code-rules.md §5.
-  // eslint-disable-next-line max-params -- measured hot path; see above
-  constructor(
-    dep: Cell,
-    sub: Cell,
-    prevDep: Link | undefined,
-    nextDep: Link | undefined,
-    prevSub: Link | undefined,
-  ) {
-    this.dep = dep;
-    this.sub = sub;
-    this.prevDep = prevDep;
-    this.nextDep = nextDep;
-    this.prevSub = prevSub;
-    this.nextSub = undefined;
-  }
-}
-
-/** Default equality. `Object.is` so that `NaN` settles and `-0`/`+0` differ. */
-const is = Object.is;
-/** Equality for `{ equals: false }`: every write propagates. */
-const never = (): boolean => false;
-
-/**
- * One node of the reactive graph. Signals, computeds and effects all use this
- * class so that every property access in the graph code sees one hidden class.
- */
-export class Cell {
-  declare flags: number;
-  /** Signal value, or the memoised result of `fn`. */
-  declare v: unknown;
-  /** Computed body, or effect body. `undefined` for signals. */
-  declare fn: (() => unknown) | undefined;
-  declare equals: (a: unknown, b: unknown) => boolean;
-  declare deps: Link | undefined;
-  declare depsTail: Link | undefined;
-  declare subs: Link | undefined;
-  declare subsTail: Link | undefined;
-  /** An effect's own scope: re-created on every run. `undefined` otherwise. */
-  declare scope: Owner | undefined;
-
-  constructor(
-    flags: number,
-    value: unknown,
-    fn: (() => unknown) | undefined,
-    equals: (a: unknown, b: unknown) => boolean,
-  ) {
-    this.flags = flags;
-    this.v = value;
-    this.fn = fn;
-    this.equals = equals;
-    this.deps = undefined;
-    this.depsTail = undefined;
-    this.subs = undefined;
-    this.subsTail = undefined;
-    this.scope = undefined;
-  }
-
-  get value(): unknown {
-    const flags = this.flags;
-    if ((flags & MUTABLE) !== 0 && (flags & STALE) !== 0) {
-      refresh(this);
-    }
-    if (activeSub !== undefined) {
-      link(this, activeSub);
-    } else {
-      // Nothing is subscribing. Ordinary outside a component — an event
-      // handler reading current state — and the whole of the single-run
-      // mistake inside one, which is what strict reactivity reports. Empty in
-      // a production build, so the hot path keeps its single branch.
-      devCheckSetupRead();
-    }
-    return this.v;
-  }
-
-  set value(next: unknown) {
-    if ((this.flags & MUTABLE) !== 0) {
-      throw new FirsthandReadonlyError();
-    }
-    write(this, next);
-  }
-
-  /** Reads without subscribing, and without refreshing lazily... except that a
-   *  stale computed must still produce a correct value, so it does refresh. */
-  peek(): unknown {
-    const flags = this.flags;
-    if ((flags & MUTABLE) !== 0 && (flags & STALE) !== 0) {
-      refresh(this);
-    }
-    return this.v;
-  }
-
-  /** Functional update. The updater runs untracked. */
-  set(updater: (previous: never) => unknown): void {
-    if ((this.flags & MUTABLE) !== 0) {
-      throw new FirsthandReadonlyError();
-    }
-    write(this, updater(this.v as never));
-  }
-}
 
 /**
  * A logical scope (ADR-0008). Owners form a tree that is independent of the
@@ -202,7 +90,7 @@ export type ContextRecord = Record<symbol, unknown>;
 // ---------------------------------------------------------------------------
 
 /** The node currently evaluating, i.e. the one that collects dependencies. */
-let activeSub: Cell | undefined;
+export let activeSub: Cell | undefined;
 /** The scope new owners, cleanups and cells attach to. */
 let currentOwner: Owner | null = null;
 /**
@@ -235,7 +123,7 @@ const MAX_FLUSH_STEPS = 1_000_000;
  * Subscribes `sub` to `dep`, reusing the link already at this position of
  * `sub`'s dependency list when the dependency order is unchanged.
  */
-function link(dep: Cell, sub: Cell): void {
+export function link(dep: Cell, sub: Cell): void {
   const prevDep = sub.depsTail;
   if (prevDep !== undefined && prevDep.dep === dep) {
     // Same source read twice in a row.
@@ -391,7 +279,7 @@ function shallowPropagate(from: Link): void {
   } while (edge !== undefined);
 }
 
-function write(cell: Cell, next: unknown): void {
+export function write(cell: Cell, next: unknown): void {
   if (cell.equals(cell.v, next)) {
     return;
   }
@@ -415,7 +303,7 @@ function write(cell: Cell, next: unknown): void {
 // ---------------------------------------------------------------------------
 
 /** Brings a stale computed up to date. Returns whether its value changed. */
-function refresh(cell: Cell): boolean {
+export function refresh(cell: Cell): boolean {
   const flags = cell.flags;
   if ((flags & DIRTY) !== 0 || checkDirty(cell)) {
     if (!evaluate(cell)) {
@@ -782,18 +670,6 @@ export function releaseEffect(cell: Cell): void {
     // reaches here.
     cells.pop();
   }
-}
-
-export function defaultEquals<T>(
-  equals: ((a: T, b: T) => boolean) | false | undefined,
-): (a: unknown, b: unknown) => boolean {
-  if (equals === undefined) {
-    return is;
-  }
-  if (equals === false) {
-    return never;
-  }
-  return equals as (a: unknown, b: unknown) => boolean;
 }
 
 // ---------------------------------------------------------------------------

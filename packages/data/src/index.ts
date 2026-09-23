@@ -39,12 +39,13 @@ export type { CacheClient, CacheOptions } from './cache.js';
 export { tag, tagMatches, anyTagMatches } from './tags.js';
 export type { Tag, TagVars, Variables } from './tags.js';
 
-export { parseGraphQL, resolveTags, FirsthandDirectiveError } from './document.js';
+export { parseGraphQL, resolveTags } from './document.js';
 export type { DocumentArguments, GraphQLDocument, TagTemplate, TagValue } from './document.js';
 
 /**
  * `fetch`, as a client configured once: a base URL, headers read per request
  * so a token may change, a failed status thrown, and the shared cache.
  */
-export { createFetchClient, FirsthandHttpError } from './http.js';
+export { createFetchClient } from './http.js';
+export { FirsthandDirectiveError, FirsthandHttpError } from './errors.js';
 export type { FetchClient, FetchClientOptions, JsonRequest } from './http.js';

@@ -1,4 +1,5 @@
-import { Cell, defaultEquals, getOwner, type ContextRecord, type Owner } from './core.js';
+import { Cell, defaultEquals } from './cell.js';
+import { getOwner, type ContextRecord, type Owner } from './core.js';
 import { FirsthandContextError } from './errors.js';
 import { devWarn } from './dev.js';
 import type { ReadonlyCell } from './types.js';

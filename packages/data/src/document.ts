@@ -39,6 +39,7 @@
  * that reads better; they are recognised and stripped wherever they appear.
  */
 import { tag, type Tag, type TagVars, type Variables } from './tags.js';
+import { FirsthandDirectiveError } from './errors.js';
 // Type-only, so the build-time loader still pulls in nothing but this file.
 
 /** A tag variable: either bound from a call's variables, or fixed. */
@@ -90,14 +91,6 @@ export type DocumentArguments<TVariables extends Variables> =
 const DIRECTIVE = /^@(tag|invalidates)\b/;
 const OPERATION = /\b(query|mutation|subscription)\b[^\S\n]*([A-Za-z_]\w*)?/;
 const NAME = /^[_A-Za-z][_0-9A-Za-z]*/;
-
-/** Thrown for a tag directive the cache cannot make sense of. */
-export class FirsthandDirectiveError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'FirsthandDirectiveError';
-  }
-}
 
 /** Where a string literal ends, so that a `@tag` inside one is left alone. */
 function endOfString(source: string, start: number): number {

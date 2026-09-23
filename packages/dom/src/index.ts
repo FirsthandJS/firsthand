@@ -5,7 +5,8 @@
  */
 
 export { component, defineElement, setElementPrefix, createComponent, view } from './component.js';
-export { setComponentAdapter, FirsthandComponentError } from './adapter.js';
+export { setComponentAdapter } from './adapter.js';
+export { FirsthandComponentError } from './errors.js';
 export type { ComponentAdapter } from './adapter.js';
 export type { Component, ComponentOptions, AttributeCodec, View, Render } from './component.js';
 export { render } from './render.js';
