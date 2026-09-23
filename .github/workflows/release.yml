@@ -65,9 +65,28 @@ jobs:
         with:
           subject-path: 'packages/*/dist/**'
 
-      # No NODE_AUTH_TOKEN: publishing uses npm Trusted Publishing over OIDC,
-      # so there is no long-lived token to leak or rotate. Provenance is
-      # attached automatically for OIDC publishes.
+      # Either door, and neither is opened from this repository.
+      #
+      # Trusted Publishing is the one this workflow is written for: no token
+      # anywhere, and provenance comes with it. It needs a trusted publisher
+      # configured for each package on npmjs.com, pointing at this repository
+      # and this workflow.
+      #
+      # A token is the other. If `NPM_TOKEN` is set as a repository secret,
+      # this writes the `.npmrc` that `setup-node` used to write wrongly — with
+      # the real token rather than a placeholder — and the publish below
+      # authenticates with it. Provenance still comes from OIDC, so the claim
+      # holds either way.
+      #
+      # If neither exists, the publish fails, which is the honest outcome
+      # (#50).
+      - name: Authenticate with a token, if one is configured
+        if: ${{ secrets.NPM_TOKEN != '' }}
+        run: |
+          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish packages
         run: npm publish --workspaces --provenance --tag "${{ inputs.tag || 'latest' }}"
 
