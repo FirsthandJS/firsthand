@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/server",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "type": "module",
   "description": "Server-side rendering for Firsthand: the same components, rendered to markup.",
   "license": "MIT",
@@ -42,7 +42,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@firsthandjs/core": "0.10.0"
+    "@firsthandjs/core": "0.10.1"
   },
   "publishConfig": {
     "access": "public",
