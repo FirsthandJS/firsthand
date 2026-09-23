@@ -28,26 +28,9 @@
  * where it can see it.
  */
 import { untrack } from '@firsthandjs/core';
+import { FirsthandHttpError } from './errors.js';
 import { createCacheClient, type CacheClient, type CacheOptions } from './cache.js';
 import type { DataRequest, Loader } from './store.js';
-
-/**
- * Thrown for any response outside 2xx.
- *
- * Prefixed like every other error here, so that `instanceof` cannot be confused
- * by an `HttpError` from somewhere else in an application.
- */
-export class FirsthandHttpError extends Error {
-  constructor(
-    readonly status: number,
-    readonly url: string,
-    /** The parsed body, if there was one. */
-    readonly body: unknown,
-  ) {
-    super(`HTTP ${String(status)} for ${url}`);
-    this.name = 'FirsthandHttpError';
-  }
-}
 
 /**
  * What a call takes: `RequestInit`, plus the one thing the platform lacks.

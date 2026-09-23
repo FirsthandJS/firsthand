@@ -28,8 +28,8 @@ export type { Owner } from './core.js';
 /** Internal surface used by `@firsthandjs/dom`; not part of the public contract. */
 export { createEffect, bind, setRendering, isRendering } from './effect.js';
 export { devEnterSetup, devExitSetup } from './dev.js';
+export { Cell } from './cell.js';
 export {
-  Cell,
   createOwner,
   disposeOwner,
   disposeCell,

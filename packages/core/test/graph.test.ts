@@ -5,7 +5,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { batch, computed, createRoot, effect, signal } from '@/index.js';
-import { Cell } from '@/core.js';
+import { Cell } from '@/cell.js';
 
 /** Counts the subscribers a source currently has, by walking its list. */
 function subscriberCount(source: unknown): number {

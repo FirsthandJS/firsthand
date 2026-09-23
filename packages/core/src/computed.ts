@@ -1,4 +1,5 @@
-import { Cell, defaultEquals, own } from './core.js';
+import { Cell, defaultEquals } from './cell.js';
+import { own } from './core.js';
 import { DIRTY, MUTABLE } from './flags.js';
 import type { CellOptions, ReadonlyCell } from './types.js';
 import { devLabel } from './dev.js';

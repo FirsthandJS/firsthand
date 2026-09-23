@@ -1,12 +1,5 @@
-import {
-  Cell,
-  createEffectScope,
-  defaultEquals,
-  disposeCell,
-  getOwner,
-  own,
-  runEffectNow,
-} from './core.js';
+import { Cell, defaultEquals } from './cell.js';
+import { createEffectScope, disposeCell, getOwner, own, runEffectNow } from './core.js';
 import { WATCHING } from './flags.js';
 import { releaseEffect } from './core.js';
 import { devLabel, devWarn } from './dev.js';

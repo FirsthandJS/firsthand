@@ -25,7 +25,7 @@ handler is created once and always reads the current value.
 
 <!-- headline:start -->
 <!-- prettier-ignore-start -->
-The whole runtime is **7.47 kB gzip** with no production dependencies. On the
+The whole runtime is **7.49 kB gzip** with no production dependencies. On the
 render/update set it is **1.67×** faster than React 19.2.0, **1.13×** faster than Solid 1.9.15 and **1.48×** faster than Vue 3.5.43
 (geometric means of 27 scenarios, 95 % bootstrap intervals) — measured in the same browser session,
 with the same data and the same rendered DOM verified before any timing, and
@@ -397,11 +397,11 @@ different sample sizes would quietly weaken the confidence interval.
 
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
-| `@firsthandjs/core` | 6.80 kB | **2.47 kB** | 2.24 kB |
-| `@firsthandjs/dom` | 13.61 kB | **5.36 kB** | 4.82 kB |
-| `@firsthandjs/dom/internal` | 14.21 kB | **5.70 kB** | 5.14 kB |
+| `@firsthandjs/core` | 6.80 kB | **2.49 kB** | 2.26 kB |
+| `@firsthandjs/dom` | 13.61 kB | **5.37 kB** | 4.83 kB |
+| `@firsthandjs/dom/internal` | 14.21 kB | **5.69 kB** | 5.12 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
-| full runtime (core + dom, everything imported) | 20.24 kB | **7.47 kB** | 6.75 kB |
+| full runtime (core + dom, everything imported) | 20.25 kB | **7.49 kB** | 6.77 kB |
 
 
 Optional packages, downloaded only by an application that imports them:

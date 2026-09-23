@@ -20,7 +20,7 @@ import {
   signal,
   useContext,
 } from '@/index.js';
-import { Cell } from '@/core.js';
+import { Cell } from '@/cell.js';
 
 function dependencyCount(node: unknown): number {
   let link = (node as Cell).deps;

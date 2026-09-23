@@ -1,4 +1,4 @@
-import { Cell, defaultEquals } from './core.js';
+import { Cell, defaultEquals } from './cell.js';
 import { devLabel } from './dev.js';
 import type { CellOptions, Signal } from './types.js';
 

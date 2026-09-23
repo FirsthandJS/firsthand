@@ -251,10 +251,10 @@ Bringing `packages/dom` under the function and complexity limits cost
 | the budget in `scripts/build.mjs` | 7.50 kB gzip              |
 
 That is 3 % of the runtime for the readability of the twelve functions that
-were over the limits, and it leaves **about thirty bytes of headroom**. The
-next change to the browser runtime will have to find room, and the honest place
-to find it is here: a disable under §5 on the specific functions that pay for
-it, with the number. Raising the budget quietly is the one answer that is not
+were over the limits. The class split in §7 spent most of what that left, so
+the headroom is now **7 bytes**. The next change to the browser runtime will
+have to find room, and the honest place to find it is here: a disable under §5
+on the specific functions that pay for it, with the number. Raising the budget quietly is the one answer that is not
 allowed, because the budget is the claim the README makes.
 
 ### Measuring this correctly
@@ -271,36 +271,51 @@ makes it hard to notice: only the one number that matters is wrong.
 Run `npm ci` in the worktree. If a local build and CI disagree on the full
 runtime and agree on everything else, this is why.
 
-## 7. The one file that does not meet these rules
+## 7. The file that used to be the exception
 
-`packages/core/src/core.ts` is 561 statements against a limit of 300, and
-exports 18 names against a limit of 12. It is the only file in the repository
-in that position, it is deliberate, and the reasoning is at the top of the file
-so that nobody has to find this page to learn it.
+`packages/core/src/core.ts` held 714 lines and 18 exports, and an earlier
+version of this page argued that it had to: the graph, the scheduler and the
+owner tree share mutable state, a module cannot assign a binding it imported,
+and putting a property load or a call in front of `Cell.value` — the hottest
+read in the framework — was not something to do on an argument.
 
-The short version. Four of its sections — pull evaluation, scheduling, the
-owner accessors and `untrack` — write the same three module variables:
-`activeSub`, `currentOwner` and `deferred`. A module cannot assign a binding it
-imported, so splitting those sections apart means either a shared state object,
-which puts a property load in front of every `activeSub` read including the one
-in `Cell.value`, or setter functions, which put a call there instead.
-`Cell.value` is the hottest read in the framework and `npm run bench:ic` exists
-to check that it stays monomorphic. §2 of `CONTRIBUTING.md` does not accept
-"probably fine" for that, and neither does this page.
+That was right about the risk and wrong about the conclusion, and the thing
+that settled it was measuring rather than reasoning.
 
-Its 18 exports are the same fact seen from the interface side: they are what
-the package's own modules call. What leaves `@firsthandjs/core` is `index.ts`,
-and that surface is governed by `CONTRIBUTING.md` §5 like every other.
+**What actually blocked the split was smaller than it looked.** Two facts the
+code already had:
 
-Both exceptions are **visible rather than silent**: the file carries an
-`eslint-disable` with the reason, and `npm run check:arch` prints the wide
-surface and the total number of disables in the repository every time it runs.
+- nothing in `core.ts` constructs a `Cell`. `signal`, `computed`, `effect` and
+  `context` do, so `core.ts` needs the type and not the value — a type-only
+  import, which is erased.
+- `Cell` only _reads_ `activeSub`. The writers are `evaluate`, `runEffect` and
+  `untrack`, all of which stayed behind.
 
-What would remove the exception: a branch that does the split, with before and
-after from `bench`, `bench:micro` and `bench:ic`, and a number showing the
-reads stayed monomorphic. Until somebody has that, the file stays as it is —
-which is the same standard this page applies to changing any other number on
-it.
+So `Link` and `Cell` moved to `link.ts` and `cell.ts`, the runtime edges are
+`core → link` and `cell → core`, and there is no cycle.
+
+**And the read costs nothing**, which is the part that had to be measured:
+
+| Evidence                                  | Before       | After        |
+| ----------------------------------------- | ------------ | ------------ |
+| `bench:ic`, mixed cells against one shape | 1.02×        | 1.02×        |
+| full runtime, minified                    | 20,729 bytes | 20,733 bytes |
+| full runtime, gzip                        | 7,647 bytes  | 7,673 bytes  |
+
+esbuild concatenates a package before it ships, so the getter that read a
+module-local `activeSub` now reads a bundle-local one — the built output is the
+same shape, a plain variable read, which is why the inline caches do not
+notice. Four bytes of new code, and the rest of the gzip difference is the
+compressor seeing a slightly different arrangement of the same text.
+
+What it did cost is headroom: the full runtime is now **7 bytes** under the
+7.50 kB budget §6 measures against, where it had 33. That budget is a line
+somebody has to move deliberately, so the next change to core has to either
+find those bytes or argue for the number — which is the point of having it.
+
+`core.ts` is still the largest file in the repository and still over the line
+limit, because the algorithm that remains is one algorithm. What it is no
+longer is the data structures as well.
 
 ## See also
 
