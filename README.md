@@ -1,5 +1,7 @@
 # Firsthand
 
+### ▶ [Try it in the playground](https://firsthandjs.github.io/firsthandjs-playground/) — no install, runs in your browser
+
 A small, fine-grained reactive UI framework for the web platform. Components are
 functions that run **once**. State changes update the DOM nodes that read that
 state — and nothing else.
