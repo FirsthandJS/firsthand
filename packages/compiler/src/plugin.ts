@@ -175,7 +175,6 @@ function hoistKept(path: NodePath): void {
   }
   const thunk = path.parentPath;
   if (
-    thunk === null ||
     !thunk.isArrowFunctionExpression() ||
     !(CHILD_THUNK in thunk.node) ||
     !(THROUGH_RUN in thunk.node) ||
