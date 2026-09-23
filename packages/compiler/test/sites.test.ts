@@ -382,3 +382,78 @@ export const Panel = component(() => {
     ).toThrow(/appears many times/);
   });
 });
+
+describe('a child of a fragment a run returns', () => {
+  it('gets a site, like a child the run returns on its own', () => {
+    const out = compile(`
+import { component } from '@firsthandjs/dom';
+import { Head, Frame } from './parts.js';
+export const View = component(() => () => {
+  if (status.value === 'loading') return <Skeleton />;
+  return <><Head /><Frame>hi</Frame></>;
+});
+`);
+    // Two components in the fragment and one in the early return: three sites,
+    // where the fragment's two used to be made again on every run (#47).
+    expect(out.match(/_kept\$\d+\.last = _\$part/g)).toHaveLength(3);
+  });
+
+  it('is fed the run’s own locals through a cell', () => {
+    const out = compile(`
+import { component } from '@firsthandjs/dom';
+import { Frame } from './parts.js';
+export const View = component(() => () => {
+  const label = status.value;
+  return <><Frame title={label} /></>;
+});
+`);
+    expect(out).toContain('_$cell(');
+    expect(out).toMatch(/_kept\$\d+\.last = _\$part/);
+  });
+
+  it('leaves a list’s rows to the list', () => {
+    const out = compile(`
+import { component } from '@firsthandjs/dom';
+import { Row } from './parts.js';
+export const View = component(() => () => {
+  const rows = data.value;
+  return <><ul>{rows.map((row) => <Row key={row.id} row={row} />)}</ul></>;
+});
+`);
+    // The row belongs to the callback the author wrote, which the list calls
+    // per row. What is made once is the `<ul>` around it and the list itself,
+    // which now reads its data from a cell the run writes.
+    expect(out).toMatch(/_\$list\(\(\) => _data\$\d+\.value/);
+    expect(out).not.toMatch(/_kept\$\d+\.last = _\$part\(\(\) => _\$createComponent\(Row/);
+  });
+
+  it('leaves a keyed list standing directly in the fragment alone', () => {
+    const out = compile(`
+import { component } from '@firsthandjs/dom';
+import { Row } from './parts.js';
+export const View = component(() => () => {
+  const rows = data.value;
+  return <><h1>rows</h1>{rows.map((row) => <Row key={row.id} row={row} />)}</>;
+});
+`);
+    // A list is emitted as `part(list)` rather than `part(() => …)`: there is
+    // no wrapper to see through, and the rows are the list's business.
+    expect(out).toMatch(/_\$part\(_\$list\(/);
+  });
+
+  it('keeps a fragment’s child out of it when the fragment is built once', () => {
+    const out = compile(`
+import { component } from '@firsthandjs/dom';
+import { Box, Head } from './parts.js';
+export const View = component(() => () => {
+  const label = status.value;
+  return <Box title={label}><><Head /></></Box>;
+});
+`);
+    // The fragment is inside a child the run keeps, so it is made once and
+    // its own children with it: the thunk around them is not a place the run
+    // reaches again, and a site there would be numbered by a run that never
+    // visits it.
+    expect(out.match(/_kept\$\d+\.last = _\$part/g)).toHaveLength(1);
+  });
+});
