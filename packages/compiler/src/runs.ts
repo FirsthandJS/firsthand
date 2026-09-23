@@ -233,6 +233,9 @@ function isComponentCall(path: NodePath<t.CallExpression>): boolean {
 
 /** The run this markup belongs to, or `null` when it is built once. */
 export function enclosingRun(path: NodePath, state: State): RunContext | null {
+  if (chosenInsideThunk(path)) {
+    return null;
+  }
   let fn = path.getFunctionParent();
   // The nearest function the *author* wrote decides. Markup inside a callback
   // — a list row, a handler — belongs to that callback, which is made once and
@@ -389,4 +392,34 @@ function madeOncePerRun(attribute: t.JSXAttribute | t.JSXSpreadAttribute, build:
     !t.isJSXEmptyExpression(value.expression) &&
     dependsOnRun(value.expression, build.run, build.at)
   );
+}
+
+/**
+ * Whether a branch chooses this markup *inside* a child thunk.
+ *
+ * A thunk a run reaches again is stepped over, so markup in it is kept in a
+ * site between runs. That is right when the run decides what is there, and
+ * wrong when a branch inside the thunk does: the thunk re-evaluates on its own
+ * — it is a part, and a part is woken by a signal, not by a run — so `ran`
+ * never sees the branch change and never disposes the branch that lost. The
+ * component stays mounted and its nodes stay in the page, which is a loading
+ * line that never leaves and an error box that empties instead of closing.
+ *
+ * So markup a conditional selects inside a thunk is built fresh each time the
+ * thunk runs, and the part that owns the thunk disposes what it replaces.
+ */
+function chosenInsideThunk(path: NodePath): boolean {
+  let branched = false;
+  for (let at = path.parentPath; !at.isProgram(); at = at.parentPath) {
+    // The first function above the markup is the one that decides. Reaching it
+    // having passed a branch means the branch is inside the thunk rather than
+    // around it, which is the case a run cannot see.
+    if (at.isFunction()) {
+      return branched && THROUGH_RUN in at.node;
+    }
+    if (at.isConditionalExpression() || at.isLogicalExpression()) {
+      branched = true;
+    }
+  }
+  return false;
 }
