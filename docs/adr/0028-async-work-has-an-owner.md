@@ -130,12 +130,33 @@ nothing is leaked by the detachment.
   | the same app, plus `task`                      | 14 254 B | 4 983 B | yes            |
 
   So an application that asks for `task` pays about 480 B gzip for it, and one
-  that does not pays nothing. The budget entry is unmoved by this work: it
-  measured 7 673 B on the commit this branched from and 7 667 B with everything
-  here applied, which is the tree-shaking doing exactly what the named
-  re-export list promises. `@firsthandjs/core` measured on its own does grow,
-  by 323 B, because its own entry point exports everything it has — that figure
-  is in the reference table and is not the runtime budget.
+  that does not pays nothing.
+
+  The budget entry is **unmoved**, and that is a head-to-head measurement
+  rather than two readings subtracted. Building `13fe49e` and `0e1d758` from
+  their own worktrees, with everything else held constant:
+
+  | tree             | minified | gzip    | `task` present |
+  | ---------------- | -------- | ------- | -------------- |
+  | before this work | 20 802 B | 7 673 B | no             |
+  | with it applied  | 20 806 B | 7 673 B | no             |
+  | difference       | +4 B     | **0 B** |                |
+
+  Zero gzip bytes, which is the tree-shaking doing exactly what the named
+  re-export list promises. (The absolute figures differ from the table above
+  because that one resolves `@firsthandjs/core` the way `scripts/build.mjs`
+  does and this one aliases each tree to its own source; what is comparable
+  here is the difference, and both halves were measured the same way.)
+
+  An earlier draft of this ADR read "7 673 B before and 7 667 B after" and was
+  wrong: those two numbers came from different measurement setups, not from
+  two trees, and subtracting them invented a six-byte saving that does not
+  exist. The rule this repository already applies to benchmarks applies here
+  too — a delta is only a delta when one thing moved.
+
+  `@firsthandjs/core` measured on its own does grow, by 323 B, because its own
+  entry point exports everything it has — that figure is in the reference table
+  and is not the runtime budget.
 
   **Adding `task` to `dom`'s re-export list would change that**, because the
   budget entry would then reach it and the figure would become an
