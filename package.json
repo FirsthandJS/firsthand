@@ -21,6 +21,7 @@
     "format:check": "prettier --check .",
     "test:exports": "node scripts/check-exports.mjs",
     "check:versions": "node scripts/check-versions.mjs",
+    "check:provenance": "node scripts/check-provenance.mjs",
     "test:browser": "playwright test",
     "bench": "node benchmarks/run.mjs",
     "bench:ssr": "node benchmarks/ssr/run.mjs",

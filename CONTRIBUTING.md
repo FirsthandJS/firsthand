@@ -188,3 +188,10 @@ only exception, because Dependabot picks its own.
 Releases are cut by maintainers through the release workflow, which publishes to
 npm with provenance over OIDC. Contributors do not need to touch versions;
 changelog entries under `## [Unreleased]` are welcome.
+
+The workflow ends with `npm run check:provenance`, which reads every package
+back off the registry and fails if what was published does not carry the
+attestation its manifest claims. That check exists because the claim was false
+for thirteen releases and nothing noticed: publishing needs npm 11.5.1 or later
+for OIDC, and the workflow's Node ships an older one ([#50](https://github.com/FirsthandJS/firsthand/issues/50)).
+A release published by hand cannot satisfy it, which is the point.

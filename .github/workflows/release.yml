@@ -36,6 +36,16 @@ jobs:
           cache: npm
           registry-url: 'https://registry.npmjs.org'
 
+      # Node 22 ships npm 10, which has no OIDC support at all: `npm publish`
+      # then sends an unauthenticated PUT, and npm answers 404 for a scoped
+      # package it will not let you write. That is the error every release run
+      # in this repository's history has ended on (#50). Trusted Publishing
+      # needs 11.5.1 or later.
+      - name: Use an npm that can publish over OIDC
+        run: |
+          npm install -g npm@^11.5.1
+          npm --version
+
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
@@ -54,3 +64,11 @@ jobs:
       # attached automatically for OIDC publishes.
       - name: Publish packages
         run: npm publish --workspaces --provenance --tag "${{ inputs.tag || 'latest' }}"
+
+      # The claim, read back from the registry. `publishConfig.provenance` said
+      # every release carried an attestation while none of them did, for
+      # thirteen releases, because nothing ever checked (#50). A release that
+      # publishes without provenance now fails here rather than passing
+      # quietly.
+      - name: Check the packages carry what they claim
+        run: npm run check:provenance
