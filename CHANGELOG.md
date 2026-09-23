@@ -8,6 +8,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [0.11.1] - 2026-09-23
 
+### Fixed
+
+- **A run that returns a fragment leaves nothing behind.** Since 0.10.1, a run
+  returning one fragment and then another kept both on screen: the branch it
+  left was never disposed, its cleanups never ran, and its nodes stayed in the
+  page beside the new ones. A run returning a single element was unaffected,
+  which is what named the cause.
+
+  It was the #47 fix, one wrapper too deep. A kept child is already a part, and
+  `compileChildren` wraps every dynamic child in `part(() => …)` — so the site
+  was looked up when that thunk ran, which is _after_ `ran` has ended the run
+  that made it. The site was stamped with the next run's generation, and the
+  next `ran` read a branch the run had left as one it had just reached. The
+  wrapper is taken off now, so the site is looked up while the run is running,
+  and there is one less part per kept child.
+
 ### Changed
 
 - **The packages no longer claim provenance they do not have.**
