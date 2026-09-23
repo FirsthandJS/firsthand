@@ -130,12 +130,42 @@ nothing is leaked by the detachment.
   | the same app, plus `task`                      | 14 254 B | 4 983 B | yes            |
 
   So an application that asks for `task` pays about 480 B gzip for it, and one
-  that does not pays nothing. The budget entry is unmoved by this work: it
-  measured 7 673 B on the commit this branched from and 7 667 B with everything
-  here applied, which is the tree-shaking doing exactly what the named
-  re-export list promises. `@firsthandjs/core` measured on its own does grow,
-  by 323 B, because its own entry point exports everything it has — that figure
-  is in the reference table and is not the runtime budget.
+  that does not pays nothing.
+
+  The budget entry moves by **four bytes of source and six fewer after gzip**.
+  Measured with `scripts/build.mjs` — the script the budget is actually checked
+  against — at three commits, each built in its own worktree with its own
+  `npm ci`, so the workspace links resolve to the tree being measured:
+
+  | commit                                | minified | gzip        |
+  | ------------------------------------- | -------- | ----------- |
+  | `13fe49e` — before this work          | 20 733 B | 7 673 B     |
+  | `0e1d758` — with it applied           | 20 737 B | **7 667 B** |
+  | `a0b8a72` — the compiler fix after it | 20 737 B | 7 667 B     |
+
+  The third row is the control: that change is compiler-only and cannot touch
+  the browser runtime, and it moves neither figure, which is what says the
+  instrument is reading the tree rather than the weather.
+
+  `task` itself is not in that bundle — the `was superseded` literal is absent
+  from all three — so the four bytes are a marginal knock-on rather than the
+  cost of the feature, and the six are gzip encoding them in a context that
+  happens to compress better. Small source changes can move a compressed total
+  in either direction, which is the reason to measure the total rather than
+  reason about the parts.
+
+  Two earlier attempts at this paragraph were wrong in opposite directions, and
+  both failed the same way. The first subtracted a figure from `build.mjs` from
+  one produced by a hand-written probe. The second replaced it with "zero",
+  measured head-to-head but with a probe that aliases `@firsthandjs/core` to
+  source instead of resolving it the way the build does — a bundle 69 B larger
+  than anything that ships, whose compressed total says nothing about the one
+  that does. A delta is only a delta when one thing moved **and** the
+  instrument is the one whose readings are claimed.
+
+  `@firsthandjs/core` measured on its own does grow, by 323 B, because its own
+  entry point exports everything it has — that figure is in the reference table
+  and is not the runtime budget.
 
   **Adding `task` to `dom`'s re-export list would change that**, because the
   budget entry would then reach it and the figure would become an
