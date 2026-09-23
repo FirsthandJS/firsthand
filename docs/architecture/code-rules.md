@@ -251,11 +251,13 @@ Bringing `packages/dom` under the function and complexity limits cost
 | the budget in `scripts/build.mjs` | 7.50 kB gzip              |
 
 That is 3 % of the runtime for the readability of the twelve functions that
-were over the limits. The class split in §7 spent most of what that left, so
-the headroom is now **7 bytes**. The next change to the browser runtime will
-have to find room, and the honest place to find it is here: a disable under §5
-on the specific functions that pay for it, with the number. Raising the budget quietly is the one answer that is not
-allowed, because the budget is the claim the README makes.
+were over the limits. The class split in §7 spent most of what that left, and
+the async-owner work then gave six bytes back, so the headroom is now
+**13 bytes**. The next change to the browser runtime will have to find room,
+and the honest place to find it is here: a disable under §5 on the specific
+functions that pay for it, with the number. Raising the budget quietly is the
+one answer that is not allowed, because the budget is the claim the README
+makes.
 
 ### Measuring this correctly
 
@@ -308,10 +310,17 @@ same shape, a plain variable read, which is why the inline caches do not
 notice. Four bytes of new code, and the rest of the gzip difference is the
 compressor seeing a slightly different arrangement of the same text.
 
-What it did cost is headroom: the full runtime is now **7 bytes** under the
-7.50 kB budget §6 measures against, where it had 33. That budget is a line
-somebody has to move deliberately, so the next change to core has to either
-find those bytes or argue for the number — which is the point of having it.
+What it did cost is headroom: the full runtime went to **7 bytes** under the
+7.50 kB budget §6 measures against, where it had 33. The async-owner work that
+followed compressed six bytes better than it cost, which is how the figure in
+§6 reads 13 rather than 7 — a reminder that these are gzip bytes and a later
+change can hand some back. That budget is a line somebody has to move
+deliberately, so the next change to core has to either find those bytes or
+argue for the number — which is the point of having it.
+
+Both numbers are prose, written by hand: `check:readme` governs the README and
+the reference pages, and nothing regenerates this file. A change that moves
+the runtime has to come back and correct them.
 
 `core.ts` is still the largest file in the repository and still over the line
 limit, because the algorithm that remains is one algorithm. What it is no
