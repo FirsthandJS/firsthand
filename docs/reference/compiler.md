@@ -1,11 +1,37 @@
 # @firsthandjs/compiler
 
-[Reference index](../README.md#reference) · build only, never shipped to a
-browser
+[Reference index](../README.md#reference) · a build tool, and a browser
+entry for the playground
 
 Compiles TSX into template clones and DOM parts. Guide:
 [Building and deploying](../guide/16-building.md); design:
 [ADR-0009](../adr/0009-compiler-templates-and-thunks.md).
+
+---
+
+## @firsthandjs/compiler/plugin
+
+The Babel plugin with nothing around it, for compiling TSX where `@babel/core`
+cannot go — a browser tab:
+
+```ts
+import * as Babel from '@babel/standalone';
+import firsthand from '@firsthandjs/compiler/plugin';
+
+Babel.registerPlugin('firsthand', firsthand);
+
+const { code } = Babel.transform(source, {
+  filename: 'playground.tsx',
+  presets: [['typescript', { isTSX: true, allExtensions: true }]],
+  plugins: [['firsthand', { packageName: 'playground' }]],
+});
+```
+
+This is what [the playground](https://firsthandjs.github.io/firsthandjs-playground/)
+runs: the same plugin the build uses, in the page, on every keystroke. The main
+entry pulls in `@babel/core` and is for Node; this one imports `@babel/types`
+and nothing else, and no module in it reaches for a Node built-in — which a
+test asserts, because it is the kind of thing one import would quietly undo.
 
 ---
 

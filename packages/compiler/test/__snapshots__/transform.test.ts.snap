@@ -15,7 +15,7 @@ export const Counter = component(props => {
     _$insert(_el$, () => count.value, _el$1);
     return _el$;
   })();
-}, undefined, "875f86b1/Counter", "Counter");"
+}, undefined, "3e1e600a/Counter", "Counter");"
 `;
 
 exports[`keyed lists > compiles a keyed map into a list part with live item reads 1`] = `
@@ -34,5 +34,5 @@ export const Table = component(props => (() => {
     return _el$;
   })()));
   return _el$;
-})(), undefined, "875f86b1/Table", "Table");"
+})(), undefined, "3e1e600a/Table", "Table");"
 `;

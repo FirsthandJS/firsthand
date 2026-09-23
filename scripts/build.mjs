@@ -177,7 +177,10 @@ const targets = [
   { pkg: 'testing', entries: { index: 'src/index.ts' }, platform: 'browser', runtime: false },
   {
     pkg: 'compiler',
-    entries: { index: 'src/index.ts', vite: 'src/vite.ts' },
+    // `transform` is the plugin with nothing around it: no `@babel/core`, so a
+    // browser can register it with `@babel/standalone` and compile TSX in a
+    // tab, which is what the playground does.
+    entries: { index: 'src/index.ts', plugin: 'src/transform.ts', vite: 'src/vite.ts' },
     platform: 'node',
     runtime: false,
   },
