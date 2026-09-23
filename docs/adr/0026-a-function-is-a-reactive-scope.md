@@ -126,6 +126,22 @@ holding the _reading_ rather than the result, so that what it reads is
 attributed to the part that displays it rather than to the run. The fourth
 instance of this should be caught in review rather than in an issue.
 
+**A site belongs to every place the run reaches, including through the
+compiler's own wrappers.** The rule above says which markup a run keeps; this
+says where. A dynamic child is emitted as `part(() => …)`, and that arrow is a
+function — so the question "which run is this markup in?" answered itself
+wrongly for anything inside one. It is the compiler's own wrapper, but it is
+not always a place the run returns to: in a kept template the part around it is
+built on the first run and never again, and what is inside belongs to that
+part; in a fragment a run returns, the array and every part in it are built
+afresh each time, so what is inside belongs to the run. So the wrapper is
+stepped over exactly when the code that creates it runs again, which is a
+question the same function already answers one level up. Until #47 the answer
+was "never", and a component inside a fragment was the one child position a run
+could not keep: the whole fragment, and every row under it, was rebuilt on
+every run. A list's rows are unaffected either way, because a
+row sits in a callback the _author_ wrote and that is a boundary.
+
 **Handlers are what they look like.** A closure over a run local is a new
 function on every run, and it replaces the previous one on the node — so it is
 never stale, and always exactly as old as the DOM beside it. `on()` had to

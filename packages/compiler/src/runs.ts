@@ -11,7 +11,7 @@ import type { NodePath } from '@babel/traverse';
 
 import * as t from '@babel/types';
 
-import { GENERATED, isKeyedList } from './marks.js';
+import { GENERATED, isKeyedList, THROUGH_RUN } from './marks.js';
 
 import { attributeName, declaredName, isComponentTag, isFirsthandImport } from './nodes.js';
 
@@ -235,10 +235,13 @@ function isComponentCall(path: NodePath<t.CallExpression>): boolean {
 export function enclosingRun(path: NodePath, state: State): RunContext | null {
   let fn = path.getFunctionParent();
   // The nearest function the *author* wrote decides. Markup inside a callback
-  // — a list row, a handler, a part the compiler wrapped — belongs to that
-  // callback, which is made once and is not this run. A wrapper the compiler
-  // wrote is not a boundary and is stepped over.
-  while (fn !== null && GENERATED in fn.node) {
+  // — a list row, a handler — belongs to that callback, which is made once and
+  // is not this run. A wrapper the compiler wrote is not a boundary and is
+  // stepped over: always for the arrow a template compiles to, and for a child
+  // thunk when it is one a run reaches again (`THROUGH_RUN`, #47). A thunk in
+  // a kept template is not that, which is what keeps a list's rows made per
+  // row rather than kept per run.
+  while (fn !== null && (GENERATED in fn.node || THROUGH_RUN in fn.node)) {
     fn = fn.getFunctionParent();
   }
   if (fn === null) {

@@ -10,7 +10,7 @@ import type { NodePath } from '@babel/traverse';
 
 import * as t from '@babel/types';
 
-import { CHILD_THUNK, generated } from './marks.js';
+import { CHILD_THUNK, generated, throughRun } from './marks.js';
 
 import { compileMarkup } from './markup.js';
 
@@ -38,7 +38,17 @@ export function compileNode(
   state: State,
 ): t.Expression {
   if (path.isJSXFragment()) {
-    return t.arrayExpression(compileChildren(path.node.children, state));
+    const children = compileChildren(path.node.children, state);
+    if (enclosingRun(path, state) !== null) {
+      // The array is built again on every run, and so is every part in it —
+      // so what is written inside one belongs to the run rather than to the
+      // thunk the compiler put around it (#47). Without this, a component in
+      // a fragment is the only child position a run cannot keep.
+      for (const child of children) {
+        throughRun(child);
+      }
+    }
+    return t.arrayExpression(children);
   }
   const node = path.node;
   if (isComponentTag(node)) {

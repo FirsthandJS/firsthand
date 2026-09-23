@@ -32,6 +32,40 @@ export function generated(arrow: t.ArrowFunctionExpression): t.ArrowFunctionExpr
   return arrow;
 }
 
+/**
+ * Marks a child thunk that is written again on every run (#47).
+ *
+ * A thunk is the compiler's own wrapper, so it is never a scope the author
+ * wrote — but it is not always a place a run reaches either. In a kept
+ * template the part around it is made on the first run and never again, and
+ * what is inside it belongs to that part. In a fragment a run returns, the
+ * array and every part in it are built afresh each time, so the thunk *is*
+ * reached on every run and the markup in it belongs to the run rather than to
+ * the wrapper.
+ *
+ * Only the second kind carries this mark, and only `enclosingRun` reads it.
+ */
+export const THROUGH_RUN = Symbol('firsthand.throughRun');
+
+/**
+ * Marks the thunk inside a compiled child, if it has one.
+ *
+ * Takes the child a `compileChildren` produced — `part(() => …)`, `part(list)`
+ * or a plain string — and finds the thunk to mark, because a keyed list has no
+ * thunk to see through and a static child has nothing in it to keep. An arrow
+ * in that position is always the thunk: `compileChildren` puts nothing else
+ * there.
+ */
+export function throughRun(child: t.Expression): void {
+  if (!t.isCallExpression(child)) {
+    return;
+  }
+  const [argument] = child.arguments;
+  if (t.isArrowFunctionExpression(argument)) {
+    (argument as unknown as Record<symbol, boolean>)[THROUGH_RUN] = true;
+  }
+}
+
 /** Marks a call the map rewrite produced, so it is not wrapped in a thunk. */
 export const LIST_CALL = Symbol('firsthand.list');
 
