@@ -66,6 +66,22 @@ export function throughRun(child: t.Expression): void {
   }
 }
 
+/**
+ * Marks the expression `keptChild` produces: a child a run keeps.
+ *
+ * It is a `part` already, so the thunk `compileChildren` puts around a dynamic
+ * child is one wrapper too many — and not merely wasteful. The wrapper defers
+ * the site lookup until after `ran` has ended the run that made it, which
+ * stamps the site with the *next* run's generation and makes a branch the run
+ * has left look like one it just reached. `hoistKept` takes the wrapper off.
+ */
+export const KEPT = Symbol('firsthand.kept');
+
+export function kept(expression: t.Expression): t.Expression {
+  (expression as unknown as Record<symbol, boolean>)[KEPT] = true;
+  return expression;
+}
+
 /** Marks a call the map rewrite produced, so it is not wrapped in a thunk. */
 export const LIST_CALL = Symbol('firsthand.list');
 

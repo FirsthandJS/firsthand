@@ -10,7 +10,7 @@ import type { NodePath } from '@babel/traverse';
 
 import * as t from '@babel/types';
 
-import { CHILD_THUNK, generated, throughRun } from './marks.js';
+import { CHILD_THUNK, generated, kept, throughRun } from './marks.js';
 
 import { compileMarkup } from './markup.js';
 
@@ -273,7 +273,9 @@ function keptChild(
     ),
     t.returnStatement(made()),
   ];
-  return t.callExpression(generated(t.arrowFunctionExpression([], t.blockStatement(body))), []);
+  return kept(
+    t.callExpression(generated(t.arrowFunctionExpression([], t.blockStatement(body))), []),
+  );
 }
 
 /**

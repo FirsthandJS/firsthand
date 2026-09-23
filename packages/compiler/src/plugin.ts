@@ -19,6 +19,8 @@ import { annotateComponent, nameCell } from './components.js';
 
 import { compileNode } from './jsx.js';
 
+import { CHILD_THUNK, KEPT, THROUGH_RUN } from './marks.js';
+
 import { rewriteKeyedMaps } from './lists.js';
 
 import type { FirsthandPluginOptions } from './options.js';
@@ -56,6 +58,7 @@ export default function firsthandPlugin(
           rewriteKeyedMaps(path, state);
         }
         path.replaceWith(compileNode(path, state));
+        hoistKept(path);
       },
 
       JSXFragment(path: NodePath<t.JSXFragment>, state: State) {
@@ -148,4 +151,40 @@ function groupBySource(imports: Map<string, t.Identifier>): Map<string, [string,
     }
   }
   return grouped;
+}
+
+/**
+ * Takes the thunk off a child a run keeps.
+ *
+ * `compileChildren` wraps every dynamic child in `part(() => …)`, which is
+ * right for an expression and one wrapper too many for a kept child: that is
+ * already a part, and the thunk only defers it.
+ *
+ * Deferring it is a bug rather than an inefficiency. The site is looked up
+ * when the thunk runs, and the thunk runs after `ran` has ended the run that
+ * made it — so the site is stamped with the *next* generation, and the next
+ * `ran` sees a branch the run has left as one it has just reached. The branch
+ * is never disposed and stays in the page beside the new one.
+ *
+ * Unwrapped, the site is looked up while the run is running, which is when it
+ * happened.
+ */
+function hoistKept(path: NodePath): void {
+  if (!(KEPT in path.node)) {
+    return;
+  }
+  const thunk = path.parentPath;
+  if (
+    thunk === null ||
+    !thunk.isArrowFunctionExpression() ||
+    !(CHILD_THUNK in thunk.node) ||
+    !(THROUGH_RUN in thunk.node) ||
+    thunk.node.body !== path.node
+  ) {
+    return;
+  }
+  const wrapper = thunk.parentPath;
+  if (wrapper.isCallExpression() && wrapper.node.arguments.length === 1) {
+    wrapper.replaceWith(path.node);
+  }
 }
