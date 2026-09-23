@@ -34,7 +34,21 @@ for (const file of readdirSync(resolve(root, '.github/workflows'))) {
   }
 
   for (const [name, job] of Object.entries(workflow.jobs ?? {})) {
+    if (/\bsecrets\./u.test(String(job.if ?? ''))) {
+      fail(`${path}: job "${name}" reads the secrets context in a job-level "if".`);
+    }
     for (const step of job.steps ?? []) {
+      // `secrets` is available to `env`, to `with`, and to a job's own
+      // `secrets` block, and to nothing else. In an `if` it is not a failing
+      // condition — it is an invalid workflow, so the cost of writing it is
+      // every run of the file rather than the one step that wanted it.
+      if (/\bsecrets\./u.test(String(step.if ?? ''))) {
+        fail(
+          `${path}: job "${name}" reads the secrets context in a step-level "if". ` +
+            'Put the secret in `env` and test the variable in the shell — GitHub ' +
+            'rejects the whole workflow otherwise, without ever creating a job.',
+        );
+      }
       if (typeof step.uses === 'string' && !step.uses.startsWith('./')) {
         const [action, reference] = step.uses.split('@');
         if (!/^[0-9a-f]{40}$/.test(reference ?? '')) {

@@ -80,12 +80,22 @@ jobs:
       #
       # If neither exists, the publish fails, which is the honest outcome
       # (#50).
+      # The test is in the shell rather than in `if:`, because the `secrets`
+      # context is not available to a step-level condition. A workflow that
+      # uses it there does not fail at the step — it fails validation, so no
+      # job is created at all and the run is named after the file. This one
+      # did that on every push since it was written, which is why no release
+      # has ever run from CI (#50).
       - name: Authenticate with a token, if one is configured
-        if: ${{ secrets.NPM_TOKEN != '' }}
-        run: |
-          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
+            echo "publishing with a token"
+          else
+            echo "no token: publishing over OIDC, which needs a trusted publisher"
+          fi
 
       - name: Publish packages
         run: npm publish --workspaces --provenance --tag "${{ inputs.tag || 'latest' }}"
