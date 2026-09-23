@@ -35,3 +35,5 @@ performance or semantics are affected.
 | [0025](0025-tags-as-cache-metadata.md)                           | Tags as cache metadata, never as cache identity                | accepted                                            |
 | [0026](0026-a-function-is-a-reactive-scope.md)                   | A function is a reactive scope, one level up                   | accepted                                            |
 | [0027](0027-server-rendering-and-hydration.md)                   | Server rendering as a second compiler target, hydration adopts | accepted                                            |
+| [0028](0028-async-work-has-an-owner.md)                          | Async work has an owner, and a task is the adapter             | accepted                                            |
+| [0029](0029-a-mutation-is-not-a-read.md)                         | A mutation is not a read, so it does not abort by default      | accepted                                            |

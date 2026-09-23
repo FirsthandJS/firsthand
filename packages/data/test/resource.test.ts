@@ -307,6 +307,73 @@ describe('the store', () => {
     stop();
   });
 
+  it('forgets what a still-mounted resource was showing', async () => {
+    const store = createData();
+    const { value, stop } = inRoot(() => useResource(() => Promise.resolve('secret')), store);
+
+    await settle();
+    expect(value.data.value).toBe('secret');
+
+    // A sign-out. The component has not gone anywhere — it is still on the
+    // screen — so leaving the last answer in it is the whole failure.
+    store.clear();
+
+    expect(value.data.value).toBeUndefined();
+    expect(value.status.value).toBe('idle');
+    stop();
+  });
+
+  it('stops an answer that was already on its way when it was cleared', async () => {
+    const store = createData();
+    let answer!: (value: string) => void;
+    const { value, stop } = inRoot(
+      () =>
+        useResource(
+          () =>
+            new Promise<string>((done) => {
+              answer = done;
+            }),
+        ),
+      store,
+    );
+
+    await settle();
+    store.clear();
+    answer('late');
+    await settle();
+
+    // The store forgot this resource, so nothing it was waiting for may
+    // arrive and write itself back in.
+    expect(value.data.value).toBeUndefined();
+    stop();
+  });
+
+  it('leaves a cleared resource unable to run again', async () => {
+    const store = createData();
+    let runs = 0;
+    const { value, stop } = inRoot(
+      () =>
+        useResource(() => {
+          runs++;
+          return Promise.resolve('value');
+        }),
+      store,
+    );
+
+    await settle();
+    expect(runs).toBe(1);
+
+    store.clear();
+    await value.reload();
+    await settle();
+
+    // Cleared means finished, not merely unregistered: a resource the store
+    // can no longer reach must not keep talking to the server either.
+    expect(runs).toBe(1);
+    expect(value.data.value).toBeUndefined();
+    stop();
+  });
+
   it('reports an invalidation that matched nothing as matching nothing', async () => {
     const store = createData();
     const run = vi.fn(() => Promise.resolve('value'));

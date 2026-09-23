@@ -14,7 +14,7 @@ Read in order the first time; each page assumes the ones before it.
 | 2   | [Reactivity](guide/02-reactivity.md)                       | Signals, computeds, effects, batching, when the DOM updates       |
 | 3   | [Components](guide/03-components.md)                       | Running once, props, children, what replaces re-rendering         |
 | 4   | [Rendering](guide/04-rendering.md)                         | Conditionals, lists and keys, fragments, portals, refs            |
-| 5   | [Context and lifecycle](guide/05-context-and-lifecycle.md) | Sharing values, cleanup, error boundaries, the owner tree         |
+| 5   | [Context and lifecycle](guide/05-context-and-lifecycle.md) | Sharing values, cleanup, error boundaries, the owner tree, async  |
 | 6   | [Events and forms](guide/06-events-and-forms.md)           | Delegation, custom events, controlled inputs, validation          |
 | 7   | [Styling](guide/07-styling.md)                             | Plain CSS, `class`, and `@firsthandjs/styled`                     |
 | 8   | [Routing](guide/08-routing.md)                             | Nested routes, params, links, code loaded on demand               |

@@ -158,7 +158,7 @@ import { getOwner, runWithOwner } from '@firsthandjs/core';
 
 const owner = getOwner();
 
-// Later, outside any scope — in a callback, a promise, an event from elsewhere:
+// Later, outside any scope — in a callback, an event from elsewhere:
 runWithOwner(owner, () => {
   effect(() => …); // owned by that component, disposed with it
 });
@@ -166,6 +166,98 @@ runWithOwner(owner, () => {
 
 Without `runWithOwner`, an effect created in a `setTimeout` belongs to nothing
 and is never disposed. The framework warns about that in development.
+
+`runWithOwner` is a **synchronous** bracket. It establishes the owner, runs the
+function and puts the owner back, so it does not survive an `await` — after the
+first suspension of an async function there is no owner again. That is what the
+next section is for.
+
+## Async work
+
+An `await` resumes with no owner. Nothing above reaches past it, so an
+asynchronous continuation can outlive the component it started in and still
+write to it:
+
+```ts
+onClick={async () => {
+  const saved = await save(draft.value);
+  status.value = saved; // the component may be long gone
+}}
+```
+
+That write is the quietest bug the framework can produce: the component is
+disposed, its subscribers are already unlinked, so the value changes, nothing
+updates, and nothing is reported.
+
+`task` is the fix. It owns an `AbortController`, hangs a scope off the current
+owner, and asks that owner to abort it on disposal:
+
+```ts
+import { task } from '@firsthandjs/core';
+
+task(async ({ signal, resume }) => {
+  const saved = await resume(save(draft.value, { signal }));
+  status.value = saved; // reached only while this is still the current run
+});
+```
+
+`resume` is what makes it work. It awaits the value and then checks whether this
+run is still the one anybody wants; if the task has been aborted in the
+meantime, it throws and the rest of the body never runs. The task swallows that
+— being superseded is the machinery working, not an error to handle.
+
+### Supersession is free
+
+Put a task inside an effect and you get "the newest run wins" without writing
+any bookkeeping, because disposing the previous run is something the owner tree
+already does:
+
+```ts
+effect(() => {
+  const id = userId.value;
+  task(async ({ signal, resume }) => {
+    profile.value = await resume(fetchUser(id, { signal }));
+  });
+});
+```
+
+When `userId` changes the effect runs again, which disposes what the last run
+made, which aborts that task, which makes its next `resume` throw. A slow first
+request can no longer answer last and overwrite a newer value.
+
+### Context and cleanup after an await
+
+There is no ambient owner after a suspension, so anything that needs to know
+what it belongs to goes through `run`:
+
+```ts
+task(async ({ resume, run }) => {
+  await resume(tick());
+  run(() => {
+    const theme = useContext(Theme).value;
+    onCleanup(() => release());
+  });
+});
+```
+
+A task's scope ends when its work ends, so what `run` creates is disposed when
+the task finishes. Anything that has to outlive it belongs to the owner above.
+
+The handle it returns carries the result and a way to stop it by hand:
+
+```ts
+const job = task(async ({ resume }) => resume(work()));
+
+job.abort(); // the next resume throws, the scope is disposed
+await job.promise; // never rejects: undefined if it was superseded or threw
+```
+
+An error that is _not_ supersession goes to the nearest error boundary above the
+task, exactly where an error from an effect would have gone.
+
+Resources and actions in [`@firsthandjs/data`](09-data.md) follow the same
+ownership rule, so most applications get this without calling `task` directly.
+Reach for it when you are writing async work by hand.
 
 ---
 

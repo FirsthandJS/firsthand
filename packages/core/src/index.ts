@@ -11,9 +11,16 @@ export { effect } from './effect.js';
 export { batch, snapshot, untrack } from './core.js';
 export { setStrictReactivity } from './dev.js';
 export { onCleanup, createRoot, catchError, runWithOwner, getOwner } from './lifecycle.js';
+export { task } from './task.js';
+export type { Task, TaskContext } from './task.js';
 export { createContext, provide, useContext } from './context.js';
 export type { Context } from './context.js';
-export { FirsthandCycleError, FirsthandContextError, FirsthandReadonlyError } from './errors.js';
+export {
+  FirsthandCycleError,
+  FirsthandContextError,
+  FirsthandReadonlyError,
+  FirsthandSupersededError,
+} from './errors.js';
 export type {
   CellOptions,
   DeepReadonly,

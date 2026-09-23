@@ -9,7 +9,7 @@
 export { createData, DataContext, useData, useInvalidate } from './resource.js';
 export { useResource, fromObservable, fromPromise } from './resource.js';
 export { useAction } from './action.js';
-export type { Action } from './action.js';
+export type { Action, ActionConcurrency, ActionOptions } from './action.js';
 export type { ObservableLike, BridgeOptions, ResourceOptions } from './resource.js';
 export type {
   ActionContext,

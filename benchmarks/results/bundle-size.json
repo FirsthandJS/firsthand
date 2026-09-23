@@ -1,11 +1,11 @@
 {
-  "measuredAt": "2026-09-23T03:44:29.101Z",
+  "measuredAt": "2026-09-23T09:10:40.333Z",
   "sizes": [
     {
       "module": "@firsthandjs/core",
-      "minified": 6966,
-      "gzip": 2552,
-      "brotli": 2317
+      "minified": 7838,
+      "gzip": 2875,
+      "brotli": 2611
     },
     {
       "module": "@firsthandjs/dom",
@@ -27,9 +27,9 @@
     },
     {
       "module": "full runtime (core + dom, everything imported)",
-      "minified": 20733,
-      "gzip": 7673,
-      "brotli": 6930
+      "minified": 20737,
+      "gzip": 7667,
+      "brotli": 6936
     }
   ],
   "optional": [
@@ -65,15 +65,15 @@
     },
     {
       "module": "@firsthandjs/data",
-      "minified": 12734,
-      "gzip": 4917,
-      "brotli": 4507
+      "minified": 13307,
+      "gzip": 5116,
+      "brotli": 4697
     },
     {
       "module": "@firsthandjs/data (.gql loader path, parser tree-shaken)",
-      "minified": 9214,
-      "gzip": 3470,
-      "brotli": 3171
+      "minified": 9787,
+      "gzip": 3669,
+      "brotli": 3375
     },
     {
       "module": "@firsthandjs/data-axios",

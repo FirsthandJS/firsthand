@@ -355,12 +355,15 @@ describe('the edges', () => {
     stop();
   });
 
-  it('drops an action that was superseded while it was out', async () => {
+  it('drops an action that was superseded while it was out, under switch', async () => {
     const { value, stop } = inRoot(() =>
-      useAction(async (input: string) => {
-        await settle(40);
-        return input;
-      }),
+      useAction(
+        async (input: string) => {
+          await settle(40);
+          return input;
+        },
+        { concurrency: 'switch' },
+      ),
     );
 
     const first = value.run('one');
