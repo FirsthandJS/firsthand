@@ -132,27 +132,36 @@ nothing is leaked by the detachment.
   So an application that asks for `task` pays about 480 B gzip for it, and one
   that does not pays nothing.
 
-  The budget entry is **unmoved**, and that is a head-to-head measurement
-  rather than two readings subtracted. Building `13fe49e` and `0e1d758` from
-  their own worktrees, with everything else held constant:
+  The budget entry moves by **four bytes of source and six fewer after gzip**.
+  Measured with `scripts/build.mjs` — the script the budget is actually checked
+  against — at three commits, each built in its own worktree with its own
+  `npm ci`, so the workspace links resolve to the tree being measured:
 
-  | tree             | minified | gzip    | `task` present |
-  | ---------------- | -------- | ------- | -------------- |
-  | before this work | 20 802 B | 7 673 B | no             |
-  | with it applied  | 20 806 B | 7 673 B | no             |
-  | difference       | +4 B     | **0 B** |                |
+  | commit                                | minified | gzip        |
+  | ------------------------------------- | -------- | ----------- |
+  | `13fe49e` — before this work          | 20 733 B | 7 673 B     |
+  | `0e1d758` — with it applied           | 20 737 B | **7 667 B** |
+  | `a0b8a72` — the compiler fix after it | 20 737 B | 7 667 B     |
 
-  Zero gzip bytes, which is the tree-shaking doing exactly what the named
-  re-export list promises. (The absolute figures differ from the table above
-  because that one resolves `@firsthandjs/core` the way `scripts/build.mjs`
-  does and this one aliases each tree to its own source; what is comparable
-  here is the difference, and both halves were measured the same way.)
+  The third row is the control: that change is compiler-only and cannot touch
+  the browser runtime, and it moves neither figure, which is what says the
+  instrument is reading the tree rather than the weather.
 
-  An earlier draft of this ADR read "7 673 B before and 7 667 B after" and was
-  wrong: those two numbers came from different measurement setups, not from
-  two trees, and subtracting them invented a six-byte saving that does not
-  exist. The rule this repository already applies to benchmarks applies here
-  too — a delta is only a delta when one thing moved.
+  `task` itself is not in that bundle — the `was superseded` literal is absent
+  from all three — so the four bytes are a marginal knock-on rather than the
+  cost of the feature, and the six are gzip encoding them in a context that
+  happens to compress better. Small source changes can move a compressed total
+  in either direction, which is the reason to measure the total rather than
+  reason about the parts.
+
+  Two earlier attempts at this paragraph were wrong in opposite directions, and
+  both failed the same way. The first subtracted a figure from `build.mjs` from
+  one produced by a hand-written probe. The second replaced it with "zero",
+  measured head-to-head but with a probe that aliases `@firsthandjs/core` to
+  source instead of resolving it the way the build does — a bundle 69 B larger
+  than anything that ships, whose compressed total says nothing about the one
+  that does. A delta is only a delta when one thing moved **and** the
+  instrument is the one whose readings are claimed.
 
   `@firsthandjs/core` measured on its own does grow, by 323 B, because its own
   entry point exports everything it has — that figure is in the reference table
