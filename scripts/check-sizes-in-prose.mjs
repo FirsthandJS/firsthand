@@ -65,6 +65,16 @@ function budgetFromBuild() {
  * compare prose against whatever was measured hours ago. That is how
  * `check:tests` misled a session yesterday: it reads a report only one command
  * writes, and said the counts were current when they were 49 tests stale.
+ *
+ * `build.mjs` rewrites the file on every build — only the `measuredAt` value
+ * is held back when nothing moved — so the timestamp this compares against is
+ * real inside `npm run check`, where the build always runs first.
+ *
+ * On a fresh clone that has never been built, every file carries a checkout
+ * time and which one lands first is arbitrary, so this can fail with nothing
+ * wrong. That is left alone deliberately. A false failure says "run
+ * `npm run build` first" and costs somebody thirty seconds; a false pass is
+ * what put two wrong numbers in the documentation this week.
  */
 function newestSource() {
   let newest = { path: '', at: 0 };
