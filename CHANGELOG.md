@@ -13,6 +13,13 @@ All notable changes to this project are documented here. The format follows
   `@babel/types` and is for anywhere else — `@babel/standalone` in a browser
   tab, which is what the playground compiles with.
 
+- **A styled component hands its element to a `ref`.** `ref` is in no
+  element's prototype, and the rule deciding which props reach the DOM asks
+  exactly that — so `<Host ref={…} />` on a styled component was dropped in
+  silence, and a styled wrapper was the one element you could not reach. Which
+  is the first thing an editor, a canvas or a `<video>` needs. Found while
+  mounting Monaco in the playground.
+
 ### Changed
 
 - **The compiler runs in a browser.** Module ids were hashed with

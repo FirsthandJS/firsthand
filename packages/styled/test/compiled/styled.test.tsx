@@ -348,3 +348,46 @@ describe('the theme', () => {
     expect(box.style.getPropertyValue(property)).toBe('black');
   });
 });
+
+describe('a styled component is an element you can reach', () => {
+  it('hands its element to a ref', () => {
+    // What an editor, a canvas or a <video> needs before anything else: the
+    // node itself. `ref` is in no element's prototype, so the forwarding rule
+    // that asks `name in element` never said yes to it.
+    const Host = styled.div`
+      color: red;
+    `;
+    let given: Element | null = null;
+    const App = component(() => (
+      <Host
+        ref={(element: Element) => {
+          given = element;
+        }}
+      />
+    ));
+    const view = mount(() => <App />);
+
+    expect(given).not.toBeNull();
+    expect(given).toBe(view.get('div'));
+  });
+
+  it('gives the ref the element, not the wrapper, through a wrapped component', () => {
+    const Base = styled.button`
+      border: 0;
+    `;
+    const Loud = styled(Base)`
+      font-weight: 700;
+    `;
+    let given: Element | null = null;
+    const App = component(() => (
+      <Loud
+        ref={(element: Element) => {
+          given = element;
+        }}
+      />
+    ));
+    const view = mount(() => <App />);
+
+    expect(given).toBe(view.get('button'));
+  });
+});
