@@ -1,17 +1,17 @@
 /**
- * Asserts that what was just published carries the attestation it claims.
+ * Asserts that what a release workflow just published carries provenance.
  *
- * Every manifest says `publishConfig.provenance: true`, which is a
- * supply-chain claim: this tarball was built from this commit, by this
- * workflow, and here is the signature to check it with. The claim was false
- * for thirteen releases — every release run failed at the publish step and the
- * packages went out by hand instead, where provenance is not merely absent but
- * has to be switched off with `--provenance=false` before npm will publish at
- * all (#50).
+ * The release publishes with `npm publish --provenance`, which asks npm to
+ * sign a statement saying which commit and which workflow built the tarball.
+ * Asking is not the same as getting: for thirteen releases nothing checked,
+ * and nothing was getting it — every release run failed at the publish step
+ * and the packages went out by hand instead (#50).
  *
- * So the claim is read back from the registry rather than trusted. A release
- * that published without provenance fails here, loudly, while whoever ran it
- * is still watching.
+ * So it is read back from the registry rather than trusted. A release that
+ * published without provenance fails here, loudly, while whoever ran it is
+ * still watching. It is the last step of `release.yml` and is meant to be run
+ * after a publish; run by hand against a hand-published version it will fail,
+ * correctly, because a hand publish has no provenance to find.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

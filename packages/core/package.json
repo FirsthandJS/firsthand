@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/core",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "Fine-grained reactive core: signals, computeds, effects, owners and context. No DOM.",
   "license": "MIT",
   "type": "module",
@@ -23,8 +23,7 @@
     "node": ">=20.11.0"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "repository": {
     "type": "git",

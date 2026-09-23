@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/compiler",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "Build-time TSX transform for Firsthand: static markup into templates, dynamic expressions into DOM parts.",
   "license": "MIT",
   "type": "module",
@@ -36,8 +36,7 @@
     "node": ">=20.11.0"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "repository": {
     "type": "git",

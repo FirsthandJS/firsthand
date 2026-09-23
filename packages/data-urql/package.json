@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/data-urql",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "Loaders for urql, for @firsthandjs/data. Takes your client; never configures it.",
   "license": "MIT",
   "type": "module",
@@ -19,14 +19,13 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@firsthandjs/data": "0.11.0"
+    "@firsthandjs/data": "0.11.1"
   },
   "engines": {
     "node": ">=20.11.0"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "repository": {
     "type": "git",
