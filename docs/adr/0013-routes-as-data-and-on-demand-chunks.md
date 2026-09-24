@@ -78,7 +78,7 @@ real page when the chunk lands, no callback and no state machine. `<Link
 preload>` calls the same function on `pointerenter` and `focus`, attached
 directly rather than through delegation because neither event bubbles.
 
-**Failing to load.** _Amended (0.11.2):_ the first version of this design had
+**Failing to load.** _Amended (0.12.0):_ the first version of this design had
 only the success path. An import that rejects — a deploy replaced the build
 while somebody had the old document open, which is the ordinary reason — left
 the signal empty and the rejection unhandled, so the pending view stayed on

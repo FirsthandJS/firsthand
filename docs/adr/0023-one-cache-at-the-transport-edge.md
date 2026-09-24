@@ -137,7 +137,7 @@ URL — so two pages of one list were one entry. Keys now include `params`,
 through an exported `stableKey` that is order-independent, and a caller writing
 their own `cacheKey` is told to use it.
 
-_Amended (0.11.2):_ order-independence is not the whole property. `stableKey`
+_Amended (0.12.0):_ order-independence is not the whole property. `stableKey`
 built its key with `JSON.stringify`, which answers `null` for anything it has no
 syntax for and `undefined` for anything it refuses — so `NaN` and `Infinity`
 keyed as `null`, a `Map`, a `Set` and a `RegExp` all keyed as `{}`, every

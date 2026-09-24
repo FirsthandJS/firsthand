@@ -6,6 +6,58 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-25
+
+An external review of the framework, and what verifying it found. Ten fixes,
+one new prop, and two checks so that three of them cannot come back.
+
+A minor version rather than a patch: `error` is new API, and four of the fixes
+change what working code does. None of them is a change of mind — each is a
+place where the framework did something other than what it says it does — but
+they are visible, so they are listed under **Changed** rather than buried in
+**Fixed**.
+
+### Security
+
+- **A spread cannot write an attribute name it was handed.** `{...props}` is the
+  one place where a runtime object decides the _names_ in the markup, and the
+  names were interpolated as they arrived. An application spreading a dictionary
+  it did not write — a database row, a query string, a JSON body — handed its
+  author the page:
+
+  ```tsx
+  <div {...{ onmouseover: 'alert(1)' }} />        // ran, in the browser and from the server
+  <div {...{ 'x onmouseover': 'alert(1)' }} />    // two attributes, server-side
+  ```
+
+  The guard that existed asked for a capital letter after `on`, which is how a
+  component spells a handler and not how an attacker does. The server now writes
+  only names a browser would accept, both sides refuse anything beginning with
+  `on` that is not a listener, and development says which name was dropped.
+
+### Added
+
+- **`error` on `Router` and on a route**, shown when a lazy route's chunk fails
+  to load. The route's own wins over the router's; with neither, the failure is
+  thrown where the route would have rendered, so a `catchError` above the router
+  sees it.
+
+### Changed
+
+- **A destructuring default applies to `undefined` alone**, as it does in the
+  language. `({ count = 0 })` compiled to `props.count ?? 0`, so a parent passing
+  `null` — which is what an API returns for "known to be empty" — got the default
+  back. If you relied on `null` becoming the default, write it out.
+- **A spread key spelled in lower case is no longer a listener.**
+  `{...{ onmouseover: handler }}` used to attach; spell it `onMouseOver`. This is
+  the security fix above, and the server could never serialize the lower-case
+  form anyway.
+- **`{ title: null }` removes the attribute rather than writing `"null"`.** The
+  browser assigned nothing as a property and it stringified; the compiled path
+  and the server both wrote no attribute.
+- **Cache keys changed shape** for values `JSON.stringify` could not spell.
+  Keys are an in-memory detail, so this costs a cold cache and nothing else.
+
 ### Fixed
 
 - **`stableKey` no longer gives two different requests the same key.** It
@@ -1522,6 +1574,7 @@ strictReactivity: false })` restores the previous behaviour.
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.12.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.12.0
 [0.11.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.11.1
 [0.11.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.11.0
 [0.10.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.10.1

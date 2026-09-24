@@ -100,7 +100,7 @@ resolved at setup time, which is the snapshot this avoids), an array pattern
 (props are an object), and any pattern the rewrite cannot follow.
 
 A default is re-applied on every read, which is what the language does, and it
-applies to `undefined` alone — also what the language does. _Amended (0.11.2):_
+applies to `undefined` alone — also what the language does. _Amended (0.12.0):_
 the emitted form was `props.count ?? 0`, and `??` answers for `null` as well, so
 a parent passing `null` got the default back instead of the null it asked for.
 `null` is what an API returns for "known to be empty", which is a different
