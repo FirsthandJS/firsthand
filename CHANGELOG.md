@@ -22,6 +22,50 @@ All notable changes to this project are documented here. The format follows
   keys as `[cycle]` rather than recursing. The same object appearing twice is
   still two ordinary occurrences — only an object inside itself is a cycle.
 
+- **A spread means the same thing on both sides.** Every shape a spread accepts
+  is decided by a runtime object, and the server answered four of them
+  differently from the browser — so the markup arrived wrong and the client
+  corrected it after the page had been painted:
+
+  | spread                        | server, before        | browser                     |
+  | ----------------------------- | --------------------- | --------------------------- |
+  | `{ class: { open: 1 } }`      | no class (`=== true`) | `class="open"` (truthiness) |
+  | `{ style: { color: 'red' } }` | nothing at all        | the style applied           |
+  | `{ 'prop:value': 'x' }`       | `prop:value="x"`      | the `value` property        |
+  | `{ 'attr:data-x': 'y' }`      | `attr:data-x="y"`     | `data-x="y"`                |
+
+  The server now uses the same `classValue`, `styleValue` and `property` its
+  compiled path already used; the spread was the one path that disagreed with
+  the rest of the server.
+
+  The browser was wrong about one of them: `{ title: null }` was assigned as a
+  property and stringified into `title="null"`, where both the compiled path
+  and the server write no attribute. Nothing is now an attribute that is not
+  there, on both sides.
+
+- **A spread cannot write an event handler any more.** `{...props}` is the one
+  place where a runtime object decides the attribute _names_ in the markup, and
+  the names were passed through as they arrived. An application that spread a
+  dictionary it did not write — a database row, a query string, a JSON body —
+  handed whoever wrote that dictionary the ability to run script on the page:
+
+  ```tsx
+  <div {...{ onmouseover: 'alert(1)' }} />
+  ```
+
+  The browser ran that, and the server serialised it. Worse, on the server a
+  key containing a space (`'x onmouseover'`) became two attributes, so a name
+  could open one the markup never had — where the browser had thrown on the
+  same name, which meant the two sides also disagreed about what the markup
+  was. The old guard asked for a capital letter after `on`, which is how a
+  component spells a handler and not how an attacker does.
+
+  Now: the server writes only names that look like attribute names, both sides
+  refuse anything beginning with `on` that is not a listener, and development
+  says which name was dropped. `onClick={handler}` and `on:sl-change` are
+  unaffected — they never became attributes. A spread key spelled in lower case
+  (`onmouseover={handler}`) no longer attaches a listener; spell it `onMouseOver`.
+
 ## [0.11.1] - 2026-09-23
 
 ### Fixed

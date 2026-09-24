@@ -35,3 +35,7 @@ export function devHandedNewFunction(_store: { name: string }, _value: unknown):
 export function devHydrationMismatch(_node: Element, _html: string): void {
   /* stripped in production */
 }
+
+export function devInlineHandler(_name: string): void {
+  /* stripped in production */
+}
