@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **`stableKey` no longer gives two different requests the same key.** It
+  leaned on `JSON.stringify`, which answers `null` for anything it has no
+  syntax for and `undefined` for anything it refuses — so `NaN`, `Infinity` and
+  `null` were one key; a `Map`, a `Set`, a `RegExp` and `{}` were another; a
+  function or a symbol was a third; a BigInt threw; and a value containing
+  itself blew the stack. A colliding key is worse than a missing one, because
+  it serves one caller the other one's answer.
+
+  Maps and Sets are now read through, in a stable order; a `RegExp` keys by its
+  source and flags; a BigInt keys as `1n`; a function or a symbol keys by
+  identity, so the same one is the same request and two are not; and a cycle
+  keys as `[cycle]` rather than recursing. The same object appearing twice is
+  still two ordinary occurrences — only an object inside itself is a cycle.
+
 ## [0.11.1] - 2026-09-23
 
 ### Fixed

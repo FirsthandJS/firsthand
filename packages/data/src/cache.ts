@@ -60,24 +60,109 @@ import type { DataRequest, Loader } from './store.js';
  * served for two different requests.
  */
 export function stableKey(value: unknown): string {
+  return keyOf(value, new Set());
+}
+
+/**
+ * One value, with the objects already on the way down.
+ *
+ * `seen` is the path, not every object visited: the same object twice in one
+ * request is two ordinary occurrences, and only an object inside itself is a
+ * cycle. Without it a cyclic request did not produce a bad key — it blew the
+ * stack, which is a failure the caller cannot act on either.
+ */
+function keyOf(value: unknown, seen: Set<object>): string {
   if (value === undefined) {
     return 'undefined';
   }
-  if (value === null || typeof value !== 'object') {
-    return JSON.stringify(value);
+  if (value === null) {
+    return 'null';
   }
+  if (typeof value !== 'object') {
+    return primitive(value);
+  }
+  if (seen.has(value)) {
+    return '[cycle]';
+  }
+  seen.add(value);
+  try {
+    return composite(value, seen);
+  } finally {
+    seen.delete(value);
+  }
+}
+
+/**
+ * Everything that is not an object.
+ *
+ * `JSON.stringify` used to do all of this, and answered `null` for `NaN` and
+ * for both infinities — so a request for `NaN` and a request for `null` shared
+ * an answer. It also threw on a BigInt and answered `undefined`, as a value of
+ * type `string`, for a function or a symbol.
+ */
+function primitive(value: unknown): string {
+  switch (typeof value) {
+    case 'string':
+      return JSON.stringify(value);
+    case 'bigint':
+      return `${value.toString()}n`;
+    case 'function':
+    case 'symbol':
+      // Neither has a value to compare, so identity is the only honest key:
+      // the same function is the same request, and two functions that do the
+      // same thing are not. The alternative was a key that made every one of
+      // them equal, which served one answer for all of them.
+      return `${typeof value}#${String(identity(value as object))}`;
+    default:
+      // `String` rather than `JSON.stringify`, which is the whole point: it
+      // keeps `NaN`, `Infinity` and `-Infinity` apart from each other and
+      // from `null`.
+      return String(value);
+  }
+}
+
+/** Every object shape that is not a plain one. */
+function composite(value: object, seen: Set<object>): string {
   if (Array.isArray(value)) {
-    return `[${value.map(stableKey).join(',')}]`;
+    return `[${value.map((entry) => keyOf(entry, seen)).join(',')}]`;
   }
   if (value instanceof Date) {
     // Named, because an object branch would read every `Date` as `{}` and make
     // two different days one key.
     return value.toISOString();
   }
+  if (value instanceof RegExp) {
+    return `/${value.source}/${value.flags}`;
+  }
+  if (value instanceof Map) {
+    // Sorted by the key's own key, so two Maps built in a different order are
+    // one request — the same rule the object branch follows.
+    return `Map{${sorted([...value].map(([at, held]) => `${keyOf(at, seen)}:${keyOf(held, seen)}`))}}`;
+  }
+  if (value instanceof Set) {
+    return `Set{${sorted([...value].map((entry) => keyOf(entry, seen)))}}`;
+  }
   const entries = Object.entries(value as Record<string, unknown>)
     .filter(([, held]) => held !== undefined)
     .sort(([one], [other]) => (one < other ? -1 : 1));
-  return `{${entries.map(([name, held]) => `${name}:${stableKey(held)}`).join(',')}}`;
+  return `{${entries.map(([name, held]) => `${name}:${keyOf(held, seen)}`).join(',')}}`;
+}
+
+function sorted(parts: string[]): string {
+  return parts.sort().join(',');
+}
+
+/** A number for an object, the same one every time, for as long as it lives. */
+const identities = new WeakMap<object, number>();
+let identityCount = 0;
+
+function identity(value: object): number {
+  let number = identities.get(value);
+  if (number === undefined) {
+    number = ++identityCount;
+    identities.set(value, number);
+  }
+  return number;
 }
 
 export type CacheOptions = {
