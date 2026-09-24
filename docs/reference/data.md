@@ -218,10 +218,17 @@ can lose a write is the one you have to ask for
 | `drop`        | ignores the call and returns the promise already running.     |
 | `all`         | runs them concurrently; each settles on its own.              |
 
-`running` reports whether _any_ run is out, so it stays true under `all` until
-the last one lands. A queued run checks whether the scope is still alive when it
-starts, not when it was asked for, so one waiting behind another never begins if
-the component went away.
+`running` reports whether _any_ run is out **or waiting**, so it stays true
+under `all` until the last one lands, and stays true under `queue` across the
+gap between one run and the next: two clicks the person made as one gesture are
+one wait, and a spinner that blinked in between was reporting the machinery
+rather than the work. A queued run checks whether the scope is still alive when
+it starts, not when it was asked for, so one waiting behind another never
+begins if the component went away.
+
+`invalidates` belongs to the run that called it, not to the action, which is
+what makes it safe under `all`: two runs out at once each invalidate what they
+themselves changed.
 
 Its request carries `force: true` **and** `mutating: true`, so nothing it sends
 is answered out of a cache or written into one.
@@ -247,6 +254,33 @@ interface BridgeOptions {
 For the case a per-call-site resource is the wrong shape: the same entity in
 twenty places, kept consistent by a normalising client. Apollo, urql, RxJS and
 TanStack's `QueryObserver` all satisfy the contract.
+
+## Carrying answers across the wire
+
+```ts
+type MemoryStorage = Storage & {
+  /** Everything held, as plain data, for putting in a page. */
+  dump(): Record<string, unknown>;
+  /** Puts a server's answers in. */
+  seed(values: Record<string, unknown>): void;
+  readonly size: number;
+};
+
+function createMemoryStorage(initial?: Record<string, unknown>): MemoryStorage;
+function serialize(value: unknown): string;
+```
+
+A server render answers its resources and `dump()`s them into the page; the
+browser `seed()`s the same names before hydrating, so the first render has the
+answers already and asks for nothing. One storage per request — never one
+shared between two visitors.
+
+`serialize` is what puts that object in a `<script>`. `JSON.stringify` alone is
+not safe there: a string containing `</script>` closes the element, and `<!--`
+opens a comment the parser does not end where you expect. Those characters are
+escaped as unicode, which JSON reads back as themselves.
+
+[Server rendering](../guide/17-server-rendering.md) is the guide for this.
 
 ## Tags
 
@@ -325,6 +359,25 @@ and a **request** so that two accounts in one session cannot read each other's
 answers. `stableKey` is exported because a key you write yourself needs the
 same property: it must carry everything that varies, in an order-independent
 form.
+
+What it does with each shape, because a key that collides is worse than a key
+that misses — a miss costs a request, a collision serves one caller another's
+answer:
+
+| value                     | key                                               |
+| ------------------------- | ------------------------------------------------- |
+| object                    | entries sorted by name; `undefined` omitted       |
+| array                     | in order, as written                              |
+| `Map`, `Set`              | read through, sorted, so build order is free      |
+| `Date`                    | ISO                                               |
+| `RegExp`                  | source and flags                                  |
+| `NaN`, `±Infinity`        | themselves, and none of them is `null`            |
+| bigint                    | `1n`, which is not the number `1`                 |
+| function, symbol          | identity — the same one keys the same, two do not |
+| a value containing itself | `[cycle]` at the point it repeats                 |
+
+The same object appearing twice in one value is two ordinary occurrences; only
+an object inside itself is a cycle.
 
 ## fetch
 

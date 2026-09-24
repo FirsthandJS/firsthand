@@ -136,6 +136,26 @@ decision the call site makes, in one word, and can see.
   and nothing can change under it. A call, an assignment or an `await` keeps
   its accessor, because evaluating _those_ early could be seen.
 
+### A spread means the same thing on both sides
+
+Everything else in this document is about markup the compiler emits, where the
+two targets are generated from one description and `parity.test.ts` compares the
+trees. A spread is not that: its names and its shapes arrive at runtime, so the
+two implementations are written twice and can drift — and they had. A class
+record toggled on `=== true` on the server and on truthiness in the browser, a
+style record was skipped server-side entirely, and `prop:`/`attr:` were written
+into the markup as if they were attribute names.
+
+The rule is that a spread is a _hydration_ surface, not a serializer: what the
+server writes has to be what the browser would have built, because otherwise
+hydration is a correction rather than a comparison — a page that arrives wrong
+and moves once the runtime catches up. The two tables are asserted against each
+other in `spread-parity.test.ts`, one table in two files.
+
+A spread is also the only place where a name in the markup comes from data the
+application may not have written, which is why `on…` is refused there. That is
+in [the DOM reference](../reference/dom.md#what-a-spread-does-with-a-key).
+
 ## Performance
 
 Measured by `benchmarks/ssr/run.mjs` and `benchmarks/ssr/hydrate.mjs`, with the

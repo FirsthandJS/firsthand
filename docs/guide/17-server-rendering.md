@@ -189,6 +189,15 @@ A view that renders two different things from the same props is a bug no
 framework can repair. The usual causes are `Date.now()`, `Math.random()` and
 reading `window` in a setup.
 
+A spread is the one place where the framework itself could disagree, because
+its names and shapes come from a runtime object rather than from the compiler.
+It is written to mean the same thing on both sides — a class record toggles on
+truthiness, a style record is serialized, `prop:`/`attr:` do what they say, and
+a key spelled `onmouseover` is refused rather than written. The two tables are
+in the [DOM](../reference/dom.md#what-a-spread-does-with-a-key) and
+[server](../reference/server.md#a-spread) references, and asserted against each
+other in `spread-parity.test.ts`.
+
 ### One thing that is rebuilt
 
 Markup assigned to a local variable is built rather than adopted:

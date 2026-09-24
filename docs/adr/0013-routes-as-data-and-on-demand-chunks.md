@@ -78,6 +78,21 @@ real page when the chunk lands, no callback and no state machine. `<Link
 preload>` calls the same function on `pointerenter` and `focus`, attached
 directly rather than through delegation because neither event bubbles.
 
+**Failing to load.** _Amended (0.11.2):_ the first version of this design had
+only the success path. An import that rejects — a deploy replaced the build
+while somebody had the old document open, which is the ordinary reason — left
+the signal empty and the rejection unhandled, so the pending view stayed on
+screen for ever with nothing behind it, and the failed attempt was remembered,
+so going back never asked again.
+
+The failure is now a second signal beside the component, which the same
+rendering part reads, so reporting it is the same ordinary reactive update that
+success is. The route's `error` view wins over the router's; with neither, the
+failure is thrown where the route would have rendered and a `catchError` above
+sees it. It is forgotten before it is reported, which makes the next navigation
+a second attempt — the retry costs nothing to implement and is right far more
+often than not, because the cause is usually over by then.
+
 **Links.** `Link` builds an `<a>` with DOM calls rather than TSX, so the package
 needs no compiler pass of its own. It intercepts a click only when it is
 unmodified, left-button, and same-window; anything else is the browser's.

@@ -217,6 +217,17 @@ appear, which is the answer to "why did this update when I replaced the whole
 array?". And `keys` is what `Object.keys`, `for…in` and spreading subscribe to:
 whether the set of keys changed.
 
+## watch
+
+```ts
+function watch(onSettled: (() => void) | null): void;
+```
+
+Who to tell when the graph has settled. The panel is the only caller — it
+redraws once per settled update rather than once per write — and `watch(null)`
+stops it. A `NodeKind` is what a node in that graph is: `'signal'`,
+`'computed'`, `'effect'` or `'part'`.
+
 ## What the names are
 
 | Source            | Example                     | When                                  |

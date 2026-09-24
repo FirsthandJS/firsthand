@@ -70,6 +70,22 @@ count of outstanding runs and reports `running` from it, in the one place that
 knows. A quick run finishing while a slow one is still out no longer reports the
 action as idle.
 
+**Amended (0.11.2).** The count was of runs actually out, which left two gaps
+that the first version of this ADR did not see.
+
+A run queued behind another was not counted, and `succeed` cleared the flag
+before the count could correct it — two writes, both observed — so `running`
+went false between two queued runs and a spinner blinked in the gap. Two clicks
+the person made as one gesture are one wait, so a queued run now counts from
+`run()`, and a run reports its departure in the same batch it settles in.
+
+And `invalidates()` was recorded on the action rather than on the run, and
+cleared as each run started: under `all`, a run that declared its tags and kept
+working lost them to whichever run started next. Each run now carries its own
+list. Both are the same oversight as the one this section already describes —
+state that is per-run kept per-action — which is worth saying plainly, because
+it is the third time that shape has produced a bug here.
+
 ## Consequences
 
 - The default behaviour of `useAction` changed. The test that pinned the old
