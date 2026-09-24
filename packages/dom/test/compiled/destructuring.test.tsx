@@ -120,4 +120,43 @@ describe('destructured props', () => {
     expect(button.textContent).toBe('2');
     dispose();
   });
+
+  /**
+   * What a default means.
+   *
+   * The rewrite turns `{ count = 0 }` into a read plus a default, and the
+   * shorthand for that is `??` - which also answers for `null`. The language
+   * does not: a destructuring default applies to `undefined` alone, and a
+   * parent that passes `null` means null. The difference is not academic,
+   * because `null` is what an API returns for "known to be empty", and `0` is
+   * what a badge would then show where the parent asked for nothing. Per-read
+   * re-application is the test above this one; these are about which values
+   * count as absent.
+   */
+  describe('a default', () => {
+    it('does not apply to an explicit null, which is a value', () => {
+      const count = signal<number | null>(null);
+      const Badge = component<{ count?: number | null }>(({ count = 7 }) => <b>{String(count)}</b>);
+      const App = component(() => <Badge count={count.value} />);
+
+      const dispose = render(() => <App />, host);
+      expect(host.textContent).toBe('null');
+      dispose();
+    });
+
+    it('does not apply to an explicit zero or empty string either', () => {
+      const Badge = component<{ count?: number }>(({ count = 7 }) => <b>{count}</b>);
+      const Label = component<{ text?: string }>(({ text = 'none' }) => <i>{text}</i>);
+      const App = component(() => (
+        <>
+          <Badge count={0} />
+          <Label text="" />
+        </>
+      ));
+
+      const dispose = render(() => <App />, host);
+      expect(host.textContent).toBe('0');
+      dispose();
+    });
+  });
 });

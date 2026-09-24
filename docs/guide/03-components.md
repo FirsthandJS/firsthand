@@ -570,6 +570,11 @@ captured once:
 const Badge = component<{ count?: number }>(({ count = 0 }) => <b>{count}</b>);
 ```
 
+A default answers for `undefined` and nothing else, as it does in the language:
+`<Badge count={null} />` shows `null`, not `0`. That matters when the value
+comes from an API, where `null` usually means "known to be empty" and is not
+the same answer as "not given".
+
 Rest works too, and stays live:
 
 ```tsx

@@ -280,9 +280,13 @@ describe('component declarations', () => {
     expect(out).not.toContain('({ todo');
   });
 
-  it('re-applies a default on every read', () => {
+  it('re-applies a default on every read, for undefined alone', () => {
     const out = compile(`${IMPORTS}const A = component(({ count = 0 }) => <p>{count}</p>);`);
-    expect(out).toContain('_props.count ?? 0');
+    // Not `_props.count ?? 0`, which was what this asserted and what the
+    // compiler emitted: `??` answers for `null` as well, so a parent passing
+    // `null` got the default back where the language would have kept the null.
+    expect(out).toContain('_props.count === undefined ? 0 : _props.count');
+    expect(out).not.toContain('??');
   });
 
   it('follows a nested pattern', () => {

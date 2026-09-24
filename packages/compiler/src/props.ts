@@ -155,8 +155,11 @@ type Collected = {
  * Walks an object pattern, recording how to reach each binding from `props`.
  *
  * `{ todo }` gives `props.todo`; `{ user: { name } }` gives `props.user.name`;
- * `{ count = 0 }` gives `props.count ?? 0`, which re-applies the default on
- * every read exactly as the language would.
+ * `{ count = 0 }` gives `props.count === undefined ? 0 : props.count`, which
+ * re-applies the default on every read exactly as the language would - and
+ * defaults on `undefined` alone, also as the language does. `??` would have
+ * been shorter and answers for `null` too, so a parent passing `null` for
+ * "known to be empty" would have got the default back instead.
  */
 function collectPattern(pattern: t.ObjectPattern, base: t.Expression, into: Collected): void {
   const { reads, rests, call, name } = into;
@@ -185,7 +188,11 @@ function collectPattern(pattern: t.ObjectPattern, base: t.Expression, into: Coll
     } else if (t.isAssignmentPattern(value) && t.isIdentifier(value.left)) {
       reads.push({
         local: value.left.name,
-        access: t.logicalExpression('??', access, value.right),
+        access: t.conditionalExpression(
+          t.binaryExpression('===', access, t.identifier('undefined')),
+          value.right,
+          t.cloneNode(access),
+        ),
       });
     } else if (t.isObjectPattern(value)) {
       collectPattern(value, access, into);
