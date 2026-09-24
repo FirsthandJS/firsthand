@@ -25,8 +25,11 @@ interface ComponentOptions {
   /** Attach a shadow root. Implies `tag`. */
   shadow?: boolean;
   /** Attribute codecs, for consumers writing plain HTML. */
-  attributes?: Readonly<Record<string, (raw: string | null) => unknown>>;
+  attributes?: Readonly<Record<string, AttributeCodec>>;
 }
+
+/** Converts an attribute string to a prop value. `null` means "absent". */
+type AttributeCodec = (raw: string | null) => unknown;
 ```
 
 `id` and `name` are filled in by the compiler; do not write them by hand.
@@ -178,6 +181,35 @@ function mergeProps(...sources: Record<string, unknown>[]): Record<string, unkno
 
 Merges without flattening: every key becomes a getter delegating to its source,
 so a reactive prop stays reactive through a spread.
+
+## What a spread does with a key
+
+The compiler emits a specialised setter wherever it knows the kind of a part,
+so these rules are what is left: `class` and `style`, which accept several
+shapes, and every key that came from a runtime object.
+
+| key                       | what happens                                                    |
+| ------------------------- | --------------------------------------------------------------- |
+| `class` / `className`     | string, array or record; a record toggles on truthiness         |
+| `style`                   | string or record; a declaration with no value is removed        |
+| `ref`                     | called with the node                                            |
+| `prop:x`                  | assigned as a property                                          |
+| `attr:x`                  | written as the attribute `x`                                    |
+| `onClick`, `on:sl-change` | a listener, delegated where possible                            |
+| anything else `on…`       | **refused**, and said so in development                         |
+| `null` / `undefined`      | the attribute is removed, never written as text                 |
+| everything else           | the property where the element has one, otherwise the attribute |
+
+The refusal is a security rule. A spread often carries a dictionary the
+application did not write, and `{ onmouseover: 'alert(1)' }` would otherwise
+become an inline handler — so a name is a listener only when it is spelled the
+way a component spells one, with a capital letter or a colon after the `on`.
+A custom attribute that has to start with those two letters belongs under
+`data-`.
+
+The server writes exactly the same table, which is what makes hydration a
+comparison rather than a correction — see
+[@firsthandjs/server](server.md#a-spread).
 
 ## @firsthandjs/dom/internal
 

@@ -295,6 +295,19 @@ Raw JSON lives in `results/`. `latest.json` is the most recent run; dated files
 are kept. Nothing in `results/` is ever hand-edited — if a number looks wrong,
 re-run and commit the new file.
 
+`latest.json` records the version it measured, and `npm run check` refuses a
+build where that is not the version in the workspace. `check:readme` proves the
+README transcribes these files correctly; it cannot prove they are about this
+code, and for a while they were not — the headline comparison against React,
+Solid and Vue was measured on 0.9.0 and published from 0.11.1, faithfully
+transcribed and two releases out of date. Re-record with `npm run bench`, then
+`npm run bench:readme`.
+
+A version rather than a timestamp or a file hash, deliberately: a benchmark
+measures a machine as much as a tree, and a rule demanding a re-run for every
+touched source file is a rule people turn off. A version is the unit the claim
+is made in.
+
 ## js-framework-benchmark
 
 A reproducible integration with Stefan Krause's

@@ -207,5 +207,14 @@ type TaskContext; // see task, above
 ## Not the public contract
 
 `Cell`, `createOwner`, `disposeOwner`, `disposeCell`, `handleError`, `own`,
-`setOwner`, `createEffect` and `bind` are exported for `@firsthandjs/dom` and
-documented as internal. They may change without a major version.
+`setOwner`, `createEffect` and `bind` are exported for `@firsthandjs/dom`;
+`deferOwner`, `restoreOwner`, `setRendering` and `isRendering` for
+`@firsthandjs/server`, which renders with no live scope and needs to say so;
+and `DevtoolsHook`, `devEnterSetup` and `devExitSetup` for
+`@firsthandjs/devtools`, which is how a cell gets a name (the last two are
+empty functions in a production build).
+
+All of them are documented as internal and may change without a major version.
+They are exported rather than reached for through a private path because a
+package boundary the build can see is better than one it cannot — `check:arch`
+holds the rule, and this list is the whole of it.

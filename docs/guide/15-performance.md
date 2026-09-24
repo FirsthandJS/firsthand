@@ -105,7 +105,7 @@ has one data model.
 
 A query's identity is its tags plus its `variables`. A value in neither is
 captured in the fetcher's closure, and the entry will answer out of its first
-result for ever. See [Data](09-data.md#variables).
+result for ever. See [Whose answer is it?](09-data.md#whose-answer-is-it).
 
 ### Styles per value
 

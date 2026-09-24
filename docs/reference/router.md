@@ -237,6 +237,12 @@ function parsePath(to: string): Omit<Location, 'state' | 'key'>;
 Memory history is synchronous and needs no `window`, which is what makes it the
 right one for tests.
 
+Every history reports a navigation once. Hash history writes the fragment and
+sets the location itself, and the browser then fires `hashchange` for that
+write — an echo, which lands where the location already is and is not reported
+again. A `hashchange` the application did not cause is a navigation like any
+other.
+
 ## Paths
 
 ```ts

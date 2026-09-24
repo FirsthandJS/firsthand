@@ -175,9 +175,9 @@ import { compileModule } from '@firsthandjs/compiler';
 const { code, map } = compileModule(source, { filename, sourceMaps: true });
 ```
 
-`map` is a `SourceMap` — the shape a bundler expects, so the plugin's
-`transform` result is assignable to Rollup's `SourceMapInput` without a cast.
-It is `null` when no map was asked for.
+It returns a `Compiled`: `code`, and `map`, which is a `SourceMap` — the shape
+a bundler expects, so the plugin's `transform` result is assignable to Rollup's
+`SourceMapInput` without a cast. `map` is `null` when no map was asked for.
 
 `transform` remains the string-returning form, and asks for no map.
 
@@ -228,7 +228,9 @@ dynamic expressions become thunks passed to the specialised parts in
 [`@firsthandjs/dom/internal`](dom.md#firsthandjsdominternal); nodes are reached by
 child index rather than by query. Props destructuring in a component's
 parameter list is rewritten into live reads, so `({ count }) => …` stays
-reactive.
+reactive, and a default is re-applied per read for `undefined` alone —
+`({ count = 0 })` emits `props.count === undefined ? 0 : props.count`, so a
+parent passing `null` means null.
 
 The emitted code is a contract with the runtime, versioned by
 `PROTOCOL_VERSION`: the compiler and `@firsthandjs/dom` are upgraded together.

@@ -222,7 +222,14 @@ const track = useAction(report, { concurrency: 'all' });
 ```
 
 `running` stays true until the last outstanding run lands, so a quick one
-finishing while a slow one is still out does not report the action as idle.
+finishing while a slow one is still out does not report the action as idle —
+and it stays true across a queue, from the moment `run()` is called rather than
+from the moment the work starts. Two clicks the person made as one gesture are
+one wait, and a button that re-enabled itself between them was reporting the
+machinery rather than the work.
+
+`invalidates()` belongs to the run that called it. Under `all` two runs are out
+at once, and each invalidates what it changed, not what the other did.
 
 **Nothing an action sends touches the cache.** Its request carries `force`, so
 it is never answered from memory, and `mutating`, so its answer is never _put_

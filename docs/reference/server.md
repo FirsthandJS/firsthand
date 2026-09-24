@@ -120,6 +120,28 @@ The last two are performance decisions with a visible edge, and both are in
   `signal`, `onCleanup` or `catchError` makes one, with the right parent; a
   component that only reads its props and returns markup never needs one.
 
+### A spread
+
+`{...props}` is the one place where the attribute _names_ and the _shapes_ come
+from a runtime object rather than from the compiler, so it is written to mean
+exactly what `applyProp` means in a browser:
+
+| spread key                | server                                                                                           |
+| ------------------------- | ------------------------------------------------------------------------------------------------ |
+| `class` / `className`     | string, array or record; a record toggles on truthiness, as `classList` does                     |
+| `style`                   | string or record; a record is serialized, hyphenated, and declarations with no value are dropped |
+| `prop:x`                  | the attribute a parser seeds for that property, or nothing                                       |
+| `attr:x`                  | the attribute `x`                                                                                |
+| `onClick`, `on:sl-change` | nothing; a listener is not markup                                                                |
+| anything else `on…`       | **refused**, with a warning                                                                      |
+| everything else           | the attribute, if the key is a name a browser accepts                                            |
+
+The last two are a security rule, not a style one. A spread often carries a
+dictionary the application did not write — a database row, a query string, a
+JSON body — and a key such as `onmouseover`, or one containing a space, would
+otherwise put script into the page. A custom attribute that has to start with
+those two letters belongs under `data-`.
+
 ## @firsthandjs/server/internal
 
 The compiler/runtime protocol for a server render — the twin of
@@ -130,3 +152,8 @@ what makes "no benchmark-only runtime" enforceable rather than promised.
 Two surfaces, one set of semantics — a promise kept by measurement rather than
 by care: `packages/server/test/parity.test.ts` renders every shape the compiler
 can emit both ways and compares the trees.
+
+What that test cannot reach is a spread, because a spread's shapes are not
+emitted by the compiler — they arrive at runtime. That is where the two sides
+had drifted apart, and `spread-parity.test.ts`, in `packages/server/test` and
+`packages/dom/test`, is the same table asserted against both.

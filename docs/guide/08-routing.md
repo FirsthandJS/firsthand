@@ -139,6 +139,23 @@ that the chunk is already there when the click happens.
 
 The module may export the component as `default` or be the component itself.
 
+### When the chunk does not arrive
+
+```tsx
+{ path: 'reports', lazy: () => import('./reports.js'), error: (why) => <Sorry why={why} /> }
+```
+
+The ordinary reason is a deploy: the build was replaced while somebody had the
+old document open, and the file that page asks for is gone. The router renders
+`error` — the route's own, or the one given to `Router`. With neither, the
+failure is thrown where the route would have rendered, so a `catchError` above
+the router sees it.
+
+Either way the failure is forgotten rather than remembered, so the next
+navigation to that route asks for the chunk again. What must not happen — and
+what used to — is the pending view staying on screen for ever with nothing
+behind it and no reason given.
+
 ## Navigating in code
 
 ```tsx
@@ -182,6 +199,9 @@ render. Nothing is painted in between.
 ```
 
 A history the `Router` created is disposed with it; one you passed in is yours.
+
+`basename` is a path segment, not a string prefix: `/app` covers `/app` and
+everything under `/app/`, and has nothing to do with `/apple`.
 
 Memory history is what tests should use — synchronous, inspectable, no
 `window`:

@@ -137,6 +137,16 @@ URL — so two pages of one list were one entry. Keys now include `params`,
 through an exported `stableKey` that is order-independent, and a caller writing
 their own `cacheKey` is told to use it.
 
+_Amended (0.11.2):_ order-independence is not the whole property. `stableKey`
+built its key with `JSON.stringify`, which answers `null` for anything it has no
+syntax for and `undefined` for anything it refuses — so `NaN` and `Infinity`
+keyed as `null`, a `Map`, a `Set` and a `RegExp` all keyed as `{}`, every
+function and symbol keyed alike, a BigInt threw, and a value containing itself
+blew the stack. A key that misses costs a request; a key that collides serves
+one caller another's answer, which is the failure this whole document exists to
+prevent. The shapes are now read through explicitly, and the table is in [the
+data reference](../reference/data.md).
+
 **An action is not cacheable, at all.** Also 0.6.2's review. `force` kept an
 action from being _answered_ out of the cache, but nothing kept its answer from
 being _written_ there: a `GET` that recalculates something — plenty of real

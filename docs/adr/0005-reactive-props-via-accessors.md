@@ -99,6 +99,17 @@ to a destructured prop (props are readonly), a computed key (it would have to be
 resolved at setup time, which is the snapshot this avoids), an array pattern
 (props are an object), and any pattern the rewrite cannot follow.
 
+A default is re-applied on every read, which is what the language does, and it
+applies to `undefined` alone — also what the language does. _Amended (0.11.2):_
+the emitted form was `props.count ?? 0`, and `??` answers for `null` as well, so
+a parent passing `null` got the default back instead of the null it asked for.
+`null` is what an API returns for "known to be empty", which is a different
+answer from "not given", and a component could not tell them apart. It is now
+`props.count === undefined ? 0 : props.count`. Two reads of an accessor rather
+than one, which is the price of meaning the same thing the language means —
+and the compiler test asserted the wrong output verbatim, so the behaviour was
+blessed rather than merely untested.
+
 ### This reverses an earlier decision
 
 The first version of this ADR rejected destructuring outright, on the argument
