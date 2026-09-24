@@ -75,7 +75,7 @@ export function useAction<I, R>(
   const store = useData();
   const entry = createHeld<R>(store, undefined);
   const concurrency = options.concurrency ?? 'queue';
-  const holder: Running = { controller: null, invalidating: [], live: new Set(), outstanding: 0 };
+  const holder: Running = { controller: null, live: new Set(), outstanding: 0, waiting: 0 };
   /** The run `drop` hands back, and the one `queue` waits behind. */
   let inflight: Promise<R | undefined> | null = null;
 
@@ -104,12 +104,9 @@ export function useAction<I, R>(
           controller.abort();
         }
       }
-      // `once` never rejects, so chaining on it needs no `catch` and one
-      // failed run does not stop the queue behind it.
-      const started =
-        concurrency === 'queue' && inflight !== null
-          ? inflight.then(() => once(entry, store, holder, (context) => run(input, context)))
-          : once(entry, store, holder, (context) => run(input, context));
+      const started = chain(holder, inflight, concurrency === 'queue', () =>
+        once(entry, store, holder, (context) => run(input, context)),
+      );
       inflight = started;
       void started.then(() => {
         if (inflight === started) {
@@ -121,15 +118,48 @@ export function useAction<I, R>(
   };
 }
 
+/**
+ * Where a run joins.
+ *
+ * Under `queue` it waits behind the one in flight; otherwise it starts now.
+ * The wait is counted from here rather than from the moment the work starts,
+ * because `running` is what a button asks, and a run waiting its turn is not a
+ * moment when nothing is happening.
+ *
+ * `once` never rejects, so chaining on it needs no `catch` and one failed run
+ * does not stop the queue behind it.
+ */
+function chain<R>(
+  holder: Running,
+  inflight: Promise<R | undefined> | null,
+  queued: boolean,
+  begin: () => Promise<R | undefined>,
+): Promise<R | undefined> {
+  if (!queued || inflight === null) {
+    return begin();
+  }
+  holder.waiting++;
+  return inflight.then(() => {
+    holder.waiting--;
+    return begin();
+  });
+}
+
 /** The run in flight, if any. One object so `onCleanup` and `once` share it. */
 type Running = {
   controller: AbortController | null;
-  /** What this run said it changed. Reset before every run, so never absent. */
-  invalidating: Tag[];
   /** Every run still out. More than one only under `all`. */
   live: Set<AbortController>;
-  /** How many runs are out, which is what `running` reports. */
+  /** How many runs are out. */
   outstanding: number;
+  /**
+   * How many are queued behind them.
+   *
+   * Counted from the moment `run` is called rather than from the moment the
+   * work starts, because `running` is what a button asks, and a run waiting
+   * its turn is not a moment when nothing is happening.
+   */
+  waiting: number;
 };
 
 /**
@@ -140,9 +170,12 @@ type Running = {
  * invalidation, so a client that knows what a mutation changed — a document
  * with `@invalidates` — reports it without the call site repeating it.
  */
-function contextFor(holder: Running, current: AbortController): ActionContext {
+function contextFor(invalidating: Tag[], current: AbortController): ActionContext {
   const invalidates = (...tags: Tag[]): void => {
-    holder.invalidating = tags;
+    // This run's own list, not the holder's: under `all` two runs are out at
+    // once, and a shared one meant whichever spoke last spoke for both.
+    invalidating.length = 0;
+    invalidating.push(...tags);
   };
   return {
     signal: current.signal,
@@ -162,6 +195,41 @@ function contextFor(holder: Running, current: AbortController): ActionContext {
  * Untracked: an action runs from an event handler, and what it reads on the
  * way is nobody's dependency.
  */
+/**
+ * How a run takes itself out, and settles in the same batch.
+ *
+ * `succeed` and `fail` each clear `loading` for their own run, which is too
+ * early when somebody else is still out or queued behind - and correcting it
+ * afterwards would be a second write, so anything watching `running` would see
+ * `false` in between and blink. Leaving is therefore part of settling rather
+ * than something the `finally` tidies up afterwards.
+ *
+ * `left` is a call rather than a flag for the same reason `gone` is: the
+ * compiler cannot see that the closure below assigns it.
+ */
+function departure<R>(
+  entry: Held<R>,
+  holder: Running,
+  current: AbortController,
+  gone: () => boolean,
+): { left: () => boolean; leave: (settle?: () => void) => void } {
+  let done = false;
+  return {
+    left: () => done,
+    leave: (settle?: () => void): void => {
+      done = true;
+      holder.live.delete(current);
+      holder.outstanding--;
+      batch(() => {
+        settle?.();
+        if (!gone()) {
+          entry.loading.value = holder.outstanding + holder.waiting > 0;
+        }
+      });
+    },
+  };
+}
+
 async function once<R>(
   entry: Held<R>,
   store: DataStore,
@@ -181,37 +249,40 @@ async function once<R>(
   holder.controller = current;
   holder.live.add(current);
   holder.outstanding++;
-  holder.invalidating = [];
-  const context = contextFor(holder, current);
+  const invalidating: Tag[] = [];
+  const context = contextFor(invalidating, current);
   batch(() => {
     entry.loading.value = true;
     entry.status.value = 'loading';
   });
+
+  const { left, leave } = departure(entry, holder, current, gone);
 
   try {
     const result = await untrack(() => body(context));
     if (current.signal.aborted || gone()) {
       return undefined;
     }
-    succeed(entry, result);
-    if (holder.invalidating.length > 0) {
-      await store.invalidate(...holder.invalidating);
+    leave(() => {
+      succeed(entry, result);
+    });
+    if (invalidating.length > 0) {
+      await store.invalidate(...invalidating);
     }
     return result;
   } catch (error: unknown) {
     if (current.signal.aborted || gone()) {
       return undefined;
     }
-    fail(entry, error);
+    leave(() => {
+      fail(entry, error);
+    });
     return undefined;
   } finally {
-    holder.live.delete(current);
-    holder.outstanding--;
-    // `succeed` and `fail` each cleared it for their own run; under `all` that
-    // is too early, because somebody else is still out. This is the only place
-    // that knows.
-    if (!gone()) {
-      entry.loading.value = holder.outstanding > 0;
+    // The paths that returned without settling: aborted, or the component
+    // went away while the work was out.
+    if (!left()) {
+      leave();
     }
   }
 }

@@ -415,8 +415,8 @@ Optional packages, downloaded only by an application that imports them:
 | `@firsthandjs/devtools` | 17.44 kB | **6.40 kB** | 5.62 kB |
 | `@firsthandjs/i18n` | 0.63 kB | **0.37 kB** | 0.32 kB |
 | `@firsthandjs/router` | 8.36 kB | **3.36 kB** | 3.06 kB |
-| `@firsthandjs/data` | 13.65 kB | **5.25 kB** | 4.80 kB |
-| `@firsthandjs/data (.gql loader path, parser tree-shaken)` | 9.56 kB | **3.58 kB** | 3.29 kB |
+| `@firsthandjs/data` | 13.82 kB | **5.34 kB** | 4.88 kB |
+| `@firsthandjs/data (.gql loader path, parser tree-shaken)` | 9.72 kB | **3.67 kB** | 3.37 kB |
 | `@firsthandjs/data-axios` | 1.31 kB | **0.62 kB** | 0.55 kB |
 | `@firsthandjs/data-urql` | 1.20 kB | **0.63 kB** | 0.55 kB |
 | `@firsthandjs/data-apollo` | 1.61 kB | **0.75 kB** | 0.68 kB |
@@ -518,7 +518,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 1322 tests under Vitest and 102
+This repository is the demonstration: 1324 tests under Vitest and 102
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all eight examples.
 <!-- prettier-ignore-end -->
