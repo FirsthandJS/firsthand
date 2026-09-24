@@ -70,7 +70,7 @@ count of outstanding runs and reports `running` from it, in the one place that
 knows. A quick run finishing while a slow one is still out no longer reports the
 action as idle.
 
-**Amended (0.11.2).** The count was of runs actually out, which left two gaps
+**Amended (0.12.0).** The count was of runs actually out, which left two gaps
 that the first version of this ADR did not see.
 
 A run queued behind another was not counted, and `succeed` cleared the flag
