@@ -98,6 +98,34 @@ function host(target: Declared, content: unknown): Markup {
  * things a server cannot write: handlers, refs and properties with no
  * attribute behind them.
  */
+/**
+ * A name an attribute may have.
+ *
+ * The XML-ish grammar a browser accepts from `setAttribute`: a letter, an
+ * underscore or a colon, then word characters, dots, colons and dashes. What
+ * it excludes is the point — a space opens a second attribute, a quote closes
+ * the value, and `>` closes the tag.
+ */
+const NAME = /^[a-zA-Z_:][\w.:-]*$/u;
+
+/**
+ * `on` followed by letters, which is what an event handler content attribute
+ * looks like and what an inline script arrives as.
+ *
+ * A component's own handler never comes through here: `onClick={…}` is a
+ * listener the DOM layer attaches and the server has nothing to serialize for
+ * it. So refusing this costs nothing that works, and a name a spread cannot
+ * distinguish from `onerror` is a name it should not write. An attribute
+ * genuinely called `onboarding` has to be spelled `data-onboarding`, which is
+ * where a custom attribute belongs anyway.
+ */
+const HANDLER = /^on/iu;
+
+/** Whether a runtime key may be written as an attribute name at all. */
+function writable(name: string): boolean {
+  return NAME.test(name) && !HANDLER.test(name);
+}
+
 export function spread(values: Record<string, unknown>): string {
   let out = '';
   for (const name in values) {
@@ -110,6 +138,23 @@ export function spread(values: Record<string, unknown>): string {
       continue;
     }
     if (name === 'style' && typeof value === 'object') {
+      continue;
+    }
+    // Everything above this line is a name the framework chose. Below it, the
+    // name came from the object being spread, and an application does not
+    // always know what is in one — a row from a database, a query string, a
+    // JSON body. A value has always been escaped; a name was interpolated as
+    // it arrived, and `{'x onmouseover': 'alert(1)'}` was two attributes.
+    if (!writable(name)) {
+      // Said out loud, always. This is a server, where a warning costs
+      // nothing and silence costs somebody an afternoon — and a refused name
+      // is usually the first sign that a dictionary reaching the markup is
+      // not the dictionary its author thought.
+      console.warn(
+        `[firsthand] a spread will not write the attribute name ${JSON.stringify(name)}: ` +
+          'it is not a name a browser would accept, or it is an event handler. ' +
+          'A custom attribute belongs under `data-`.',
+      );
       continue;
     }
     out += attribute(name, value);

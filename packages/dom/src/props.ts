@@ -6,6 +6,7 @@ import {
   setStyle,
   setStyleObject,
 } from './attributes.js';
+import { devInlineHandler } from './dev.js';
 import { on } from './events.js';
 
 /**
@@ -37,8 +38,18 @@ export function applyProp(node: Element, name: string, value: unknown): void {
     setAttribute(node, name.slice(5), value);
     return;
   }
-  if (name.startsWith('on') && name.length > 2 && /[A-Z:]/.test(name[2] as string)) {
-    applyEvent(node, name, value);
+  if (/^on/iu.test(name)) {
+    // `onClick` and `on:sl-change` are the two spellings a component writes,
+    // and both become listeners. Anything else spelled `on...` is an event
+    // handler content attribute, and the only way to arrive at one here is a
+    // key that came out of data rather than out of a component - writing it
+    // is how a page ends up running script nobody wrote. The server refuses
+    // the same names, so the two sides agree about what the markup is.
+    if (name.length > 2 && /[A-Z:]/u.test(name[2] as string)) {
+      applyEvent(node, name, value);
+    } else {
+      devInlineHandler(name);
+    }
     return;
   }
   if (name in node && typeof value !== 'string') {

@@ -581,6 +581,16 @@ const Input = component<{ label: string } & DomProps>(({ label, ...rest }) => (
 ));
 ```
 
+A spread will not write an event handler as an attribute. `onClick={handler}`
+is a listener and always was; a key spelled `onmouseover`, `onerror` or
+anything else beginning with `on` is refused instead of written, on the server
+and in the browser alike, and development says which name it dropped. The
+reason is that a spread is the one place where a runtime object chooses the
+_names_ in the markup — spread a dictionary you did not write, a database row
+or a query string, and without the rule its author chooses what the page runs.
+A custom attribute that has to start with those two letters belongs under
+`data-`.
+
 ## Props are readonly
 
 ```tsx
