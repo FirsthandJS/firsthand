@@ -63,8 +63,12 @@ function locationFrom(to: string, state: unknown): Location {
  */
 export function createBrowserHistory(basename = ''): History {
   const base = basename.endsWith('/') ? basename.slice(0, -1) : basename;
+  // A segment, not a string prefix: `/app` is a basename for `/app` and for
+  // everything under `/app/`, and has nothing to do with `/apple`.
+  const under = (pathname: string): boolean =>
+    base !== '' && (pathname === base || pathname.startsWith(`${base}/`));
   const strip = (pathname: string): string =>
-    base !== '' && pathname.startsWith(base) ? pathname.slice(base.length) || '/' : pathname;
+    under(pathname) ? pathname.slice(base.length) || '/' : pathname;
 
   const read = (): Location => ({
     pathname: strip(window.location.pathname),
@@ -116,7 +120,17 @@ export function createHashHistory(): History {
 
   const current = signal<Location>(read());
   const onHashChange = (): void => {
-    current.value = read();
+    const next = read();
+    const now = current.value;
+    // The browser echoes the write `push` just made, so this fires for
+    // navigations that have already been reported. A hashchange that lands
+    // where the location already is is not news — and reporting it again gave
+    // every navigation two keys, so everything watching ran twice: the route
+    // matched twice, a page view was counted twice.
+    if (next.pathname === now.pathname && next.search === now.search && next.hash === now.hash) {
+      return;
+    }
+    current.value = next;
   };
   window.addEventListener('hashchange', onHashChange);
 

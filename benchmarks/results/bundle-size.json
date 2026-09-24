@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-09-24T21:43:24.817Z",
+  "measuredAt": "2026-09-24T21:54:40.692Z",
   "sizes": [
     {
       "module": "@firsthandjs/core",
@@ -59,9 +59,9 @@
     },
     {
       "module": "@firsthandjs/router",
-      "minified": 8565,
-      "gzip": 3441,
-      "brotli": 3134
+      "minified": 8950,
+      "gzip": 3604,
+      "brotli": 3289
     },
     {
       "module": "@firsthandjs/data",

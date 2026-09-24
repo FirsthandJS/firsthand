@@ -174,6 +174,7 @@ describe('outside a matched route', () => {
       routes: [],
       matches: computed(() => []),
       pending: undefined,
+      error: undefined,
     });
   };
 

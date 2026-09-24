@@ -38,6 +38,7 @@ export type RouterState = {
   readonly matches: ReadonlyCell<readonly RouteMatch[]>;
   /** Shown while a lazy route is loading, unless the route has its own. */
   readonly pending: (() => View) | undefined;
+  readonly error: ((error: unknown) => View) | undefined;
 };
 
 export const RouterContext = createContext<RouterState>();
@@ -130,7 +131,19 @@ function renderDepth(depth: number): DynamicChild {
     }
     // Provided before the component is created, so the component inherits it.
     provide(DepthContext, depth);
-    const Component = routeComponent(current);
+    let Component: RouteComponent | undefined;
+    try {
+      Component = routeComponent(current);
+    } catch (failure: unknown) {
+      // A chunk that will not load. Rethrown when nothing was given to show
+      // for it, so it reaches a `catchError` above rather than leaving the
+      // pending view on screen for ever with no reason given.
+      const failed = current.error ?? router.value.error;
+      if (failed === undefined) {
+        throw failure;
+      }
+      return failed(failure);
+    }
     if (Component === undefined) {
       // The chunk is still in flight. Reading `routeComponent` above subscribed
       // to it, so this swaps to the real view by itself once it lands.
@@ -148,6 +161,15 @@ export type RouterProps = {
   readonly basename?: string;
   /** Shown while a lazy route is loading. */
   readonly pending?: () => View;
+  /**
+   * Shown when a lazy route's chunk fails to load.
+   *
+   * Without one the failure is thrown where the route would have rendered, so
+   * a `catchError` above the router sees it. The usual cause is a deploy that
+   * replaced the build under an open document; the next navigation to that
+   * route asks for the chunk again.
+   */
+  readonly error?: (error: unknown) => View;
 };
 
 /**
@@ -170,7 +192,13 @@ export const Router = component<RouterProps>(
     const matches = computed<readonly RouteMatch[]>(
       () => matchRoutes(routes, history.location.value.pathname) ?? [],
     );
-    provide(RouterContext, { history, routes, matches, pending: props.pending });
+    provide(RouterContext, {
+      history,
+      routes,
+      matches,
+      pending: props.pending,
+      error: props.error,
+    });
     provide(DepthContext, -1);
 
     return renderDepth(0);

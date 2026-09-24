@@ -309,6 +309,23 @@ describe('browser history', () => {
     window.history.replaceState(null, '', '/');
   });
 
+  /**
+   * A basename is a path segment, not a string prefix.
+   *
+   * `/app` and `/apple` share four characters and nothing else, so stripping
+   * by length turned `/apple/pie` into `le/pie` — a path no route matches,
+   * arrived at from a URL that has nothing to do with the application. The
+   * only pathnames under `/app` are `/app` itself and whatever follows
+   * `/app/`.
+   */
+  it('does not strip a basename that is only a prefix of the first segment', () => {
+    window.history.replaceState(null, '', '/apple/pie');
+    const history = createBrowserHistory('/app');
+    expect(history.location.value.pathname).toBe('/apple/pie');
+    history.dispose();
+    window.history.replaceState(null, '', '/');
+  });
+
   it('maps the basename root back to a slash', () => {
     window.history.replaceState(null, '', '/app');
     const history = createBrowserHistory('/app');
@@ -370,6 +387,46 @@ describe('hash history', () => {
     history.push('/e');
     expect(history.location.value.state).toBeNull();
     history.dispose();
+  });
+
+  /**
+   * One navigation, one update.
+   *
+   * `push` writes `window.location.hash` and sets the location itself. A real
+   * browser then fires `hashchange` for the write, and the handler set it a
+   * second time — so every navigation arrived twice, with two different keys.
+   * Anything watching the location ran twice for one navigation: a route
+   * matched twice, an effect on `location.key` fired twice, a page view was
+   * counted twice.
+   *
+   * jsdom does not fire `hashchange` by itself, which is why this went
+   * unnoticed: every test here dispatches the event by hand, and none of them
+   * dispatched it after a `push`.
+   */
+  it('does not report a navigation twice when the browser echoes it', () => {
+    window.location.hash = '#/one';
+    const history = createHashHistory();
+    const keys: string[] = [];
+    let last = history.location.value.key;
+
+    history.push('/two');
+    keys.push(history.location.value.key);
+    // What the browser does next, for the write `push` just made.
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+
+    expect(history.location.value.pathname).toBe('/two');
+    expect(history.location.value.key).toBe(keys[0]);
+    expect(history.location.value.key).not.toBe(last);
+
+    // A hashchange the application did not cause is still a navigation.
+    last = history.location.value.key;
+    window.location.hash = '#/three';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+
+    expect(history.location.value.pathname).toBe('/three');
+    expect(history.location.value.key).not.toBe(last);
+    history.dispose();
+    window.location.hash = '';
   });
 
   it('follows a hashchange, and stops once disposed', () => {

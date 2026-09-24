@@ -53,6 +53,8 @@ export type RouteDefinition = {
   readonly lazy?: () => Promise<LazyModule>;
   /** Shown while `lazy` is loading, instead of the router's own fallback. */
   readonly pending?: () => View;
+  /** Shown when `lazy` fails, instead of the router's own failure view. */
+  readonly error?: (error: unknown) => View;
   readonly children?: readonly RouteDefinition[];
 };
 
@@ -163,8 +165,19 @@ export function matchRoutes(
   return null;
 }
 
+/**
+ * A lazy route's chunk: the component once it lands, or why it did not.
+ *
+ * Both are signals, so a view reading either one swaps by itself when the
+ * answer arrives — including the answer that there is none.
+ */
+type Chunk = {
+  component: Signal<RouteComponent | undefined>;
+  failure: Signal<unknown>;
+};
+
 /** Resolved lazy components, keyed by the route that asked for them. */
-const loaded = new WeakMap<RouteDefinition, Signal<RouteComponent | undefined>>();
+const loaded = new WeakMap<RouteDefinition, Chunk>();
 
 /**
  * The component for a route, loading it on first use.
@@ -177,21 +190,42 @@ export function routeComponent(route: RouteDefinition): RouteComponent | undefin
   if (route.component !== undefined) {
     return route.component;
   }
-  let cell = loaded.get(route);
-  if (cell === undefined) {
-    cell = signal<RouteComponent | undefined>(undefined);
-    loaded.set(route, cell);
-    void startLoading(route, cell);
+  let chunk = loaded.get(route);
+  if (chunk === undefined) {
+    chunk = {
+      component: signal<RouteComponent | undefined>(undefined),
+      failure: signal(undefined),
+    };
+    loaded.set(route, chunk);
+    void startLoading(route, chunk);
   }
-  return cell.value;
+  const failure = chunk.failure.value;
+  if (failure !== undefined) {
+    // Forgotten before it is thrown, so the next navigation to this route asks
+    // for the chunk again. The usual cause is a deploy that replaced the build
+    // under an open document, and by the second attempt it is over.
+    loaded.delete(route);
+    // Whatever the loader rejected with, unchanged: wrapping it would hide the
+    // reason a bundler gave for a chunk it could not fetch, and `startLoading`
+    // has already supplied an Error for the one case that carried nothing.
+    // eslint-disable-next-line @typescript-eslint/only-throw-error -- see above
+    throw failure;
+  }
+  return chunk.component.value;
 }
 
-async function startLoading(
-  route: RouteDefinition,
-  cell: Signal<RouteComponent | undefined>,
-): Promise<void> {
-  const module = await (route.lazy as () => Promise<LazyModule>)();
-  cell.value = typeof module === 'function' ? module : module.default;
+async function startLoading(route: RouteDefinition, chunk: Chunk): Promise<void> {
+  try {
+    const module = await (route.lazy as () => Promise<LazyModule>)();
+    chunk.component.value = typeof module === 'function' ? module : module.default;
+  } catch (error: unknown) {
+    // A chunk that never arrives is not a route that renders forever. Reported
+    // through the signal rather than thrown here, because nobody is awaiting
+    // this: the throw belongs on the read, where a `catchError` is watching.
+    // `Promise.reject()` with no reason is rare and legal, and `undefined` is
+    // how this signal says "no failure" — so it needs something to carry.
+    chunk.failure.value = error ?? new Error('the route chunk failed to load');
+  }
 }
 
 /**
@@ -264,6 +298,8 @@ type RouteSpec<Own, Inherited> = {
   readonly lazy?: () => Promise<LazyModule<Simplify<Inherited & Own> & Params>>;
   /** Shown while `lazy` is loading, instead of the router's own fallback. */
   readonly pending?: () => View;
+  /** Shown when `lazy` fails, instead of the router's own failure view. */
+  readonly error?: (error: unknown) => View;
   readonly children?:
     | readonly RouteDefinition[]
     | ((child: RouteBuilder<Simplify<Inherited & Own>>) => readonly RouteDefinition[]);
