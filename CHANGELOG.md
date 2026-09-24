@@ -105,6 +105,14 @@ All notable changes to this project are documented here. The format follows
   and forgotten, so the next navigation retries — which matters because the
   usual cause is a deploy replacing the build under an open document.
 
+- **A hash navigation is reported once.** `push` wrote `window.location.hash`
+  and set the location itself; the browser then fired `hashchange` for that
+  write and the handler set it again, with a second key. Everything watching
+  ran twice for one navigation — the route matched twice, an effect on
+  `location.key` fired twice, a page view was counted twice. A hashchange that
+  lands where the location already is is no longer news. (jsdom does not fire
+  `hashchange` by itself, which is why the tests never saw it.)
+
 - **`basename` is a path segment, not a string prefix.** With
   `basename="/app"`, the URL `/apple/pie` was stripped by length to `le/pie` —
   a path no route matches, from a URL that has nothing to do with the
