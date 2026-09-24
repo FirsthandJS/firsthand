@@ -173,3 +173,19 @@ export function devHydrationMismatch(node: Element, html: string): void {
     }
   }
 }
+
+/**
+ * A spread that tried to write an inline event handler.
+ *
+ * Refused rather than written, because the only way to arrive here is a key
+ * the application did not choose - `onClick={...}` is attached as a listener
+ * long before this. Development says which name, since the alternative is a
+ * handler that silently does not exist.
+ */
+export function devInlineHandler(name: string): void {
+  devWarn(
+    `a spread will not write ${name} as an attribute: an inline handler built out ` +
+      'of runtime data is how a page ends up running script nobody wrote. ' +
+      'Attach it as a listener, or spell a custom attribute `data-`.',
+  );
+}

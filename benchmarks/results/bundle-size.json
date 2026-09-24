@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-09-23T09:10:40.333Z",
+  "measuredAt": "2026-09-24T19:58:29.810Z",
   "sizes": [
     {
       "module": "@firsthandjs/core",
@@ -9,15 +9,15 @@
     },
     {
       "module": "@firsthandjs/dom",
-      "minified": 13936,
-      "gzip": 5495,
-      "brotli": 4944
+      "minified": 13940,
+      "gzip": 5499,
+      "brotli": 4949
     },
     {
       "module": "@firsthandjs/dom/internal",
-      "minified": 14553,
-      "gzip": 5831,
-      "brotli": 5242
+      "minified": 14557,
+      "gzip": 5833,
+      "brotli": 5244
     },
     {
       "module": "@firsthandjs/jsx-runtime",
@@ -27,17 +27,17 @@
     },
     {
       "module": "full runtime (core + dom, everything imported)",
-      "minified": 20737,
-      "gzip": 7667,
-      "brotli": 6936
+      "minified": 20741,
+      "gzip": 7675,
+      "brotli": 6943
     }
   ],
   "optional": [
     {
       "module": "@firsthandjs/dom/hydrate",
       "minified": 6334,
-      "gzip": 2645,
-      "brotli": 2440
+      "gzip": 2642,
+      "brotli": 2439
     },
     {
       "module": "@firsthandjs/deep",
@@ -119,9 +119,9 @@
     },
     {
       "module": "@firsthandjs/server/internal",
-      "minified": 3645,
-      "gzip": 1605,
-      "brotli": 1408
+      "minified": 3962,
+      "gzip": 1774,
+      "brotli": 1547
     }
   ]
 }
