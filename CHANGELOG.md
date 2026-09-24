@@ -66,6 +66,14 @@ All notable changes to this project are documented here. The format follows
   unaffected — they never became attributes. A spread key spelled in lower case
   (`onmouseover={handler}`) no longer attaches a listener; spell it `onMouseOver`.
 
+- **A destructuring default no longer swallows `null`.** The compiler rewrote
+  `({ count = 0 })` into `props.count ?? 0`, and `??` answers for `null` as
+  well as `undefined`. The language defaults on `undefined` alone, so a parent
+  passing `null` — which is what an API returns for "known to be empty" — got
+  the default back instead of the null it asked for. The emitted read is now
+  `props.count === undefined ? 0 : props.count`. Per-read re-application is
+  unchanged.
+
 ## [0.11.1] - 2026-09-23
 
 ### Fixed
