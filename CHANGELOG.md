@@ -74,6 +74,21 @@ All notable changes to this project are documented here. The format follows
   `props.count === undefined ? 0 : props.count`. Per-read re-application is
   unchanged.
 
+- **Concurrent actions no longer share one invalidation list.** What a run
+  declared through `invalidates()` was recorded on the action rather than on
+  the run, and starting a run cleared it. Under `concurrency: 'all'` that meant
+  a run which declared its tags and then kept working lost them to whichever
+  run started next: the tag it named was never invalidated, and the other run's
+  tag was invalidated twice. Renaming two things at once is enough to hit it.
+
+- **`running` stays true across a queue.** Under the default `queue`, a second
+  run waiting behind the first was not counted as running, and the run that
+  finished cleared the flag before the next one set it again — so anything
+  watching `running` saw `false` in between and a spinner blinked between two
+  runs the person made as one gesture. A queued run now counts from the moment
+  `run()` is called, and settling a run reports its own departure in the same
+  batch.
+
 ## [0.11.1] - 2026-09-23
 
 ### Fixed
