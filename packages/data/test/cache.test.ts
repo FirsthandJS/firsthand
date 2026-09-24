@@ -233,6 +233,97 @@ describe('createCacheClient', () => {
     expect(stableKey('x')).toBe('"x"');
   });
 
+  /**
+   * Two requests that are not the same request must not share an answer.
+   *
+   * A key that collides is worse than a key that misses: a miss costs a
+   * request, and a collision serves one caller the other one's data. Every
+   * case here used to collide, because `JSON.stringify` answers `null` for
+   * anything it has no syntax for and `undefined` — as a value of type
+   * `string` — for anything it refuses outright.
+   */
+  describe('a key that has to stay distinct', () => {
+    it('keeps the numbers JSON has no syntax for apart', () => {
+      const keys = [stableKey(NaN), stableKey(Infinity), stableKey(-Infinity), stableKey(null)];
+
+      expect(new Set(keys).size).toBe(4);
+      expect(stableKey(NaN)).toBe('NaN');
+    });
+
+    it('keeps a Map, a Set and a plain object apart', () => {
+      const keys = [
+        stableKey(new Map([['a', 1]])),
+        stableKey(new Set(['a'])),
+        stableKey({ a: 1 }),
+        stableKey(/a/u),
+      ];
+
+      expect(new Set(keys).size).toBe(4);
+    });
+
+    it('reads what is inside a Map and a Set, in a stable order', () => {
+      expect(
+        stableKey(
+          new Map([
+            ['a', 1],
+            ['b', 2],
+          ]),
+        ),
+      ).toBe(
+        stableKey(
+          new Map([
+            ['b', 2],
+            ['a', 1],
+          ]),
+        ),
+      );
+      expect(stableKey(new Map([['a', 1]]))).not.toBe(stableKey(new Map([['a', 2]])));
+      expect(stableKey(new Set([1, 2]))).toBe(stableKey(new Set([2, 1])));
+      expect(stableKey(new Set([1]))).not.toBe(stableKey(new Set([2])));
+    });
+
+    it('tells two regular expressions apart, flags included', () => {
+      expect(stableKey(/a/u)).not.toBe(stableKey(/b/u));
+      expect(stableKey(/a/u)).not.toBe(stableKey(/a/giu));
+    });
+
+    it('keys a BigInt instead of throwing on it', () => {
+      expect(stableKey(1n)).toBe('1n');
+      // Not the number 1: a server told `1` and told `1n` was told two
+      // different things.
+      expect(stableKey(1n)).not.toBe(stableKey(1));
+    });
+
+    it('gives a function and a symbol an identity rather than one shared key', () => {
+      const one = (): void => undefined;
+      const other = (): void => undefined;
+
+      expect(stableKey(one)).toBe(stableKey(one));
+      expect(stableKey(one)).not.toBe(stableKey(other));
+      expect(stableKey(Symbol('a'))).not.toBe(stableKey(Symbol('a')));
+      // And none of them is `undefined`, which is what they all used to be.
+      expect(stableKey(one)).not.toBe('undefined');
+    });
+
+    it('survives a value that contains itself', () => {
+      const self: Record<string, unknown> = { page: 1 };
+      self['self'] = self;
+
+      // A stack overflow is not an answer a caller can act on either.
+      expect(stableKey(self)).toBe('{page:1,self:[cycle]}');
+    });
+
+    it('treats the same object twice as two ordinary occurrences', () => {
+      const shared = { a: 1 };
+
+      // Not a cycle: nothing here contains itself, and keying the second one
+      // as `[cycle]` would make two different requests look alike.
+      expect(stableKey({ one: shared, other: shared })).toBe(
+        stableKey({ one: shared, other: { a: 1 } }),
+      );
+    });
+  });
+
   it('aborts what is in flight when the entry is forgotten', async () => {
     const cache = createCacheClient({ ttl: 1000 });
     const { calls, produce } = counted('late', 20);
