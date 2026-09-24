@@ -89,6 +89,27 @@ All notable changes to this project are documented here. The format follows
   `run()` is called, and settling a run reports its own departure in the same
   batch.
 
+### Added
+
+- **`error` on the router and on a route**, shown when a lazy route's chunk
+  fails to load. The route's own wins over the router's; with neither, the
+  failure is thrown where the route would have rendered, so a `catchError`
+  above the router sees it.
+
+### Fixed
+
+- **A failed lazy route no longer pends for ever.** `lazy()` rejecting went
+  into an unhandled rejection: the pending view stayed on screen with no reason
+  given and nothing behind it, and because the failed attempt was remembered,
+  navigating there again never asked a second time. A failure is now reported
+  and forgotten, so the next navigation retries — which matters because the
+  usual cause is a deploy replacing the build under an open document.
+
+- **`basename` is a path segment, not a string prefix.** With
+  `basename="/app"`, the URL `/apple/pie` was stripped by length to `le/pie` —
+  a path no route matches, from a URL that has nothing to do with the
+  application. Only `/app` itself and what follows `/app/` are stripped now.
+
 ## [0.11.1] - 2026-09-23
 
 ### Fixed

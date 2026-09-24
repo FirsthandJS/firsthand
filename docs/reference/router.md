@@ -1,6 +1,6 @@
 # @firsthandjs/router
 
-[Reference index](../README.md#reference) · 3.36 kB gzip · depends on
+[Reference index](../README.md#reference) · 3.49 kB gzip · depends on
 `@firsthandjs/dom`
 
 Nested routes, ranked matching and routes whose code is loaded on demand.
@@ -21,6 +21,8 @@ interface RouterProps {
   readonly basename?: string;
   /** Shown while a lazy route is loading. */
   readonly pending?: () => View;
+  /** Shown when a lazy route's chunk fails to load. */
+  readonly error?: (error: unknown) => View;
 }
 
 const Outlet: Component<Record<string, never>>; // renders the matched child route
@@ -28,6 +30,17 @@ const Outlet: Component<Record<string, never>>; // renders the matched child rou
 
 A history the `Router` created is disposed with it; one that was passed in
 belongs to the caller.
+
+`basename` is a path segment, not a string prefix: `/app` is the basename for
+`/app` and for everything under `/app/`, and has nothing to do with `/apple`.
+
+A lazy route whose chunk fails to load renders `error` — the route's own, then
+the router's. With neither, the failure is thrown where the route would have
+rendered, so a `catchError` above the router sees it; what must not happen is
+the pending view staying on screen with nothing behind it. Either way the
+failure is forgotten, so the next navigation to that route asks for the chunk
+again: the usual cause is a deploy that replaced the build under an open
+document, and by then it is over.
 
 ## route()
 
@@ -79,6 +92,8 @@ interface RouteDefinition {
   readonly lazy?: () => Promise<LazyModule>;
   /** Shown while `lazy` is loading, instead of the router's fallback. */
   readonly pending?: () => View;
+  /** Shown when `lazy` fails, instead of the router's failure view. */
+  readonly error?: (error: unknown) => View;
   readonly children?: readonly RouteDefinition[];
 }
 
@@ -175,6 +190,7 @@ interface RouterState {
   /** Outermost matched route to the leaf; empty if none matched. */
   readonly matches: ReadonlyCell<readonly RouteMatch[]>;
   readonly pending: (() => View) | undefined;
+  readonly error: ((error: unknown) => View) | undefined;
 }
 
 const RouterContext: Context<RouterState>;

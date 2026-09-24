@@ -309,6 +309,23 @@ describe('browser history', () => {
     window.history.replaceState(null, '', '/');
   });
 
+  /**
+   * A basename is a path segment, not a string prefix.
+   *
+   * `/app` and `/apple` share four characters and nothing else, so stripping
+   * by length turned `/apple/pie` into `le/pie` — a path no route matches,
+   * arrived at from a URL that has nothing to do with the application. The
+   * only pathnames under `/app` are `/app` itself and whatever follows
+   * `/app/`.
+   */
+  it('does not strip a basename that is only a prefix of the first segment', () => {
+    window.history.replaceState(null, '', '/apple/pie');
+    const history = createBrowserHistory('/app');
+    expect(history.location.value.pathname).toBe('/apple/pie');
+    history.dispose();
+    window.history.replaceState(null, '', '/');
+  });
+
   it('maps the basename root back to a slash', () => {
     window.history.replaceState(null, '', '/app');
     const history = createBrowserHistory('/app');

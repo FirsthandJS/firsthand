@@ -63,8 +63,12 @@ function locationFrom(to: string, state: unknown): Location {
  */
 export function createBrowserHistory(basename = ''): History {
   const base = basename.endsWith('/') ? basename.slice(0, -1) : basename;
+  // A segment, not a string prefix: `/app` is a basename for `/app` and for
+  // everything under `/app/`, and has nothing to do with `/apple`.
+  const under = (pathname: string): boolean =>
+    base !== '' && (pathname === base || pathname.startsWith(`${base}/`));
   const strip = (pathname: string): string =>
-    base !== '' && pathname.startsWith(base) ? pathname.slice(base.length) || '/' : pathname;
+    under(pathname) ? pathname.slice(base.length) || '/' : pathname;
 
   const read = (): Location => ({
     pathname: strip(window.location.pathname),

@@ -6,7 +6,7 @@
  * avoid, so the tests check the element and the setup count, not just the text.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { component } from '@firsthandjs/dom';
+import { catchError, component } from '@firsthandjs/dom';
 import { cleanup, mount, tick } from '@firsthandjs/testing';
 import {
   Outlet,
@@ -192,6 +192,141 @@ describe('lazy routes', () => {
 
     expect(view.text()).toBe('');
     await tick();
+    expect(view.text()).toBe('late');
+  });
+
+  /**
+   * A chunk that never arrives.
+   *
+   * The most ordinary failure a router has: a deploy replaces the build while
+   * somebody has the old document open, and the next navigation asks for a
+   * file the server no longer has. The load rejected into nothing, so the
+   * pending view stayed on screen with no reason given and nothing behind it —
+   * and because the failed attempt was remembered, going there again never
+   * asked a second time.
+   */
+  it('shows the failure view when a chunk cannot be loaded', async () => {
+    const history = createMemoryHistory(['/gone']);
+    const routes: RouteDefinition[] = [
+      { path: '/gone', lazy: () => Promise.reject(new Error('404 chunk')) },
+    ];
+    const seen: unknown[] = [];
+    const view = mount(() => (
+      <Router
+        routes={routes}
+        history={history}
+        pending={() => <p>loading</p>}
+        error={(failure) => {
+          seen.push(failure);
+          return <p>could not load</p>;
+        }}
+      />
+    ));
+
+    expect(view.text()).toBe('loading');
+    await tick();
+
+    expect(view.text()).toBe('could not load');
+    expect((seen[0] as Error).message).toBe('404 chunk');
+  });
+
+  it('prefers a failure view declared on the route', async () => {
+    const history = createMemoryHistory(['/gone']);
+    const routes: RouteDefinition[] = [
+      {
+        path: '/gone',
+        lazy: () => Promise.reject(new Error('404 chunk')),
+        error: () => <p>route says sorry</p>,
+      },
+    ];
+    const view = mount(() => (
+      <Router routes={routes} history={history} error={() => <p>router says sorry</p>} />
+    ));
+
+    await tick();
+    expect(view.text()).toBe('route says sorry');
+  });
+
+  it('throws where the route would have rendered when nothing was given to show', async () => {
+    const history = createMemoryHistory(['/gone']);
+    const routes: RouteDefinition[] = [
+      { path: '/gone', lazy: () => Promise.reject(new Error('404 chunk')) },
+    ];
+    const seen: unknown[] = [];
+
+    mount(() => (
+      <>
+        {catchError(
+          () => (
+            <Router routes={routes} history={history} />
+          ),
+          (failure) => {
+            seen.push(failure);
+          },
+        )}
+      </>
+    ));
+
+    await tick();
+
+    expect(seen).toHaveLength(1);
+    expect((seen[0] as Error).message).toBe('404 chunk');
+  });
+
+  it('carries a rejection that gave no reason', async () => {
+    const history = createMemoryHistory(['/gone']);
+    const routes: RouteDefinition[] = [
+      // Legal, and says nothing: `undefined` is also how the failure signal
+      // says there was no failure, so it cannot be stored as it arrived.
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- the case under test
+      { path: '/gone', lazy: () => Promise.reject() },
+    ];
+    const seen: unknown[] = [];
+    const view = mount(() => (
+      <Router
+        routes={routes}
+        history={history}
+        error={(failure) => {
+          seen.push(failure);
+          return <p>could not load</p>;
+        }}
+      />
+    ));
+
+    await tick();
+
+    expect(view.text()).toBe('could not load');
+    expect((seen[0] as Error).message).toBe('the route chunk failed to load');
+  });
+
+  it('asks again the next time, rather than remembering the failure', async () => {
+    const history = createMemoryHistory(['/']);
+    let attempts = 0;
+    const routes: RouteDefinition[] = [
+      { path: '/', component: Home },
+      {
+        path: '/flaky',
+        lazy: () => {
+          attempts++;
+          return attempts === 1 ? Promise.reject(new Error('404 chunk')) : Promise.resolve(late);
+        },
+      },
+    ];
+    const view = mount(() => (
+      <Router routes={routes} history={history} error={() => <p>failed</p>} />
+    ));
+
+    history.push('/flaky');
+    await tick();
+    expect(view.text()).toBe('failed');
+
+    // A second navigation is a second attempt: the deploy that broke the first
+    // one is usually the reason, and it is over by now.
+    history.push('/');
+    history.push('/flaky');
+    await tick();
+
+    expect(attempts).toBe(2);
     expect(view.text()).toBe('late');
   });
 });

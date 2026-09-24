@@ -403,7 +403,7 @@ different sample sizes would quietly weaken the confidence interval.
 | `@firsthandjs/dom` | 13.61 kB | **5.37 kB** | 4.83 kB |
 | `@firsthandjs/dom/internal` | 14.21 kB | **5.69 kB** | 5.12 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
-| full runtime (core + dom, everything imported) | 20.25 kB | **7.49 kB** | 6.78 kB |
+| full runtime (core + dom, everything imported) | 20.25 kB | **7.49 kB** | 6.77 kB |
 
 
 Optional packages, downloaded only by an application that imports them:
@@ -414,9 +414,9 @@ Optional packages, downloaded only by an application that imports them:
 | `@firsthandjs/deep` | 1.58 kB | **0.72 kB** | 0.66 kB |
 | `@firsthandjs/devtools` | 17.44 kB | **6.40 kB** | 5.62 kB |
 | `@firsthandjs/i18n` | 0.63 kB | **0.37 kB** | 0.32 kB |
-| `@firsthandjs/router` | 8.36 kB | **3.36 kB** | 3.06 kB |
-| `@firsthandjs/data` | 13.82 kB | **5.34 kB** | 4.88 kB |
-| `@firsthandjs/data (.gql loader path, parser tree-shaken)` | 9.72 kB | **3.67 kB** | 3.37 kB |
+| `@firsthandjs/router` | 8.66 kB | **3.49 kB** | 3.18 kB |
+| `@firsthandjs/data` | 13.00 kB | **5.00 kB** | 4.59 kB |
+| `@firsthandjs/data (.gql loader path, parser tree-shaken)` | 9.56 kB | **3.58 kB** | 3.30 kB |
 | `@firsthandjs/data-axios` | 1.31 kB | **0.62 kB** | 0.55 kB |
 | `@firsthandjs/data-urql` | 1.20 kB | **0.63 kB** | 0.55 kB |
 | `@firsthandjs/data-apollo` | 1.61 kB | **0.75 kB** | 0.68 kB |
@@ -424,7 +424,7 @@ Optional packages, downloaded only by an application that imports them:
 | `@firsthandjs/react` | 1.19 kB | **0.66 kB** | 0.58 kB |
 | `@firsthandjs/react/auto` | 1.20 kB | **0.66 kB** | 0.58 kB |
 | `@firsthandjs/server` | 2.84 kB | **1.26 kB** | 1.11 kB |
-| `@firsthandjs/server/internal` | 3.77 kB | **1.73 kB** | 1.51 kB |
+| `@firsthandjs/server/internal` | 3.56 kB | **1.57 kB** | 1.38 kB |
 
 No third-party production dependencies, asserted in CI: `@firsthandjs/dom` pulls
 in `@firsthandjs/core` and nothing else, and the optional packages depend on
@@ -518,7 +518,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 1324 tests under Vitest and 102
+This repository is the demonstration: 1292 tests under Vitest and 102
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all eight examples.
 <!-- prettier-ignore-end -->
