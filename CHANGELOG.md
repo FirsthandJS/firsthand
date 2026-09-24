@@ -8,6 +8,27 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- **A spread means the same thing on both sides.** Every shape a spread accepts
+  is decided by a runtime object, and the server answered four of them
+  differently from the browser — so the markup arrived wrong and the client
+  corrected it after the page had been painted:
+
+  | spread                        | server, before        | browser                     |
+  | ----------------------------- | --------------------- | --------------------------- |
+  | `{ class: { open: 1 } }`      | no class (`=== true`) | `class="open"` (truthiness) |
+  | `{ style: { color: 'red' } }` | nothing at all        | the style applied           |
+  | `{ 'prop:value': 'x' }`       | `prop:value="x"`      | the `value` property        |
+  | `{ 'attr:data-x': 'y' }`      | `attr:data-x="y"`     | `data-x="y"`                |
+
+  The server now uses the same `classValue`, `styleValue` and `property` its
+  compiled path already used; the spread was the one path that disagreed with
+  the rest of the server.
+
+  The browser was wrong about one of them: `{ title: null }` was assigned as a
+  property and stringified into `title="null"`, where both the compiled path
+  and the server write no attribute. Nothing is now an attribute that is not
+  there, on both sides.
+
 - **A spread cannot write an event handler any more.** `{...props}` is the one
   place where a runtime object decides the attribute _names_ in the markup, and
   the names were passed through as they arrived. An application that spread a

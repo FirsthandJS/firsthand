@@ -12,7 +12,7 @@
  */
 
 import { deferOwner, getOwner, handleError, restoreOwner } from '@firsthandjs/core';
-import { attribute } from './html.js';
+import { attribute, classValue, property, styleValue } from './html.js';
 import { child, Markup } from './markup.js';
 
 const COMPONENT: unique symbol = Symbol.for('firsthand.component') as never;
@@ -126,61 +126,80 @@ function writable(name: string): boolean {
   return NAME.test(name) && !HANDLER.test(name);
 }
 
+/**
+ * A spread, as markup.
+ *
+ * Every branch here answers the same question the DOM layer's `applyProp`
+ * answers, and has to answer it the same way: this is a spread, so the shapes
+ * come from a runtime object, and a server and a browser that disagree about
+ * what `{ class: { open: 1 } }` means disagree about the markup.
+ */
 export function spread(values: Record<string, unknown>): string {
   let out = '';
   for (const name in values) {
-    if (name === 'ref' || name === 'children' || isHandler(name)) {
+    if (name === 'ref' || name === 'children') {
       continue;
     }
     const value = values[name];
     if (name === 'class' || name === 'className') {
-      out += attribute('class', typeof value === 'string' ? value : classFrom(value));
+      // `classValue` reads the same three shapes `applyProp` does, and toggles
+      // on truthiness as `classList` does. The local copy this used to keep
+      // asked for `=== true`, so `{ open: 1 }` was a class in the browser and
+      // no class on the server.
+      out += classValue(value);
       continue;
     }
-    if (name === 'style' && typeof value === 'object') {
+    if (name === 'style') {
+      // An object was skipped outright, which meant a page arrived unstyled
+      // and then moved when the browser applied what the server had left out.
+      out += styleValue(value);
       continue;
     }
-    // Everything above this line is a name the framework chose. Below it, the
-    // name came from the object being spread, and an application does not
-    // always know what is in one — a row from a database, a query string, a
-    // JSON body. A value has always been escaped; a name was interpolated as
-    // it arrived, and `{'x onmouseover': 'alert(1)'}` was two attributes.
-    if (!writable(name)) {
-      // Said out loud, always. This is a server, where a warning costs
-      // nothing and silence costs somebody an afternoon — and a refused name
-      // is usually the first sign that a dictionary reaching the markup is
-      // not the dictionary its author thought.
-      console.warn(
-        `[firsthand] a spread will not write the attribute name ${JSON.stringify(name)}: ` +
-          'it is not a name a browser would accept, or it is an event handler. ' +
-          'A custom attribute belongs under `data-`.',
-      );
+    if (name.startsWith('prop:')) {
+      // A property is not markup. `property` writes the few that have an
+      // attribute a parser seeds and nothing for the rest, which is what
+      // hydration then sets - rather than the literal `prop:value="x"` this
+      // used to emit, which is an attribute no browser has ever read.
+      out += property(name.slice(5), value);
       continue;
     }
-    out += attribute(name, value);
+    if (name.startsWith('attr:')) {
+      out += named(name.slice(5), value);
+      continue;
+    }
+    if (isHandler(name)) {
+      continue;
+    }
+    out += named(name, value);
   }
   return out;
 }
 
-function isHandler(name: string): boolean {
-  return name.startsWith('on') && name.length > 2 && /[A-Z:]/.test(name[2] as string);
+/**
+ * One attribute, if the runtime key is a name at all.
+ *
+ * Everything above this in `spread` is a name the framework chose. Here the
+ * name came from the object being spread, and an application does not always
+ * know what is in one - a row from a database, a query string, a JSON body. A
+ * value has always been escaped; a name was interpolated as it arrived, and
+ * `{'x onmouseover': 'alert(1)'}` was two attributes.
+ */
+function named(name: string, value: unknown): string {
+  if (writable(name)) {
+    return attribute(name, value);
+  }
+  // Said out loud, always. This is a server, where a warning costs nothing and
+  // silence costs somebody an afternoon - and a refused name is usually the
+  // first sign that a dictionary reaching the markup is not the dictionary its
+  // author thought.
+  console.warn(
+    `[firsthand] a spread will not write the attribute name ${JSON.stringify(name)}: ` +
+      'it is not a name a browser would accept, or it is an event handler. ' +
+      'A custom attribute belongs under `data-`.',
+  );
+  return '';
 }
 
-function classFrom(value: unknown): string | null {
-  if (value == null) {
-    return null;
-  }
-  if (Array.isArray(value)) {
-    return value.filter(Boolean).join(' ');
-  }
-  if (typeof value === 'object') {
-    const names: string[] = [];
-    for (const name in value as Record<string, unknown>) {
-      if ((value as Record<string, unknown>)[name] === true) {
-        names.push(name);
-      }
-    }
-    return names.join(' ');
-  }
-  return String(value);
+function isHandler(name: string): boolean {
+  return name.startsWith('on') && name.length > 2 && /[A-Z:]/u.test(name[2] as string);
 }

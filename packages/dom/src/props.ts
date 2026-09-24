@@ -39,20 +39,25 @@ export function applyProp(node: Element, name: string, value: unknown): void {
     return;
   }
   if (/^on/iu.test(name)) {
-    // `onClick` and `on:sl-change` are the two spellings a component writes,
-    // and both become listeners. Anything else spelled `on...` is an event
-    // handler content attribute, and the only way to arrive at one here is a
-    // key that came out of data rather than out of a component - writing it
-    // is how a page ends up running script nobody wrote. The server refuses
-    // the same names, so the two sides agree about what the markup is.
-    if (name.length > 2 && /[A-Z:]/u.test(name[2] as string)) {
+    // `onClick` and `on:sl-change` are the two spellings a component writes -
+    // an upper-case letter or a colon right after the `on` - and both become
+    // listeners. Anything else spelled `on...` is an event handler content
+    // attribute, and the only way to arrive at one here is a key that came out
+    // of data rather than out of a component - writing it is how a page ends
+    // up running script nobody wrote. The server refuses the same names, so
+    // the two sides agree about what the markup is.
+    if (/^on[A-Z:]/u.test(name)) {
       applyEvent(node, name, value);
     } else {
       devInlineHandler(name);
     }
     return;
   }
-  if (name in node && typeof value !== 'string') {
+  // `value != null` first: nothing is not a value to assign, it is an
+  // attribute that is not there. Assigned as a property it stringifies, and
+  // `{ title: null }` became `title="null"` - where the compiled path and the
+  // server both write no attribute at all.
+  if (value != null && name in node && typeof value !== 'string') {
     setProperty(node, name, value);
     return;
   }

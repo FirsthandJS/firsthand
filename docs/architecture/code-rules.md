@@ -252,23 +252,30 @@ Bringing `packages/dom` under the function and complexity limits cost
 
 That is 3 % of the runtime for the readability of the twelve functions that
 were over the limits. The class split in §7 spent most of what that left, so
-the headroom is now **5 bytes** — measured with `scripts/build.mjs`, which is
-the instrument the budget is defined in, across four trees in one setup:
+the headroom is now **10 bytes** — measured with `scripts/build.mjs`, which is
+the instrument the budget is defined in, across five trees in one setup:
 
 | Commit                          | minified |        gzip |
 | ------------------------------- | -------: | ----------: |
 | `13fe49e`, before async owners  | 20,733 B |     7,673 B |
 | `0e1d758`, after them (#60)     | 20,737 B |     7,667 B |
 | `a0b8a72`, after the fix (#59)  | 20,737 B |     7,667 B |
-| `4bd8df8`, after the spread fix | 20,741 B | **7,675 B** |
+| `4bd8df8`, after the spread fix | 20,741 B |     7,675 B |
+| `07fb652`, after spread parity  | 20,738 B | **7,670 B** |
 
-The last row is the one place this budget has been spent on something other
+The fourth row is the one place this budget has been spent on something other
 than readability. A spread could write any attribute name it was handed, so a
 dictionary an application did not write — a database row, a query string —
 could put `onmouseover` into the markup, and the browser ran it. Refusing the
 name costs eight gzip bytes, and the alternative was raising the budget, which
 would have spent the README's claim on a bug. The refusal reuses the branch
 that already read `on`, so what it added is the `i` flag and one call.
+
+The fifth row gave five of those bytes back, which is worth saying plainly
+because it was not the point of that change: asking `/^on[A-Z:]/` in one
+regex replaced a length check, an index and a second regex, and the minifier
+had less to carry. Bytes come back from saying the same thing more directly
+more often than from trying to save them.
 
 Four bytes of new code that gzip happens to encode six bytes smaller, and a
 compiler-only change that moves nothing — which is what the third row is for.
@@ -333,8 +340,9 @@ compressor seeing a slightly different arrangement of the same text.
 
 What it did cost is headroom: the full runtime went to **7 bytes** under the
 7.50 kB budget §6 measures against, where it had 33. The async-owner work that
-followed encoded six bytes smaller despite adding four, and the spread fix
-after it spent eight, which is how the figure in §6 reads 5 rather than 7 — a
+followed encoded six bytes smaller despite adding four, the spread fix after
+it spent eight, and the parity work after that gave five back, which is how
+the figure in §6 reads 10 rather than 7 — a
 reminder that these are gzip bytes, and that four bytes of source can move the
 total either way. That budget is a
 line somebody has to move deliberately, so the next change to core has to

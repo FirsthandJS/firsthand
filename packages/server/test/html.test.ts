@@ -202,8 +202,13 @@ describe('a spread', () => {
     expect(spread({ class: 7 })).toBe(' class="7"');
   });
 
-  it('leaves a style record to the client, which has a CSSOM', () => {
-    expect(spread({ style: { color: 'red' } })).toBe('');
+  it('writes a style record, as the compiled path already did', () => {
+    // This used to be left to the client, on the grounds that a browser has a
+    // CSSOM. So did the page: it arrived unstyled and moved when the browser
+    // caught up. A compiled `style={{...}}` has always been serialized by the
+    // same `styleValue`, so the spread was not a policy — it was the one path
+    // that disagreed with the rest of the server.
+    expect(spread({ style: { color: 'red' } })).toBe(' style="color: red;"');
   });
 
   it('writes everything else as an attribute', () => {
