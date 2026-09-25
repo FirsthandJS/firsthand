@@ -204,6 +204,22 @@ type Task<T>; // see task, above
 type TaskContext; // see task, above
 ```
 
+`DeepReadonly` stops where a value is not data a component reads: a function, a
+`Date`, a `RegExp`, a `Promise`, and anything with a `nodeType` — a DOM node.
+It has to, because a deeply readonly `Node` is no longer a `Node`, and
+`children` is usually exactly that.
+
+The same applies to markup that is not a node. A `View` may be the part the
+compiler emits for `{expression}`, and that part carries the scope it belongs
+to; the scope is opaque in the published type for this reason, so a `View`
+survives `DeepReadonly` unchanged and
+
+```tsx
+component((props: ReadonlyProps<{ children?: View }>) => <main>{props.children}</main>);
+```
+
+compiles. `packages/core/test/deep-readonly-view.test-d.ts` asserts it.
+
 ## Not the public contract
 
 `Cell`, `createOwner`, `disposeOwner`, `disposeCell`, `handleError`, `own`,

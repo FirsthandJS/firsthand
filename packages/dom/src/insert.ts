@@ -91,8 +91,30 @@ export type DynamicChild = {
   readonly [PART]: true;
   readonly anchor: Text;
   readonly thunk: () => unknown;
-  readonly owner: Owner | null;
+  readonly owner: PartOwner;
 };
+
+/**
+ * The scope a part belongs to, opaque to everybody but this module.
+ *
+ * It is an `Owner`, and `bindPart` reads it back as one. It is not *typed* as
+ * one because a `DynamicChild` is part of `View`, and a `View` is what an
+ * application's own props are typed with — `ReadonlyProps` applies
+ * `DeepReadonly` to every prop, which descends into whatever it is not told to
+ * leave alone. An `Owner` holds the arrays the runtime pushes disposals and
+ * cells onto, and a deeply readonly `readonly T[]` is not assignable to the
+ * `T[]` those are, so the whole `DynamicChild` stopped matching `View`:
+ *
+ *     component((props: ReadonlyProps<{ children?: View }>) => (
+ *       <main>{props.children}</main>   // TS2322, and nothing wrong at runtime
+ *     ));
+ *
+ * A brand has no members to descend into, so it deep-readonlys to itself. That
+ * this type also stops `Owner` — which `core` documents as internal — from
+ * appearing in a published signature is the second reason to do it this way.
+ */
+declare const SCOPE: unique symbol;
+export type PartOwner = { readonly [SCOPE]: 'part' } | null;
 
 /**
  * The parts that are mounted somewhere.
@@ -110,7 +132,12 @@ const mounted = new WeakSet<DynamicChild>();
 
 /** Marks a dynamic child of a fragment. Emitted by the compiler. */
 export function part(thunk: () => unknown): DynamicChild {
-  return { [PART]: true, anchor: document.createTextNode(''), thunk, owner: getOwner() };
+  return {
+    [PART]: true,
+    anchor: document.createTextNode(''),
+    thunk,
+    owner: getOwner() as unknown as PartOwner,
+  };
 }
 
 export function isDynamicChild(value: object): value is DynamicChild {
@@ -406,7 +433,7 @@ export function bindPart(child: DynamicChild, parent: Node, report?: Report): vo
     return;
   }
   mounted.add(child);
-  runWithOwner(child.owner ?? getOwner(), () => {
+  runWithOwner((child.owner as unknown as Owner | null) ?? getOwner(), () => {
     insert(parent, child.thunk, child.anchor, report === undefined ? undefined : { report });
     // Forgotten when the part is disposed, because a child a conditional takes
     // away and puts back is the same object and does need mounting again.

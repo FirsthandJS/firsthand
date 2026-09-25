@@ -238,7 +238,9 @@ function adopt(slot: Slot, parent: Node, marker: Node | null, value: unknown): b
       value.anchor,
       claimed,
     );
-    runWithOwner(value.owner, () => {
+    // Read back as what it is; see `PartOwner` in `insert.ts` for why the
+    // field is not typed that way.
+    runWithOwner(value.owner as unknown as Owner | null, () => {
       insert(parent, value.thunk, value.anchor);
     });
     return true;

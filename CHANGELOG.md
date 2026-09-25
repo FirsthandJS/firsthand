@@ -6,6 +6,37 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-09-25
+
+### Fixed
+
+- **A component can put a `View` prop into an element again.** The most
+  ordinary prop there is holds markup, and it did not compile:
+
+  ```tsx
+  const Panel = component((props: ReadonlyProps<{ children?: View }>) => (
+    <main>{props.children}</main> // TS2322
+  ));
+  ```
+
+  A component receives `ReadonlyProps`, which applies `DeepReadonly` to every
+  prop. That has an exception for DOM nodes — a deeply readonly `Node` is no
+  longer a `Node` — but not for the other thing a `View` can be: the
+  `DynamicChild` the compiler emits for `{expression}`. Descending into one
+  reached its owner, whose `disposals` and `cells` are arrays the runtime
+  pushes onto, and `readonly T[]` is not assignable to `T[]` — so the prop no
+  longer matched the element it came from. A fragment was unaffected, which is
+  what made it look like a styling problem.
+
+  Nothing was ever wrong at runtime: `DeepReadonly` exists only in the type
+  system, and the same object is passed straight through. Any `as View` cast
+  written to work around this can go.
+
+  A part's owner is now opaque in the published type, which also keeps `Owner`
+  — documented as internal to `@firsthandjs/core` — out of a signature
+  applications read. Reported with a minimal reproduction and a correct
+  diagnosis, which is the only reason this was a short fix.
+
 ## [0.12.0] - 2026-09-25
 
 An external review of the framework, and what verifying it found. Ten fixes,
@@ -1574,6 +1605,7 @@ strictReactivity: false })` restores the previous behaviour.
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.12.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.12.1
 [0.12.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.12.0
 [0.11.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.11.1
 [0.11.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.11.0
