@@ -28,10 +28,10 @@ handler is created once and always reads the current value.
 <!-- headline:start -->
 <!-- prettier-ignore-start -->
 The whole runtime is **7.49 kB gzip** with no production dependencies. On the
-render/update set it is **1.75×** faster than React 19.2.0, **1.16×** faster than Solid 1.9.15 and **1.51×** faster than Vue 3.5.43
+render/update set it is **1.65×** faster than React 19.2.0, **1.14×** faster than Solid 1.9.15 and **1.50×** faster than Vue 3.5.43
 (geometric means of 27 scenarios, 95 % bootstrap intervals) — measured in the same browser session,
 with the same data and the same rendered DOM verified before any timing, and
-with every scenario published, including the 5 that Firsthand does not win.
+with every scenario published, including the 9 that Firsthand does not win.
 <!-- prettier-ignore-end -->
 <!-- headline:end -->
 
@@ -283,8 +283,8 @@ conclusions using the same numbers.
 Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz, 12 cores · Chromium via Playwright · Node v24.19.0 ·
 25 measured repetitions after 5 warmups ·
 production builds · interleaved in one browser session ·
-DOM equality verified before timing · commit `8e0b7ad3` ·
-2026-09-24
+DOM equality verified before timing · commit `fdeecfbe` ·
+2026-09-25
 
 Each implementation is written the way its own documentation writes it: React
 with memoised components and `flushSync`, Solid with a store and `<For>`,
@@ -294,39 +294,39 @@ milliseconds; every scenario is here, including the ones Firsthand loses.
 
 | Scenario | Firsthand | React | Solid | Vue | Fastest |
 | --- | ---: | ---: | ---: | ---: | :--- |
-| `mount-1k` | 31.99 ms | 38.81 ms | 34.79 ms | 38.71 ms | Firsthand 1.09× |
-| `mount-10k` | 384.93 ms | 631.36 ms | 414.16 ms | 405.60 ms | Firsthand 1.05× |
-| `replace-1k` | 37.71 ms | 51.62 ms | 40.80 ms | 43.04 ms | Firsthand 1.08× |
-| `replace-10k` | 440.73 ms | 853.41 ms | 476.41 ms | 461.78 ms | Firsthand 1.05× |
-| `update-every-10th-1k` | 7.48 ms | 8.39 ms | 7.29 ms | 10.84 ms | Solid 1.03× |
-| `update-every-10th-10k` | 82.95 ms | 87.27 ms | 84.79 ms | 122.55 ms | Firsthand 1.02× |
-| `select-row` | 0.385 ms | 0.505 ms | 0.700 ms | 3.25 ms | Firsthand 1.31× |
-| `append-1k-to-1k` | 36.76 ms | 44.03 ms | 40.84 ms | 45.57 ms | Firsthand 1.11× |
-| `append-1k-to-10k` | 71.06 ms | 77.43 ms | 84.64 ms | 112.25 ms | Firsthand 1.09× |
-| `remove-row` | 2.34 ms | 3.05 ms | 3.93 ms | 5.47 ms | Firsthand 1.30× |
-| `swap-rows-1k` | 2.73 ms | 33.98 ms | 4.37 ms | 6.06 ms | Firsthand 1.60× |
-| `swap-rows-10k` | 31.43 ms | 583.16 ms | 51.36 ms | 68.11 ms | Firsthand 1.63× |
-| `reverse-1k` | 30.21 ms | 33.63 ms | 32.74 ms | 34.39 ms | Firsthand 1.08× |
-| `reverse-10k` ~ | 374.57 ms | 577.83 ms | 367.30 ms | 384.08 ms | Solid 1.02× |
-| `clear-1k` ~ | 3.45 ms | 9.36 ms | 3.70 ms | 4.29 ms | Firsthand 1.07× |
-| `clear-10k` | 35.65 ms | 83.82 ms | 35.30 ms | 42.19 ms | Solid 1.010× |
-| `prepend-1k-to-10k` | 72.71 ms | 89.39 ms | 87.69 ms | 108.80 ms | Firsthand 1.21× |
-| `update-single-row-10k` | 30.64 ms | 33.58 ms | 27.89 ms | 64.64 ms | Solid 1.10× |
-| `conditional-branch-switch-1k` | 13.45 ms | 19.30 ms | 12.65 ms | 12.36 ms | Vue 1.02× |
-| `deep-tree-mount` | 0.985 ms | 1.36 ms | 1.01 ms | 1.09 ms | Firsthand 1.03× |
-| `context-change-1` ~ | 0.100 ms | 0.130 ms | 0.105 ms | 0.115 ms | Firsthand 1.05× |
-| `context-change-100` | 1.08 ms | 1.18 ms | 1.14 ms | 1.32 ms | Firsthand 1.06× |
-| `context-change-10k` | 118.59 ms | 123.55 ms | 118.81 ms | 146.39 ms | Firsthand 1.002× |
-| `rapid-updates-1k-unbatched` | 0.465 ms | 2.30 ms | 0.710 ms | 2.43 ms | Firsthand 1.53× |
-| `rapid-updates-1k-batched` ~ | 0.105 ms | 0.210 ms | 0.160 ms | 0.140 ms | Firsthand 1.33× |
-| `portal-update` ~ | 0.055 ms | 0.085 ms | 0.065 ms | 0.080 ms | Firsthand 1.18× |
-| `input-event-latency` ~ | 0.120 ms | 0.195 ms | 0.120 ms | 0.145 ms | Firsthand 1.000× |
+| `mount-1k` | 40.93 ms | 45.73 ms | 40.00 ms | 46.17 ms | Solid 1.02× |
+| `mount-10k` ~ | 450.22 ms | 787.98 ms | 466.68 ms | 493.36 ms | Firsthand 1.04× |
+| `replace-1k` ~ | 44.87 ms | 60.52 ms | 48.25 ms | 50.66 ms | Firsthand 1.08× |
+| `replace-10k` ~ | 486.68 ms | 864.80 ms | 499.70 ms | 637.12 ms | Firsthand 1.03× |
+| `update-every-10th-1k` | 8.62 ms | 9.27 ms | 8.50 ms | 12.07 ms | Solid 1.01× |
+| `update-every-10th-10k` ~ | 101.53 ms | 109.47 ms | 95.88 ms | 141.53 ms | Solid 1.06× |
+| `select-row` | 0.415 ms | 0.560 ms | 0.755 ms | 3.57 ms | Firsthand 1.35× |
+| `append-1k-to-1k` | 41.34 ms | 49.23 ms | 45.14 ms | 49.35 ms | Firsthand 1.09× |
+| `append-1k-to-10k` | 81.65 ms | 85.52 ms | 94.31 ms | 124.01 ms | Firsthand 1.05× |
+| `remove-row` | 2.63 ms | 3.39 ms | 4.30 ms | 6.39 ms | Firsthand 1.29× |
+| `swap-rows-1k` ~ | 3.01 ms | 37.09 ms | 4.98 ms | 7.19 ms | Firsthand 1.66× |
+| `swap-rows-10k` | 33.07 ms | 649.25 ms | 56.40 ms | 73.38 ms | Firsthand 1.71× |
+| `reverse-1k` | 33.27 ms | 37.11 ms | 35.79 ms | 38.47 ms | Firsthand 1.08× |
+| `reverse-10k` ~ | 417.27 ms | 632.39 ms | 430.26 ms | 449.42 ms | Firsthand 1.03× |
+| `clear-1k` | 3.82 ms | 6.57 ms | 4.05 ms | 4.49 ms | Firsthand 1.06× |
+| `clear-10k` | 40.50 ms | 69.40 ms | 39.56 ms | 49.64 ms | Solid 1.02× |
+| `prepend-1k-to-10k` ~ | 84.38 ms | 103.75 ms | 97.60 ms | 128.49 ms | Firsthand 1.16× |
+| `update-single-row-10k` ~ | 36.53 ms | 37.95 ms | 31.38 ms | 75.67 ms | Solid 1.16× |
+| `conditional-branch-switch-1k` ~ | 15.88 ms | 19.95 ms | 15.78 ms | 14.78 ms | Vue 1.07× |
+| `deep-tree-mount` ~ | 1.18 ms | 1.63 ms | 1.22 ms | 1.27 ms | Firsthand 1.03× |
+| `context-change-1` ~ | 0.140 ms | 0.155 ms | 0.140 ms | 0.160 ms | Solid 1.000× |
+| `context-change-100` ~ | 1.32 ms | 1.42 ms | 1.35 ms | 1.57 ms | Firsthand 1.02× |
+| `context-change-10k` ~ | 160.22 ms | 155.59 ms | 145.56 ms | 176.50 ms | Solid 1.07× |
+| `rapid-updates-1k-unbatched` ~ | 0.545 ms | 3.01 ms | 1.03 ms | 3.10 ms | Firsthand 1.89× |
+| `rapid-updates-1k-batched` ~ | 0.150 ms | 0.260 ms | 0.215 ms | 0.185 ms | Firsthand 1.23× |
+| `portal-update` ~ | 0.090 ms | 0.135 ms | 0.095 ms | 0.125 ms | Firsthand 1.06× |
+| `input-event-latency` ~ | 0.200 ms | 0.305 ms | 0.195 ms | 0.210 ms | Solid 1.03× |
 
 | Against | Geometric mean of the per-scenario ratios | 95 % bootstrap CI | Claimable |
 | --- | ---: | :---: | :--- |
-| React 19.2.0 | **1.746×** | 1.385–2.361 | yes — the interval excludes 1.0 |
-| Solid 1.9.15 | **1.158×** | 1.081–1.247 | yes — the interval excludes 1.0 |
-| Vue 3.5.43 | **1.512×** | 1.272–1.818 | yes — the interval excludes 1.0 |
+| React 19.2.0 | **1.654×** | 1.307–2.262 | yes — the interval excludes 1.0 |
+| Solid 1.9.15 | **1.139×** | 1.053–1.238 | yes — the interval excludes 1.0 |
+| Vue 3.5.43 | **1.505×** | 1.258–1.820 | yes — the interval excludes 1.0 |
 
 **Fastest** names the winner of the row and its margin over the next one. The
 page is served cross-origin isolated, so `performance.now()` reads in 5 µs
@@ -336,7 +336,7 @@ rows would all report the same number and there would be nothing to compare.
 A ratio above 1.0 in the table below means Firsthand is faster by that factor.
 Where the interval includes 1.0 the two are level as far as this suite can
 tell, and this project publishes that rather than rounding it into a claim.
-Firsthand was the fastest of the 4, or tied with whoever was, in 22 of 27
+Firsthand was the fastest of the 4, or tied with whoever was, in 18 of 27
 scenarios in this run.
 
 Rows marked `~` had a median absolute deviation above 10 % of the median on
@@ -354,10 +354,10 @@ of 1 000 rows, so it includes parsing and first-execution compilation.
 
 | | after mounting 1 000 rows | after 100 update cycles | after disposal | cold start |
 | --- | ---: | ---: | ---: | ---: |
-| **Firsthand** | 1.82 MB | 2.05 MB | 0.31 MB | 57.82 ms |
-| React | 2.21 MB | 2.86 MB | 0.66 MB | 76.86 ms |
-| Solid | 1.85 MB | 2.14 MB | 0.99 MB | 65.53 ms |
-| Vue | 2.21 MB | 2.28 MB | 0.83 MB | 78.61 ms |
+| **Firsthand** | 1.82 MB | 2.05 MB | 0.31 MB | 68.58 ms |
+| React | 2.21 MB | 2.98 MB | 0.78 MB | 87.05 ms |
+| Solid | 1.85 MB | 2.14 MB | 1.01 MB | 94.90 ms |
+| Vue | 2.21 MB | 2.08 MB | 0.63 MB | 101.12 ms |
 
 The third column is the one to read: it is what the page still holds once
 the tree has been torn down.
@@ -400,8 +400,8 @@ different sample sizes would quietly weaken the confidence interval.
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
 | `@firsthandjs/core` | 7.65 kB | **2.81 kB** | 2.55 kB |
-| `@firsthandjs/dom` | 13.61 kB | **5.37 kB** | 4.83 kB |
-| `@firsthandjs/dom/internal` | 14.21 kB | **5.69 kB** | 5.12 kB |
+| `@firsthandjs/dom` | 13.61 kB | **5.36 kB** | 4.83 kB |
+| `@firsthandjs/dom/internal` | 14.20 kB | **5.69 kB** | 5.12 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
 | full runtime (core + dom, everything imported) | 20.25 kB | **7.49 kB** | 6.78 kB |
 
@@ -410,7 +410,7 @@ Optional packages, downloaded only by an application that imports them:
 
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
-| `@firsthandjs/dom/hydrate` | 6.19 kB | **2.58 kB** | 2.38 kB |
+| `@firsthandjs/dom/hydrate` | 6.18 kB | **2.58 kB** | 2.39 kB |
 | `@firsthandjs/deep` | 1.58 kB | **0.72 kB** | 0.66 kB |
 | `@firsthandjs/devtools` | 17.44 kB | **6.40 kB** | 5.62 kB |
 | `@firsthandjs/i18n` | 0.63 kB | **0.37 kB** | 0.32 kB |
@@ -518,7 +518,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 1331 tests under Vitest and 102
+This repository is the demonstration: 1337 tests under Vitest and 102
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all eight examples.
 <!-- prettier-ignore-end -->
