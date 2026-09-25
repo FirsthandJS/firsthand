@@ -30,3 +30,7 @@ internal/
 # The SSR example's two builds, and the log its server writes when run by hand.
 examples/ssr/dist
 examples/ssr/*.log
+
+# Local editor and tooling configuration, which is a matter for whoever is
+# working rather than for the repository.
+.claude/
