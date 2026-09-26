@@ -252,16 +252,17 @@ Bringing `packages/dom` under the function and complexity limits cost
 
 That is 3 % of the runtime for the readability of the twelve functions that
 were over the limits. The class split in §7 spent most of what that left, so
-the headroom is now **10 bytes** — measured with `scripts/build.mjs`, which is
-the instrument the budget is defined in, across five trees in one setup:
+the headroom is now **7 bytes** — measured with `scripts/build.mjs`, which is
+the instrument the budget is defined in, across six trees in one setup:
 
-| Commit                          | minified |        gzip |
-| ------------------------------- | -------: | ----------: |
-| `13fe49e`, before async owners  | 20,733 B |     7,673 B |
-| `0e1d758`, after them (#60)     | 20,737 B |     7,667 B |
-| `a0b8a72`, after the fix (#59)  | 20,737 B |     7,667 B |
-| `4bd8df8`, after the spread fix | 20,741 B |     7,675 B |
-| `07fb652`, after spread parity  | 20,738 B | **7,670 B** |
+| Commit                            | minified |        gzip |
+| --------------------------------- | -------: | ----------: |
+| `13fe49e`, before async owners    | 20,733 B |     7,673 B |
+| `0e1d758`, after them (#60)       | 20,737 B |     7,667 B |
+| `a0b8a72`, after the fix (#59)    | 20,737 B |     7,667 B |
+| `4bd8df8`, after the spread fix   | 20,741 B |     7,675 B |
+| `07fb652`, after spread parity    | 20,738 B |     7,670 B |
+| `733ac64`, after the context hint | 20,752 B | **7,673 B** |
 
 The fourth row is the one place this budget has been spent on something other
 than readability. A spread could write any attribute name it was handed, so a
@@ -270,6 +271,13 @@ could put `onmouseover` into the markup, and the browser ran it. Refusing the
 name costs eight gzip bytes, and the alternative was raising the budget, which
 would have spent the README's claim on a bug. The refusal reuses the branch
 that already read `on`, so what it added is the `i` flag and one call.
+
+The sixth row is three bytes for a development diagnostic, which is worth
+recording because the diagnostic itself is stripped from a production build and
+was expected to be free. What is not stripped is the _call_ to it: the
+production module supplies an empty function, and esbuild does not inline, so
+two call sites remain. A diagnostic in a cold path is nearly free; a diagnostic
+in a hot one would not be, and this is where that shows up.
 
 The fifth row gave five of those bytes back, which is worth saying plainly
 because it was not the point of that change: asking `/^on[A-Z:]/` in one

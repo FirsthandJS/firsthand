@@ -134,3 +134,49 @@ export function devRoot(owner: object): void {
 export function devRunning(effect: object | null): void {
   hook()?.running(effect);
 }
+
+/**
+ * Every token that has been provided anywhere, in development.
+ *
+ * Kept so that a read falling back to the default can tell the two cases
+ * apart: a token nobody provides is working as designed, and a token somebody
+ * provides — just not above this reader — is almost always the mistake below.
+ */
+const provided = new WeakSet();
+
+/** Notes that a token has a provider somewhere. */
+export function devProvided(token: object): void {
+  provided.add(token);
+}
+
+/** Tokens already complained about, so a list of a thousand rows says it once. */
+const told = new WeakSet();
+
+/**
+ * A context read that found the default although somebody provides the token.
+ *
+ * The usual cause is markup that was built before the provider existed. A
+ * component's children are built by whoever writes them, so holding markup in
+ * a local and passing it on means it was built in that scope, and its context
+ * comes from there:
+ *
+ *     const child = <Reader />;          // built here, reads from here
+ *     return <Provider>{child}</Provider>;
+ *
+ * Writing it in place, or holding a function instead of markup, builds it
+ * under the provider. Nothing else about the provider needs to move — least of
+ * all up to the root.
+ */
+export function devContextDefault(token: object, description: string): void {
+  if (!provided.has(token) || told.has(token)) {
+    return;
+  }
+  told.add(token);
+  devWarn(
+    `${description} was read where nothing provides it, so its default was used — ` +
+      'and it is provided somewhere else, which usually means this reader was ' +
+      'built before the provider existed. Markup held in a local variable is ' +
+      'built where it is written: write it inside the provider, or hold a ' +
+      'function (`{() => <Reader />}`) so it is built where it is used.',
+  );
+}

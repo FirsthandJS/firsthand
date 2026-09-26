@@ -1,7 +1,7 @@
 import { Cell, defaultEquals } from './cell.js';
 import { getOwner, type ContextRecord, type Owner } from './core.js';
 import { FirsthandContextError } from './errors.js';
-import { devWarn } from './dev.js';
+import { devContextDefault, devProvided, devWarn } from './dev.js';
 import type { ReadonlyCell } from './types.js';
 
 /** Marks which owner a context record belongs to, so records are created once. */
@@ -78,6 +78,7 @@ export function provide<T>(
   const cell =
     value instanceof Cell ? value : new Cell(0, value, undefined, defaultEquals(undefined));
   recordFor(owner)[context.id] = cell;
+  devProvided(context);
 }
 
 /**
@@ -98,6 +99,7 @@ export function useContext<T>(context: Context<T>): ReadonlyCell<T> {
   if (!token.hasDefault) {
     throw new FirsthandContextError(token.description);
   }
+  devContextDefault(context, token.description);
   return (token.fallback ??= new Cell(
     0,
     token.defaultValue,

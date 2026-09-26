@@ -21,6 +21,15 @@ All notable changes to this project are documented here. The format follows
   not upgraded yet, which has none of its own properties for `name in element`
   to find.
 
+### Added
+
+- **A development warning when a context read falls back to its default** while
+  the same token is provided somewhere else. That combination almost always
+  means the reader was built before the provider existed, and the warning says
+  so and names the fix. Stripped from a production build, as every diagnostic
+  is; the two call sites that remain cost 3 gzip bytes, recorded in §6 of
+  `code-rules.md`.
+
 ### Documentation
 
 - `ARCHITECTURE.md` said the compiler **rejects** props destructuring. It has
@@ -28,6 +37,11 @@ All notable changes to this project are documented here. The format follows
   `API_DESIGN.md` describes; the architecture overview never caught up.
 - `API_DESIGN.md` showed a destructuring default compiling to `props.count ?? 0`,
   which 0.12.0 changed.
+- **Where a provider may stand** is now in the guide, with the one case that
+  does not work and why. A wrapper component provides for its children at any
+  depth — through a fragment, nested, and for a child passed down as a prop —
+  but markup held in a local variable was already built where it was written,
+  and reads its context from there. Seven shapes are pinned by tests.
 
 ## [0.12.1] - 2026-09-25
 
