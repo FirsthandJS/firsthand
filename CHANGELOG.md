@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **`styled` forwards `prop:` and `attr:`.** Its forwarding list is an allowlist
+  — a styling prop such as `weight={3}` must not land on the element — and
+  neither prefix is in `name in element`, so both were dropped without a word.
+  They are not a guess about what an element accepts; they are the author saying
+  which of the two to write.
+
+  It matters most for a custom element from a component library: the element
+  keeps its own state, so writing the `value` _attribute_ does nothing once
+  somebody has typed in it, and clearing the field from code needs
+  `prop:value`. It is also the only reliable way to reach an element that has
+  not upgraded yet, which has none of its own properties for `name in element`
+  to find.
+
+### Documentation
+
+- `ARCHITECTURE.md` said the compiler **rejects** props destructuring. It has
+  rewritten it into live reads since 0.3.0, which ADR-0005 records and
+  `API_DESIGN.md` describes; the architecture overview never caught up.
+- `API_DESIGN.md` showed a destructuring default compiling to `props.count ?? 0`,
+  which 0.12.0 changed.
+
 ## [0.12.1] - 2026-09-25
 
 ### Fixed

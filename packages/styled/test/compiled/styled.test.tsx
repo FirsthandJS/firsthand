@@ -85,6 +85,45 @@ describe('a styled element', () => {
     expect(button.getAttribute('weight')).toBeNull();
   });
 
+  /**
+   * The framework's own escape hatches, through a styled component.
+   *
+   * `forwards` is an allowlist, and it has to be: a styling prop like
+   * `weight={3}` must not land on the element, which the test above pins. But
+   * `prop:value` is not a guess about what an element accepts — it is the
+   * author saying "write this as a property", and `attr:x` the same for an
+   * attribute. Neither is in `name in element`, so both were dropped without a
+   * word.
+   *
+   * It matters most for a custom element: a component library's field keeps its
+   * own state, so writing the `value` *attribute* does nothing once somebody has
+   * typed, and clearing the field from code needs the property. That is not an
+   * exotic case — it is a reset button.
+   */
+  it('forwards an explicit prop: and attr: to the element', () => {
+    class Field extends HTMLElement {
+      value = 'typed by somebody';
+    }
+    customElements.define('wa-field', Field);
+
+    // The tag is a real custom element; the cast is only so that the JSX
+    // namespace types its props, and `styled` is a proxy that passes whatever
+    // name it was asked for straight through.
+    const Input = styled['wa-field' as 'div']`
+      color: red;
+    `;
+
+    const view = mount(() => <Input prop:value="" attr:data-state="clean" />);
+    const field = view.get<Field>('wa-field');
+
+    // The property, because that is what the element reads.
+    expect(field.value).toBe('');
+    expect(field.getAttribute('data-state')).toBe('clean');
+    // And the instruction itself never becomes an attribute.
+    expect(field.getAttribute('prop:value')).toBeNull();
+    expect(field.getAttribute('attr:data-state')).toBeNull();
+  });
+
   it('merges a class prop with its own', () => {
     const Box = styled.div`
       color: red;

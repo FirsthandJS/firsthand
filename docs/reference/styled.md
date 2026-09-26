@@ -1,6 +1,6 @@
 # @firsthandjs/styled
 
-[Reference index](../README.md#reference) · 2.05 kB gzip · depends on
+[Reference index](../README.md#reference) · 2.06 kB gzip · depends on
 `@firsthandjs/dom`
 
 Styled components, compiled once per template rather than once per instance.
@@ -49,9 +49,17 @@ several declarations) becomes part of the class, and a distinct result gets its
 own class. Native CSS nesting is used as written; nothing is flattened.
 
 **Prop forwarding**: a prop is written to the element when it exists on the
-element, or is `data-*`, `aria-*` or an event. `children`, `class` and any
-`$`-prefixed prop are not. styled-components ships a list of every HTML
-attribute to answer this question; the element already knows.
+element, or is `data-*`, `aria-*` or an event, or is spelled `prop:` or `attr:`.
+`children`, `class` and any `$`-prefixed prop are not. styled-components ships a
+list of every HTML attribute to answer this question; the element already knows.
+
+`prop:` and `attr:` pass through because they are not a guess about what the
+element accepts — they are the author saying which of the two to write. That is
+what a custom element usually needs: a component library's field keeps its own
+state, so writing the `value` _attribute_ does nothing once somebody has typed
+in it, and clearing the field from code needs `prop:value`. It is also the only
+reliable way to reach a custom element that has not upgraded yet, because until
+it does, it has none of its own properties for `name in element` to find.
 
 `styled(Component)` wraps any component, including a React one bridged by
 [`@firsthandjs/react`](react.md), and a styled component can be styled again. A
