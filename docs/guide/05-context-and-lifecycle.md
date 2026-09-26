@@ -43,6 +43,57 @@ provide(ThemeContext, { mode: 'dark' }); // constant
 provide(ThemeContext, themeSignal); // swappable
 ```
 
+### A provider anywhere, not only at the root
+
+A wrapper component provides for its children:
+
+```tsx
+const Themed = component((props: { children?: View }) => {
+  provide(ThemeContext, { mode: 'dark' });
+  return <div class="themed">{props.children}</div>;
+});
+
+<Themed>
+  <Button /> {/* reads `dark` */}
+</Themed>;
+```
+
+That works at any depth, through a fragment, through several nested providers
+(the nearest wins), and for a child handed down as a prop from further up.
+
+The one thing to know is _when_ a child is built, because that is what decides
+where it reads from. Markup is built where it is written, so a local variable
+already holds a built child:
+
+```tsx
+const child = <Button />; // built here, reads context from here
+return <Themed>{child}</Themed>; // too late: it already has a scope
+```
+
+Hold a function instead, and it is built where it is used:
+
+```tsx
+const child = () => <Button />;
+return <Themed>{child}</Themed>; // reads `dark`
+```
+
+Holding the _component_ rather than its markup does the same thing, since
+`<Held />` is an instantiation rather than a value:
+
+```tsx
+const Held = Button;
+return (
+  <Themed>
+    <Held />
+  </Themed>
+); // reads `dark`
+```
+
+No context system can repair the first version: by the time the provider runs,
+the child already exists and already has a scope. Development says so rather
+than leaving you with a default — a read that falls back while the same token is
+provided somewhere else warns, and names this as the likely cause.
+
 ### No provider
 
 A context created without a default **throws** when read with no provider,

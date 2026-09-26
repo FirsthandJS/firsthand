@@ -49,3 +49,11 @@ export function devRoot(_owner: object): void {
 export function devRunning(_effect: object | null): void {
   /* stripped in production */
 }
+
+export function devProvided(_token: object): void {
+  /* stripped in production */
+}
+
+export function devContextDefault(_token: object, _description: string): void {
+  /* stripped in production */
+}

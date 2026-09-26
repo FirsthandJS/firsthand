@@ -303,12 +303,18 @@ Consequences:
 - props are non-writable at the top level (no setter is defined), so
   `props.x = 1` throws in module/strict code.
 
-Destructuring (`const { user } = props`) would snapshot, so the compiler
-**rejects it** with an error naming the property and the live read to use
-instead. Rewriting it into accessors was considered and not implemented: the
-cases where it is provably safe are narrow, and a rewrite that silently stops
-applying at the edge of what it can prove is exactly the failure mode this
-design exists to remove (ADR-0005).
+Destructuring in the parameter list is **rewritten into live reads**, so
+`({ user }) => …` means `props.user` at every use and nothing is snapshotted.
+A default is re-applied per read, for `undefined` alone as the language does;
+a rest element becomes getters that delegate back, so `{...rest}` forwards live
+values. What cannot be rewritten soundly is a build error naming the reason: an
+assignment to a destructured prop, a computed key, an array pattern.
+
+This reverses the first version of the decision, which rejected destructuring
+outright — the argument was that a rewrite stopping at the edge of what it can
+prove is worse than an error, and that was wrong about where the edge is: the
+patterns people write are all rewritable, and the ones that are not are
+recognisable syntactically rather than by analysis (ADR-0005).
 
 ### 3.3 Immutability, honestly
 

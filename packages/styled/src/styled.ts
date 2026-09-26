@@ -54,6 +54,13 @@ function forwards(element: Element, name: string): boolean {
     return false;
   }
   return (
+    // Not a guess about what the element accepts: the author has said which of
+    // the two to write. `name in element` never says yes to either spelling,
+    // and a custom element that has not upgraded yet says no to its own
+    // properties as well — so this is also the only way to reach one of those
+    // reliably. `applyProp` strips the prefix and does as it is told.
+    name.startsWith('prop:') ||
+    name.startsWith('attr:') ||
     name in element ||
     name.startsWith('data-') ||
     name.startsWith('aria-') ||

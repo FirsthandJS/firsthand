@@ -399,11 +399,11 @@ different sample sizes would quietly weaken the confidence interval.
 
 | Module | minified | gzip | brotli |
 | --- | ---: | ---: | ---: |
-| `@firsthandjs/core` | 7.65 kB | **2.81 kB** | 2.55 kB |
+| `@firsthandjs/core` | 7.67 kB | **2.81 kB** | 2.55 kB |
 | `@firsthandjs/dom` | 13.61 kB | **5.36 kB** | 4.83 kB |
 | `@firsthandjs/dom/internal` | 14.20 kB | **5.69 kB** | 5.12 kB |
 | `@firsthandjs/jsx-runtime` | 1.15 kB | **0.59 kB** | 0.50 kB |
-| full runtime (core + dom, everything imported) | 20.25 kB | **7.49 kB** | 6.78 kB |
+| full runtime (core + dom, everything imported) | 20.27 kB | **7.49 kB** | 6.78 kB |
 
 
 Optional packages, downloaded only by an application that imports them:
@@ -420,7 +420,7 @@ Optional packages, downloaded only by an application that imports them:
 | `@firsthandjs/data-axios` | 1.31 kB | **0.62 kB** | 0.55 kB |
 | `@firsthandjs/data-urql` | 1.20 kB | **0.63 kB** | 0.55 kB |
 | `@firsthandjs/data-apollo` | 1.61 kB | **0.75 kB** | 0.68 kB |
-| `@firsthandjs/styled` | 4.49 kB | **2.05 kB** | 1.86 kB |
+| `@firsthandjs/styled` | 4.54 kB | **2.06 kB** | 1.87 kB |
 | `@firsthandjs/react` | 1.19 kB | **0.66 kB** | 0.58 kB |
 | `@firsthandjs/react/auto` | 1.20 kB | **0.66 kB** | 0.58 kB |
 | `@firsthandjs/server` | 2.84 kB | **1.26 kB** | 1.11 kB |
@@ -518,7 +518,7 @@ other page.
 
 <!-- tests:start -->
 <!-- prettier-ignore-start -->
-This repository is the demonstration: 1337 tests under Vitest and 102
+This repository is the demonstration: 1345 tests under Vitest and 102
 under Playwright across Chromium, Firefox and WebKit, covering the framework,
 the router, the query cache and all eight examples.
 <!-- prettier-ignore-end -->

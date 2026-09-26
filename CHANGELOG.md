@@ -6,6 +6,43 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **`styled` forwards `prop:` and `attr:`.** Its forwarding list is an allowlist
+  — a styling prop such as `weight={3}` must not land on the element — and
+  neither prefix is in `name in element`, so both were dropped without a word.
+  They are not a guess about what an element accepts; they are the author saying
+  which of the two to write.
+
+  It matters most for a custom element from a component library: the element
+  keeps its own state, so writing the `value` _attribute_ does nothing once
+  somebody has typed in it, and clearing the field from code needs
+  `prop:value`. It is also the only reliable way to reach an element that has
+  not upgraded yet, which has none of its own properties for `name in element`
+  to find.
+
+### Added
+
+- **A development warning when a context read falls back to its default** while
+  the same token is provided somewhere else. That combination almost always
+  means the reader was built before the provider existed, and the warning says
+  so and names the fix. Stripped from a production build, as every diagnostic
+  is; the two call sites that remain cost 3 gzip bytes, recorded in §6 of
+  `code-rules.md`.
+
+### Documentation
+
+- `ARCHITECTURE.md` said the compiler **rejects** props destructuring. It has
+  rewritten it into live reads since 0.3.0, which ADR-0005 records and
+  `API_DESIGN.md` describes; the architecture overview never caught up.
+- `API_DESIGN.md` showed a destructuring default compiling to `props.count ?? 0`,
+  which 0.12.0 changed.
+- **Where a provider may stand** is now in the guide, with the one case that
+  does not work and why. A wrapper component provides for its children at any
+  depth — through a fragment, nested, and for a child passed down as a prop —
+  but markup held in a local variable was already built where it was written,
+  and reads its context from there. Seven shapes are pinned by tests.
+
 ## [0.12.1] - 2026-09-25
 
 ### Fixed

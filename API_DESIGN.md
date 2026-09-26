@@ -221,11 +221,13 @@ const UserCard = component((props: ReadonlyProps<{ user: User }>) => (
 ```tsx
 component<Props>(({ user, count = 0, ...rest }) => ...)
 // becomes
-component<Props>((props) => { const rest = ...; ... props.user ... props.count ?? 0 ... })
+component<Props>((props) => { const rest = ...; ... props.user ...
+//   ... (props.count === undefined ? 0 : props.count) ... })
 ```
 
 The compiler rewrites a destructured props parameter into property reads, so
-every use stays live. Defaults are re-applied on each read; a rest element
+every use stays live. Defaults are re-applied on each read, and answer for
+`undefined` alone, as the language does — a parent passing `null` means null; a rest element
 becomes an object of getters that delegate back to the props, so forwarding
 `{...rest}` forwards live values.
 
