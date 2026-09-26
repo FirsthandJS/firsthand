@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-09-26
+
 ### Fixed
 
 - **`styled` forwards `prop:` and `attr:`.** Its forwarding list is an allowlist
@@ -1642,6 +1644,7 @@ strictReactivity: false })` restores the previous behaviour.
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.12.2]: https://github.com/firsthandjs/firsthand/releases/tag/v0.12.2
 [0.12.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.12.1
 [0.12.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.12.0
 [0.11.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.11.1
