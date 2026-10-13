@@ -3,6 +3,10 @@
   "version": "0.12.2",
   "description": "Makes i18next (or any translation function) reactive in Firsthand.",
   "license": "MIT",
+  "author": "IgorAnowsky",
+  "scripts": {
+    "test": "vitest run --root ../.. packages/i18n/test"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {

@@ -4,6 +4,10 @@
   "type": "module",
   "description": "Server-side rendering for Firsthand: the same components, rendered to markup.",
   "license": "MIT",
+  "author": "IgorAnowsky",
+  "scripts": {
+    "test": "vitest run --root ../.. packages/server/test"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/firsthandjs/firsthand.git",

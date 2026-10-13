@@ -3,6 +3,10 @@
   "version": "0.12.2",
   "description": "Experimental devtools for Firsthand: see what updates what, why it ran, and when.",
   "license": "MIT",
+  "author": "IgorAnowsky",
+  "scripts": {
+    "test": "vitest run --root ../.. packages/devtools/test"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {

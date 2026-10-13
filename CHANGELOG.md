@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Every package declares how to run its own tests**, and names its author.
+  The manifests carried no `scripts` at all, because the suite is run from the
+  repository root — so a registry reading a package on its own could only
+  conclude there were none, and said so. `npm test -w @firsthandjs/core` now
+  runs that package's 137 tests, and the other fifteen likewise.
+
 ## [0.12.2] - 2026-09-26
 
 ### Fixed
