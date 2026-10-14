@@ -3,6 +3,10 @@
   "version": "0.12.2",
   "description": "Test helpers for Firsthand: mounting, cleanup and leak probes. Works with any runner.",
   "license": "MIT",
+  "author": "IgorAnowsky",
+  "scripts": {
+    "test": "vitest run --root ../.. packages/testing/test"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {

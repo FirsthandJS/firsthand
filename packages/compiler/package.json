@@ -3,6 +3,10 @@
   "version": "0.12.2",
   "description": "Build-time TSX transform for Firsthand: static markup into templates, dynamic expressions into DOM parts.",
   "license": "MIT",
+  "author": "IgorAnowsky",
+  "scripts": {
+    "test": "vitest run --root ../.. packages/compiler/test"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {

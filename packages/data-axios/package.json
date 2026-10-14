@@ -3,6 +3,10 @@
   "version": "0.12.2",
   "description": "Loaders for Axios, for @firsthandjs/data. Takes your client; never configures it.",
   "license": "MIT",
+  "author": "IgorAnowsky",
+  "scripts": {
+    "test": "vitest run --root ../.. packages/data-axios/test"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {

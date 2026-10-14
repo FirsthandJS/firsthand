@@ -3,6 +3,10 @@
   "version": "0.12.2",
   "description": "Fine-grained reactive core: signals, computeds, effects, owners and context. No DOM.",
   "license": "MIT",
+  "author": "IgorAnowsky",
+  "scripts": {
+    "test": "vitest run --root ../.. packages/core/test"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {

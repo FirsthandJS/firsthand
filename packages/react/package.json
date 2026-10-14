@@ -3,6 +3,10 @@
   "version": "0.12.2",
   "description": "Render React components inside Firsthand, for component libraries like MUI.",
   "license": "MIT",
+  "author": "IgorAnowsky",
+  "scripts": {
+    "test": "vitest run --root ../.. packages/react/test"
+  },
   "type": "module",
   "sideEffects": [
     "./dist/auto.js"
