@@ -3,6 +3,10 @@
   "version": "0.12.2",
   "description": "Resources, actions and invalidation for Firsthand: reactive async state, with the cache one layer down.",
   "license": "MIT",
+  "author": "IgorAnowsky",
+  "scripts": {
+    "test": "vitest run --root ../.. packages/data/test"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {

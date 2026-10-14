@@ -3,6 +3,10 @@
   "version": "0.12.2",
   "description": "CSS-in-JS for Firsthand: tagged templates, themes, and fine-grained style updates.",
   "license": "MIT",
+  "author": "IgorAnowsky",
+  "scripts": {
+    "test": "vitest run --root ../.. packages/styled/test"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {

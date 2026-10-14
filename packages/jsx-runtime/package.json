@@ -3,6 +3,10 @@
   "version": "0.12.2",
   "description": "Runtime JSX entry points for Firsthand, for environments without the compiler.",
   "license": "MIT",
+  "author": "IgorAnowsky",
+  "scripts": {
+    "test": "vitest run --root ../.. packages/jsx-runtime/test"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {
