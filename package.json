@@ -60,7 +60,7 @@
     "@babel/parser": "^7.29.9",
     "@babel/plugin-syntax-jsx": "^8.0.1",
     "@babel/plugin-syntax-typescript": "^8.0.3",
-    "@babel/types": "^8.0.6",
+    "@babel/types": "^8.0.8",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.64.0",
     "@stryker-mutator/core": "^10.0.0",
