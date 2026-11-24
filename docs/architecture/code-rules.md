@@ -252,7 +252,7 @@ Bringing `packages/dom` under the function and complexity limits cost
 
 That is 3 % of the runtime for the readability of the twelve functions that
 were over the limits. The class split in §7 spent most of what that left, so
-the headroom is now **7 bytes** — measured with `scripts/build.mjs`, which is
+the headroom was **7 bytes** — measured with `scripts/build.mjs`, which is
 the instrument the budget is defined in, across six trees in one setup:
 
 | Commit                            | minified |        gzip |
@@ -278,6 +278,31 @@ was expected to be free. What is not stripped is the _call_ to it: the
 production module supplies an empty function, and esbuild does not inline, so
 two call sites remain. A diagnostic in a cold path is nearly free; a diagnostic
 in a hot one would not be, and this is where that shows up.
+
+### The budget moved: 7.50 to 7.75 kB
+
+Three defects in the reactive core, reported together because together they
+froze an application's screen: a computed that answered with a stale value, an
+effect that ran before the effect about to dispose it, and an error from that
+run escaping every boundary and leaving the rest of the queue unscheduled for
+good. The fixes are a scheduler that settles an effect's owners first, a
+computed that keeps what it threw, and a refresh that knows who asked.
+
+| Build                              | minified |    gzip |
+| ---------------------------------- | -------: | ------: |
+| `fe38b08`, before the fixes        | 20,752 B | 7,673 B |
+| the fixes as first written         | 21,431 B | 7,909 B |
+| after cutting what the fixes allow | 21,246 B | 7,858 B |
+
+What was cut before the line moved: the scheduler's guard against a throwing
+dependency check, which a computed that keeps its error makes unreachable, and
+an array the owner walk built, which recursion to the root replaces. What was
+not cut is the separate path for reading a stale or failed computed: folding it
+into `Cell.value` saves bytes by putting a branch in front of every read of a
+clean one, and that is the read this budget exists to keep fast.
+
+So the headroom is now **78 bytes**, against a budget raised by a quarter of a
+kilobyte rather than kept by leaving the screen frozen.
 
 The fifth row gave five of those bytes back, which is worth saying plainly
 because it was not the point of that change: asking `/^on[A-Z:]/` in one
@@ -363,7 +388,7 @@ runtime has to come back and correct them — and measure them with
 `npm run build`, not with a probe of its own, because two size numbers in two
 days have drifted and both drifted through a setup nobody had isolated.
 
-**Thirteen bytes is the room there is.** Read that before starting a change to
+**Seventy-eight bytes is the room there is** (§6, after the budget moved). Read that before starting a change to
 `core` or `dom`, not after CI has told you: the next addition of any size will
 exceed it, and §6 says what the answer then is.
 

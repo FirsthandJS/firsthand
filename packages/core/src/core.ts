@@ -51,7 +51,7 @@
  * case allocates nothing.
  */
 
-import { DIRTY, DISPOSED, HAS_VALUE, MUTABLE, PENDING, STALE, WATCHING } from './flags.js';
+import { DIRTY, DISPOSED, ERRORED, HAS_VALUE, MUTABLE, PENDING, STALE, WATCHING } from './flags.js';
 import { Link } from './link.js';
 import type { Cell } from './cell.js';
 import { FirsthandCycleError } from './errors.js';
@@ -81,6 +81,12 @@ export type Owner = {
   ctx: ContextRecord | null;
   /** Error boundary installed by `catchError`. */
   handler: ((error: unknown) => void) | null;
+  /**
+   * The effect whose run decides whether what is under this owner lives: an
+   * effect's own scope, or a scope that effect adopted (`adoptEffect`). The
+   * scheduler settles it before anything beneath it.
+   */
+  effect: Cell | null;
 };
 
 export type ContextRecord = Record<symbol, unknown>;
@@ -302,17 +308,24 @@ export function write(cell: Cell, next: unknown): void {
 // Pull evaluation
 // ---------------------------------------------------------------------------
 
-/** Brings a stale computed up to date. Returns whether its value changed. */
-export function refresh(cell: Cell): boolean {
+/**
+ * Brings a stale computed up to date. Returns whether its value changed.
+ *
+ * `reader` is whoever asked: the subscriber whose dependency check got here,
+ * or the node reading the value, or `undefined` for an untracked read.
+ */
+export function refresh(cell: Cell, reader: Cell | undefined): boolean {
   const flags = cell.flags;
   if ((flags & DIRTY) !== 0 || checkDirty(cell)) {
     if (!evaluate(cell)) {
       return false;
     }
     const subs = cell.subs;
-    // With a single subscriber there is nobody to tell: that subscriber is the
-    // one that asked for this refresh.
-    if (subs !== undefined && subs.nextSub !== undefined) {
+    // Only a lone subscriber that is itself the reader needs no telling. Any
+    // other reader — a `peek`, an untracked read, a first read that links only
+    // after this returns — leaves that subscriber `PENDING` with nothing stale
+    // left to find, and it would answer with its cached value.
+    if (subs !== undefined && (subs.nextSub !== undefined || subs.sub !== reader)) {
       shallowPropagate(subs);
     }
     return true;
@@ -326,7 +339,7 @@ function checkDirty(cell: Cell): boolean {
   let edge = cell.deps;
   while (edge !== undefined) {
     const dep = edge.dep;
-    if ((dep.flags & MUTABLE) !== 0 && (dep.flags & STALE) !== 0 && refresh(dep)) {
+    if ((dep.flags & MUTABLE) !== 0 && (dep.flags & STALE) !== 0 && refresh(dep, cell)) {
       return true;
     }
     edge = edge.nextDep;
@@ -334,7 +347,14 @@ function checkDirty(cell: Cell): boolean {
   return false;
 }
 
-/** Re-runs a computed body and reports whether the memoised value changed. */
+/**
+ * Re-runs a computed body and reports whether the memoised value changed.
+ *
+ * A body that throws does not throw from here: the error becomes the
+ * computed's value (`ERRORED`), and reading it rethrows. Letting it through
+ * would leave it to whoever happened to pull — which, for an effect's
+ * dependency check, is the flush itself, outside every error boundary.
+ */
 function evaluate(cell: Cell): boolean {
   const prevSub = activeSub;
   const prevOwner = currentOwner;
@@ -347,11 +367,19 @@ function evaluate(cell: Cell): boolean {
     const next = (cell.fn as () => unknown)();
     // The first evaluation always counts as a change: there is no previous
     // value, and a custom `equals` must never be handed a phantom `undefined`.
-    if ((cell.flags & HAS_VALUE) !== 0 && cell.equals(cell.v, next)) {
+    // Nor must it be handed the error a failed evaluation left behind.
+    if ((cell.flags & (HAS_VALUE | ERRORED)) === HAS_VALUE && cell.equals(cell.v, next)) {
       return false;
     }
-    cell.flags |= HAS_VALUE;
+    cell.flags = (cell.flags | HAS_VALUE) & ~ERRORED;
     cell.v = next;
+    return true;
+  } catch (error) {
+    if (error instanceof FirsthandCycleError) {
+      throw error;
+    }
+    cell.flags |= ERRORED;
+    cell.v = error;
     return true;
   } finally {
     endTracking(cell);
@@ -396,16 +424,61 @@ function flush(): void {
       if (++steps > MAX_FLUSH_STEPS) {
         throw new FirsthandCycleError();
       }
-      if ((cell.flags & DIRTY) !== 0 || checkDirty(cell)) {
-        runEffect(cell);
-      } else {
-        cell.flags &= ~PENDING;
+      // A stale owner is always still queued, so with nothing left behind this
+      // entry there is none, and the walk up the owner tree can be skipped.
+      if (queueIndex < queue.length) {
+        settleOwners((cell.scope as Owner).parent);
       }
+      settle(cell);
     }
   } finally {
-    queue.length = 0;
+    // Normally empty by now. After an abort — a cycle — what is left stays
+    // queued for the next flush: those effects are still marked stale, and a
+    // stale node is never queued a second time, so dropping them here would
+    // stop them for good.
+    queue.splice(0, queueIndex);
     queueIndex = 0;
     flushing = false;
+  }
+}
+
+/**
+ * Runs a queued effect if a dependency really changed, and clears its marks.
+ *
+ * Nothing here can throw on the effect's behalf: a computed keeps what its
+ * body threw (`ERRORED`) and rethrows it on read, which happens inside
+ * `runEffect`, inside the effect's boundary.
+ */
+function settle(cell: Cell): void {
+  const flags = cell.flags;
+  // Disposed, or already settled as somebody's owner earlier in this flush.
+  if ((flags & DISPOSED) !== 0 || (flags & STALE) === 0) {
+    return;
+  }
+  if ((flags & DIRTY) !== 0 || checkDirty(cell)) {
+    runEffect(cell);
+  } else {
+    cell.flags &= ~PENDING;
+  }
+}
+
+/**
+ * Settles the effects that own a scope, outermost first.
+ *
+ * The queue is in notification order, which follows edge age rather than the
+ * owner tree: an effect inside a conditional can be reached before the effect
+ * that is about to dispose it, and would then run against data that no longer
+ * exists. Settling its owners first gives them the chance to dispose it, which
+ * is what makes "a part never runs after its condition became false" hold.
+ * Recursing to the root before settling is what puts the outermost first; an
+ * inner owner that an outer one disposed is then skipped by `settle`.
+ */
+function settleOwners(owner: Owner | null): void {
+  if (owner !== null) {
+    settleOwners(owner.parent);
+    if (owner.effect !== null) {
+      settle(owner.effect);
+    }
   }
 }
 
@@ -456,6 +529,7 @@ export function createOwner(parent: Owner | null): Owner {
     // Inherited by reference: `provide` is what allocates a record.
     ctx: parent !== null ? parent.ctx : null,
     handler: null,
+    effect: null,
   };
   if (parent !== null) {
     const tail = parent.tail;
@@ -663,8 +737,24 @@ export function own(cell: Cell): void {
 
 export function createEffectScope(cell: Cell): Owner {
   const scope = createOwner(getOwner());
+  scope.effect = cell;
   cell.scope = scope;
   return scope;
+}
+
+/**
+ * Puts `owner` under the effect that is running now, for scheduling.
+ *
+ * For a scope that is made beside an effect rather than inside it, but whose
+ * contents that effect disposes: the rows of a `list` live under a host made
+ * when the list was, and it is the list's effect that drops them. Without
+ * this, a row could be reached before the list that is about to remove it.
+ */
+export function adoptEffect(owner: Owner): void {
+  const running = activeSub;
+  if (running !== undefined && (running.flags & WATCHING) !== 0) {
+    owner.effect = running;
+  }
 }
 
 export function runEffectNow(cell: Cell): void {

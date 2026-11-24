@@ -1,4 +1,5 @@
 import {
+  adoptEffect,
   batch,
   createOwner,
   disposeOwner,
@@ -79,6 +80,9 @@ export function list<T>(
   let views = false;
 
   return () => {
+    // The rows live beside this effect rather than inside it, but it is this
+    // effect that removes them, so the scheduler has to settle it first.
+    adoptEffect(host);
     if (views && placed !== undefined) {
       rewritePlaced(placed, rows);
     }

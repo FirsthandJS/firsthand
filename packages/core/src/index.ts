@@ -37,6 +37,7 @@ export { createEffect, bind, setRendering, isRendering } from './effect.js';
 export { devEnterSetup, devExitSetup } from './dev.js';
 export { Cell } from './cell.js';
 export {
+  adoptEffect,
   createOwner,
   disposeOwner,
   disposeCell,
