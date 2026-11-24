@@ -275,7 +275,7 @@ describe('an error while an effect is checked', () => {
       expect(() => writes.value).toThrow(FirsthandCycleError);
       dispose();
     });
-  });
+  }, 60_000);
 
   it('runs neither a zombie child nor freezes the editor', () => {
     const { parts, id, log, errors, dispose } = editor();

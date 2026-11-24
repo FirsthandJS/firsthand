@@ -1,6 +1,6 @@
 {
   "name": "@firsthandjs/deep",
-  "version": "0.12.2",
+  "version": "0.12.3",
   "description": "Deep reactivity for Firsthand: a proxy where every property, at any depth, is a signal.",
   "license": "MIT",
   "author": "IgorAnowsky",
@@ -24,7 +24,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@firsthandjs/core": "0.12.2"
+    "@firsthandjs/core": "0.12.3"
   },
   "engines": {
     "node": ">=20.11.0"
