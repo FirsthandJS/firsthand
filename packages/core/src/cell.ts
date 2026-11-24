@@ -12,7 +12,7 @@
 import { activeSub, link, refresh, write } from './core.js';
 import { devCheckSetupRead } from './dev.js';
 import { FirsthandReadonlyError } from './errors.js';
-import { MUTABLE, STALE } from './flags.js';
+import { ERRORED, MUTABLE, STALE } from './flags.js';
 import type { Link } from './link.js';
 import type { Owner } from './core.js';
 
@@ -58,8 +58,8 @@ export class Cell {
 
   get value(): unknown {
     const flags = this.flags;
-    if ((flags & MUTABLE) !== 0 && (flags & STALE) !== 0) {
-      refresh(this);
+    if ((flags & MUTABLE) !== 0 && (flags & (STALE | ERRORED)) !== 0) {
+      return readSettling(this);
     }
     if (activeSub !== undefined) {
       link(this, activeSub);
@@ -85,7 +85,10 @@ export class Cell {
   peek(): unknown {
     const flags = this.flags;
     if ((flags & MUTABLE) !== 0 && (flags & STALE) !== 0) {
-      refresh(this);
+      refresh(this, undefined);
+    }
+    if ((this.flags & ERRORED) !== 0) {
+      throw this.v;
     }
     return this.v;
   }
@@ -97,6 +100,29 @@ export class Cell {
     }
     write(this, updater(this.v as never));
   }
+}
+
+/**
+ * A tracked read of a computed that is stale or holds an error.
+ *
+ * Kept out of `Cell.value` so that the read of a clean computed — the hot one
+ * — still takes a single branch. The reader is linked *before* an error is
+ * rethrown: a reader that catches it must still hear when the computed
+ * recovers, which it cannot if the failed read was never recorded.
+ */
+function readSettling(cell: Cell): unknown {
+  if ((cell.flags & STALE) !== 0) {
+    refresh(cell, activeSub);
+  }
+  if (activeSub !== undefined) {
+    link(cell, activeSub);
+  } else {
+    devCheckSetupRead();
+  }
+  if ((cell.flags & ERRORED) !== 0) {
+    throw cell.v;
+  }
+  return cell.v;
 }
 
 export function defaultEquals<T>(

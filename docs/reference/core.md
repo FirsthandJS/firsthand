@@ -1,6 +1,6 @@
 # @firsthandjs/core
 
-[Reference index](../README.md#reference) · 2.81 kB gzip · no dependencies
+[Reference index](../README.md#reference) · 3.00 kB gzip · no dependencies
 
 The reactive graph, the owner tree and context. It imports nothing from the
 DOM and loads unchanged in a worker or on a server.
@@ -223,7 +223,9 @@ compiles. `packages/core/test/deep-readonly-view.test-d.ts` asserts it.
 ## Not the public contract
 
 `Cell`, `createOwner`, `disposeOwner`, `disposeCell`, `handleError`, `own`,
-`setOwner`, `createEffect` and `bind` are exported for `@firsthandjs/dom`;
+`setOwner`, `createEffect`, `bind` and `adoptEffect` are exported for
+`@firsthandjs/dom` (the last puts a keyed list's rows under the list's effect,
+so the scheduler settles the list first);
 `deferOwner`, `restoreOwner`, `setRendering` and `isRendering` for
 `@firsthandjs/server`, which renders with no live scope and needs to say so;
 and `DevtoolsHook`, `devEnterSetup` and `devExitSetup` for

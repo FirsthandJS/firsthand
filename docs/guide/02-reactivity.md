@@ -85,6 +85,12 @@ count.value = 9; // `positive` recomputes, stays true, and nothing downstream ru
 
 That is what keeps a change from spreading further than it means anything.
 
+A computed whose body throws **keeps the error**: every read rethrows it until a
+source changes, and whoever read it stays subscribed. An effect that reads it
+therefore throws in its own run, which is what sends the error to the nearest
+`catchError` above that effect — and the effect runs again, and recovers, once
+the computed does.
+
 ## Effects
 
 An effect runs now, and again whenever something it read changes.
@@ -120,6 +126,18 @@ effect(() => {
 Inside a component, an effect is owned by that component and disposed with it —
 you rarely need the returned disposer. See
 [Context and lifecycle](05-context-and-lifecycle.md).
+
+**An owner runs before what it owns.** When one write invalidates both an
+effect and an effect created inside it, the outer one runs first, so a part
+inside a condition that just became false is disposed instead of run:
+
+```ts
+effect(() => {
+  if (selected.value !== undefined) {
+    effect(() => console.log(selected.value!.name)); // never runs once deselected
+  }
+});
+```
 
 ## When does the DOM update?
 

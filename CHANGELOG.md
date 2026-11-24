@@ -6,8 +6,37 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+Three defects in the reactive core, reported together from an editor built on
+Firsthand, because together they froze its screen.
+
+- **A computed answered with its cached value** after a computed it reads had
+  been refreshed by a reader that was not subscribed to it yet: a `peek()`, an
+  untracked read, or the first read of a new subscriber. A refresh skipped
+  telling a lone subscriber on the assumption that it was the one asking; it
+  now skips only when it is. In a UI this showed the previous selection after a
+  condition switched off and on again.
+- **An effect could run before the effect that owns it**, which was about to
+  dispose it, and so run against data that no longer existed. The queue is in
+  notification order, which follows the age of an edge rather than the owner
+  tree. The scheduler now settles an effect's stale owners first, outermost
+  first. `list()` rows count too: their owner is made beside the list's effect
+  rather than inside it, and is now put under it for scheduling.
+- **A computed that threw while an effect was being checked escaped the
+  flush**: past `catchError`, out of the signal write, and with every effect
+  still queued left marked stale, which meant never scheduled again. A computed
+  now keeps what it threw and rethrows it on every read until a source changes,
+  so the error surfaces inside the effect that reads it and reaches that
+  effect's boundary; the reader stays subscribed, so it recovers with the
+  computed. A flush that aborts (a cycle) keeps what it did not reach queued
+  instead of dropping it.
+
 ### Changed
 
+- **The runtime budget is 7.75 kB gzip**, up from 7.50. The fixes above cost
+  0.18 kB (7.49 to 7.67); `docs/architecture/code-rules.md` §6 has the numbers
+  and what was cut before the line moved.
 - **Every package declares how to run its own tests**, and names its author.
   The manifests carried no `scripts` at all, because the suite is run from the
   repository root — so a registry reading a package on its own could only

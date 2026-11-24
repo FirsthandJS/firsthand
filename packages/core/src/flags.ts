@@ -17,6 +17,14 @@ export const PENDING = 1 << 3;
 export const DISPOSED = 1 << 4;
 /** A computed has produced a value at least once. */
 export const HAS_VALUE = 1 << 5;
+/**
+ * A computed's last evaluation threw, and `v` holds what it threw.
+ *
+ * The error is kept rather than let through, so that the computed stays a
+ * clean node of the graph: its readers stay subscribed to it, it is notified
+ * when a source changes, and every read until then rethrows the same error.
+ */
+export const ERRORED = 1 << 6;
 
 /** `DIRTY | PENDING`: the node is not known to be up to date. */
 export const STALE = DIRTY | PENDING;

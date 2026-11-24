@@ -437,7 +437,15 @@ if (optional.length > 0) {
 // the alternative was a shape the framework accepts everywhere else failing
 // in a list — which it did, silently, by writing the row's own source into
 // the page.
-const budget = 7.5 * 1024;
+//
+// Raised to 7.75 kB when the scheduler learned to run an owner before the
+// effects it owns, and a computed learned to keep what it threw. Measured at
+// 0.18 kB gzip (7.49 to 7.67), and the alternative was three defects that
+// together froze an application's screen for good: a part ran against data
+// its condition had just removed, its error escaped every boundary, and every
+// effect still queued was never scheduled again. Code-rules §6 has the
+// numbers, and what was cut before the line moved.
+const budget = 7.75 * 1024;
 const full = sizes[sizes.length - 1];
 if (full.gzip > budget) {
   console.error(`\nBundle budget exceeded: ${kb(full.gzip)} gzip against a ${kb(budget)} target.`);
