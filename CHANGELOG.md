@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.3] - 2026-11-24
+
 ### Fixed
 
 Three defects in the reactive core, reported together from an editor built on
@@ -1681,6 +1683,7 @@ strictReactivity: false })` restores the previous behaviour.
 - Whether `.value` access sites stay monomorphic in practice (R2, the one risk
   still open).
 
+[0.12.3]: https://github.com/firsthandjs/firsthand/releases/tag/v0.12.3
 [0.12.2]: https://github.com/firsthandjs/firsthand/releases/tag/v0.12.2
 [0.12.1]: https://github.com/firsthandjs/firsthand/releases/tag/v0.12.1
 [0.12.0]: https://github.com/firsthandjs/firsthand/releases/tag/v0.12.0
