@@ -52,7 +52,7 @@
     "check:no-diagnostics": "node scripts/check-no-diagnostics.mjs"
   },
   "overrides": {
-    "qs": "^6.16.0"
+    "qs": "^6.17.1"
   },
   "devDependencies": {
     "@babel/core": "^8.0.7",
